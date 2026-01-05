@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class MessageInput extends StatelessWidget {
   final TextEditingController messageController;
   final VoidCallback onSendMessage;
+  final bool isSendDisabled;
 
   const MessageInput({
     super.key,
     required this.messageController,
     required this.onSendMessage,
+    this.isSendDisabled = false,
   });
 
   @override
@@ -37,16 +39,24 @@ class MessageInput extends StatelessWidget {
                   vertical: 8,
                 ),
               ),
-              onSubmitted: (_) => onSendMessage(),
+              onSubmitted: (_) => isSendDisabled ? null : onSendMessage(),
             ),
           ),
           SizedBox(width: 8),
           IconButton(
-            onPressed: onSendMessage,
+            onPressed: isSendDisabled ? null : onSendMessage,
             icon: Icon(Icons.send),
             style: IconButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              backgroundColor: isSendDisabled
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.12)
+                  : Theme.of(context).colorScheme.primary,
+              foregroundColor: isSendDisabled
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.38)
+                  : Theme.of(context).colorScheme.onPrimary,
             ),
           ),
         ],

@@ -17,6 +17,7 @@ class ChatMessage {
   final String? text;
   final bool isUser;
   final DateTime timestamp;
+  final bool isLoading;
   final File? imageFile; // Local image file reference
   final RemoteImage? remoteImage; // Remote image object
 
@@ -24,6 +25,7 @@ class ChatMessage {
     this.text,
     required this.isUser,
     required this.timestamp,
+    this.isLoading = false,
     this.imageFile,
     this.remoteImage,
   });
@@ -40,6 +42,7 @@ class ChatMessage {
               'image_key': json['image_key'] ?? '',
             })
           : null,
+      isLoading: false,
     );
   }
 
@@ -50,6 +53,7 @@ class ChatMessage {
       'created_at': timestamp.millisecondsSinceEpoch,
       'image_url': remoteImage?.url,
       'image_key': remoteImage?.key,
+      'isLoading': isLoading,
     };
   }
 }

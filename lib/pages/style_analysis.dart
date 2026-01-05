@@ -1,31 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
+import 'package:stylens_app/core/managers/style_analysis_session/index.dart';
 import 'package:stylens_app/models/remote_image.dart';
 import 'package:stylens_app/widgets/error_display.dart';
-import '../widgets/message_bubble.dart';
-import '../widgets/message_input.dart';
-import '../models/chat_message.dart';
-import '../core/managers/style_analysis_session_manager.dart';
-
-// If users land on this page from uploading an outfit image, we pass the image file here.
-// If users land on this page from the history page, we would fetch the session data instead.
+import 'package:stylens_app/widgets/message_bubble.dart';
+import 'package:stylens_app/widgets/message_input.dart';
+import 'package:stylens_app/models/chat_message.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   final File? outfitImageFile;
   final RemoteImage? remoteImage;
-  final String? sessionId;
 
-  const StyleAnalysisPage({
-    super.key,
-    this.outfitImageFile,
-    this.remoteImage,
-    this.sessionId,
-  }) : assert(
-         (outfitImageFile != null && sessionId == null) ||
-             (outfitImageFile == null && sessionId != null),
-         'Either outfitImageFile or sessionId must be provided, but not both.',
-       );
+  const StyleAnalysisPage({super.key, this.outfitImageFile, this.remoteImage});
 
   @override
   State<StyleAnalysisPage> createState() => _StyleAnalysisPageState();
@@ -33,132 +20,109 @@ class StyleAnalysisPage extends StatefulWidget {
 
 class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   final TextEditingController _messageController = TextEditingController();
-  final List<ChatMessage> _messages = [];
-
-  // Add flag to track if session has been created remotely
-  bool _isSessionCreatedRemotely = false;
-  String? _localSessionId; // Store the session ID once created
+  final ScrollController _scrollController = ScrollController();
+  late StyleAnalysisSessionManager sessionManager;
 
   @override
   void initState() {
     super.initState();
 
-    if (widget.sessionId != null) {
-      // Load existing session data - already created remotely
-      _isSessionCreatedRemotely = true;
-      _localSessionId = widget.sessionId;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    sessionManager = context.read<StyleAnalysisSessionManager>();
+    final selectedSessionId = sessionManager.selectedSessionId;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load existing session if editing from history
+      if (selectedSessionId != null) {
         _loadSessionData();
-      });
-      return;
-    } else if (widget.outfitImageFile != null) {
-      // Start new session with uploaded image - NOT yet created remotely
-      _isSessionCreatedRemotely = false;
-      _addInitialOutfitMessage();
-      _addStyleAnalyzerBotMessage(
-        "Looking great! 🔥 What's the occasion for this outfit?",
-      );
-    }
+        return;
+      }
+      // Start new session if coming from image upload
+      else if (widget.outfitImageFile != null) {
+        sessionManager.initializeNewSession(
+          widget.outfitImageFile,
+          widget.remoteImage,
+        );
+      }
+    });
+  }
+
+  void _scrollToBottomIfNeeded() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+
+      const threshold = 100.0;
+      final currentScroll = _scrollController.position.pixels;
+
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final minScroll = _scrollController.position.minScrollExtent;
+
+      if (maxScroll - currentScroll <= threshold) {
+        _scrollController.animateTo(
+          maxScroll,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else if (maxScroll > minScroll) {
+        _scrollController.jumpTo(maxScroll);
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(
+              _scrollController.position.maxScrollExtent,
+            );
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadSessionData() async {
+    final draftText = sessionManager.selectedSessionDraftText;
+    _messageController.text = draftText ?? '';
     try {
-      final sessionManager = context.read<StyleAnalysisSessionManager>();
-      await sessionManager.fetchSessionMessages(widget.sessionId!);
+      await sessionManager.fetchSelectedSessionMessages();
+
+      // After loading, check streaming state
+      final shouldResumeStreaming =
+          sessionManager.isSelectedSessionStreaming &&
+          sessionManager.selectedSessionStreamingText?.isNotEmpty == true;
+
+      if (shouldResumeStreaming) {
+        print(
+          'Resuming streaming for session ${sessionManager.selectedSessionId} ${sessionManager.selectedSessionStreamingText}',
+        );
+      }
     } catch (e) {
       // Error is already set in the session manager
       print('Error loading session: $e');
     }
   }
 
-  void _addInitialOutfitMessage() {
-    print('Adding initial outfit message: ${widget.outfitImageFile}');
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          isUser: true,
-          imageFile: widget.outfitImageFile,
-          remoteImage: widget.remoteImage,
-          timestamp: DateTime.now(),
-        ),
-      );
-    });
-  }
-
-  // Should be autogenerated by LLM based on subsequent prompt
-  void _addStyleAnalyzerBotMessage(String text) {
-    setState(() {
-      _messages.add(
-        ChatMessage(isUser: false, text: text, timestamp: DateTime.now()),
-      );
-    });
-  }
-
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final userMessage = _messageController.text.trim();
+    final newUserMessage = ChatMessage(
+      isUser: true,
+      text: _messageController.text.trim(),
+      timestamp: DateTime.now(),
+    );
+    final sessionManager = context.read<StyleAnalysisSessionManager>();
+    final selectedSessionId = sessionManager.selectedSessionId;
 
     // If session hasn't been created remotely, create it now
-    if (!_isSessionCreatedRemotely && widget.outfitImageFile != null) {
-      final sessionManager = context.read<StyleAnalysisSessionManager>();
-
+    if (selectedSessionId == null && widget.outfitImageFile != null) {
       // Add user message to local state
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            isUser: true,
-            text: userMessage,
-            timestamp: DateTime.now(),
-          ),
-        );
-      });
-
+      sessionManager.addToSelectedSessionMessages(newUserMessage);
       _messageController.clear();
 
-      // Create session remotely with the outfit image
-      final sessionId = await sessionManager.createSession(messages: _messages);
-
-      if (sessionId != null) {
-        _isSessionCreatedRemotely = true;
-        _localSessionId = sessionId;
-
-        // TODO: Get AI response from backend
-        // Future.delayed(Duration(seconds: 1), () {
-        //   _addStyleAnalyzerBotMessage(
-        //     "Thanks for sharing! I can see this is perfect for $userMessage. Let me analyze your style...",
-        //   );
-        // });
-      } else {
-        // Handle error - show snackbar or error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to create session. Please try again.'),
-            ),
-          );
-        }
-      }
+      await sessionManager.createSession();
       return;
     }
 
-    setState(() {
-      _messages.add(
-        ChatMessage(isUser: true, text: userMessage, timestamp: DateTime.now()),
-      );
-    });
-
     _messageController.clear();
 
-    // TODO: Add AI response logic here
-    // Future.delayed(Duration(seconds: 1), () {
-    //   _addStyleAnalyzerBotMessage(
-    //     "Thanks for sharing! I can see this is perfect for $userMessage. Let me analyze your style...",
-    //   );
-    // });
+    sessionManager.addMessageToSelectedSession(newUserMessage);
   }
 
-  // This class will contain methods and properties related to style analysis.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,31 +146,39 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Consumer<StyleAnalysisSessionManager>(
-        builder: (context, sessionManager, child) {
-          if (sessionManager.isLoadingMessages) {
+      body: Selector<StyleAnalysisSessionManager, List<ChatMessage>>(
+        selector: (context, sessionManager) =>
+            sessionManager.selectedSessionMessages,
+        builder: (context, messages, child) {
+          final sessionManager = context.watch<StyleAnalysisSessionManager>();
+
+          if (sessionManager.isSelectedSessionLoading) {
             return Center(child: CircularProgressIndicator());
           }
 
           // Show error UI if there's an error
-          if (sessionManager.error != null && widget.sessionId != null) {
+          if (sessionManager.selectedSessionError != null &&
+              sessionManager.selectedSessionId != null) {
             return ErrorDisplay(
               title: 'Failed to load session',
-              message: sessionManager.error!,
-              onRetry: _loadSessionData,
+              message: sessionManager.selectedSessionError!,
+              onRetry: () => _loadSessionData(),
             );
           }
 
-          // Use session manager's messages if loading existing session,
-          // otherwise use local _messages for new sessions
-          final messages = widget.sessionId != null
-              ? sessionManager.selectedSessionMessages
-              : _messages;
+          if (messages.isNotEmpty) {
+            _scrollToBottomIfNeeded();
+          }
+
+          final isSendDisabled =
+              sessionManager.isSelectedSessionAwaitingResponse ||
+              sessionManager.isSelectedSessionStreaming;
 
           return Column(
             children: [
               Expanded(
                 child: ListView.builder(
+                  controller: _scrollController,
                   padding: EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
@@ -217,6 +189,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
               MessageInput(
                 messageController: _messageController,
                 onSendMessage: _sendMessage,
+                isSendDisabled: isSendDisabled,
               ),
             ],
           );
@@ -227,7 +200,12 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final draftText = _messageController.text.trim();
+      sessionManager.disposeSelectedSession(messageInputText: draftText);
+    });
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

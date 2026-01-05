@@ -53,7 +53,7 @@ class StyleAnalysisSession {
     String? id,
     String? userId,
     String? title,
-    String? imageUrl,
+    RemoteImage? remoteImage,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? status,

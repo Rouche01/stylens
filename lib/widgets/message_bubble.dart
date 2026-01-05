@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stylens_app/widgets/animated_typing_dots.dart';
 import 'package:stylens_app/widgets/image_with_fallback.dart';
 import '../models/chat_message.dart';
 
@@ -9,6 +10,26 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (message.isLoading) {
+      return Row(
+        mainAxisAlignment: message.isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: message.isUser
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SizedBox(width: 40, child: AnimatedTypingDots(size: 6)),
+          ),
+        ],
+      );
+    }
+
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -37,13 +58,22 @@ class MessageBubble extends StatelessWidget {
               ),
             ],
             if (message.text != null) ...[
-              if (message.imageFile != null) SizedBox(height: 8),
-              Text(
-                message.text!,
-                style: TextStyle(
-                  color: message.isUser
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+              if (message.imageFile != null || message.remoteImage != null)
+                SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth:
+                      (message.imageFile != null || message.remoteImage != null)
+                      ? 200
+                      : double.infinity,
+                ),
+                child: Text(
+                  message.text!,
+                  style: TextStyle(
+                    color: message.isUser
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],

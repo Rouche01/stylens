@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stylens_app/core/managers/style_analysis_session_manager.dart';
+import 'package:stylens_app/core/managers/style_analysis_session/index.dart';
 import 'package:stylens_app/pages/style_analysis.dart';
 import 'package:stylens_app/widgets/style_analysis_session_card.dart';
 
@@ -17,6 +17,22 @@ class _HistoryPageState extends State<HistoryPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StyleAnalysisSessionManager>().fetchSessions();
     });
+  }
+
+  Future<void> _openSession(String sessionId) async {
+    final sessionManager = context.read<StyleAnalysisSessionManager>();
+
+    sessionManager.setSelectedSessionId(sessionId);
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
+    );
+
+    // Refresh sessions when returning from style analysis page
+    if (mounted) {
+      sessionManager.fetchSessions();
+    }
   }
 
   @override
@@ -42,11 +58,11 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       body: Consumer<StyleAnalysisSessionManager>(
         builder: (context, sessionManager, child) {
-          if (sessionManager.isLoading) {
+          if (sessionManager.isSessionsLoading) {
             return Center(child: CircularProgressIndicator());
           }
 
-          if (sessionManager.error != null) {
+          if (sessionManager.sessionsError != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -54,14 +70,13 @@ class _HistoryPageState extends State<HistoryPage> {
                   Icon(Icons.error_outline, size: 48, color: Colors.grey),
                   SizedBox(height: 16),
                   Text(
-                    sessionManager.error!,
+                    sessionManager.sessionsError!,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      // sessionManager.clearError();
                       sessionManager.fetchSessions();
                     },
                     child: Text('Retry'),
@@ -99,21 +114,12 @@ class _HistoryPageState extends State<HistoryPage> {
               itemCount: sessionManager.sessions.length,
               itemBuilder: (context, index) {
                 final session = sessionManager.sessions[index];
+                final isSessionBusy = sessionManager.isSessionBusy(session.id);
+
                 return SessionCard(
                   session: session,
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            StyleAnalysisPage(sessionId: session.id),
-                      ),
-                    );
-                    // Refresh sessions when returning from style analysis page
-                    if (mounted) {
-                      sessionManager.fetchSessions();
-                    }
-                  },
+                  isBusy: isSessionBusy,
+                  onTap: () => _openSession(session.id),
                   onDelete: () => context
                       .read<StyleAnalysisSessionManager>()
                       .deleteSession(session.id),

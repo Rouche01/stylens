@@ -3,7 +3,7 @@ import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:flutter_env_config/enums/env_enum.dart';
 import 'package:provider/provider.dart';
 import 'package:stylens_app/core/managers/global_loader/index.dart';
-import 'package:stylens_app/core/managers/style_analysis_session_manager.dart';
+import 'core/managers/style_analysis_session/index.dart';
 import 'pages/closet.dart';
 import 'pages/capture.dart';
 import 'pages/history.dart';

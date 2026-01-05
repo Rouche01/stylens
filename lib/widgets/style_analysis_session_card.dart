@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:stylens_app/models/style_analysis_session.dart';
+import 'package:stylens_app/widgets/animated_typing_dots.dart';
 import 'package:stylens_app/widgets/image_with_fallback.dart';
 
 class SessionCard extends StatelessWidget {
   final StyleAnalysisSession session;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final bool isBusy;
 
   const SessionCard({
     super.key,
     required this.session,
     required this.onTap,
     required this.onDelete,
+    this.isBusy = false,
   });
 
   @override
@@ -26,21 +29,40 @@ class SessionCard extends StatelessWidget {
           child: Row(
             children: [
               // Outfit image
-              ImageWithFallback(
-                remoteImage: session.remoteImage,
-                width: 60,
-                height: 60,
-                fit: BoxFit.cover,
-                borderRadius: BorderRadius.circular(8),
-                fallbackWidget: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
+              Stack(
+                children: [
+                  ImageWithFallback(
+                    remoteImage: session.remoteImage,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
                     borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[200],
+                    fallbackWidget: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[200],
+                      ),
+                      child: Icon(Icons.image, color: Colors.grey),
+                    ),
                   ),
-                  child: Icon(Icons.image, color: Colors.grey),
-                ),
+                  if (isBusy)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: AnimatedTypingDots(
+                            size: 6,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               SizedBox(width: 16),
               // Session details

@@ -1,301 +1,806 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_env_config/flutter_env_config.dart';
+import 'package:stylens_app/core/services/style_analysis_api_service.dart';
+import 'package:stylens_app/models/action_state.dart';
 import 'package:stylens_app/models/chat_message.dart';
+import 'package:stylens_app/models/remote_image.dart';
+import 'package:stylens_app/models/selected_session.dart';
+import 'package:stylens_app/models/session_streaming_state.dart';
+import 'package:stylens_app/models/session_ui_state.dart';
 import 'package:stylens_app/models/style_analysis_session.dart';
+import 'package:stylens_app/utils/streaming_utils.dart';
 
 enum ContextMode { recent, all, last }
 
+enum ManagerStateSliceName {
+  sessions,
+  selectedSession,
+  createSession,
+  addMessageToSession,
+  deleteSession,
+}
+
+enum StateUpdateType { loading, success, error, initial }
+
+// Deprecated: Use slice managers instead
 class StyleAnalysisSessionManager extends ChangeNotifier {
-  // Store list of sessions
-  List<StyleAnalysisSession> _sessions = [];
-  bool _isLoading = false;
+  // --- Config ---
+  // Temporary user ID for testing purposes
+  static const String tempUserId = 'day2TestId5';
+  static const _initialStyleAnalysisPrompt =
+      'What do you think about my outfit?';
+
+  static const _initialBotReply =
+      "Looking great! 🔥 What's the occasion for this outfit?";
+
+  // --- API Service ---
+  final StyleAnalysisApiService _apiService = StyleAnalysisApiService(
+    userId: tempUserId,
+  );
+
+  // --- State Slices ---
+  final Map<ManagerStateSliceName, ActionState<dynamic>> _stateSlices = {
+    ManagerStateSliceName.sessions: ActionState<List<StyleAnalysisSession>>(),
+    ManagerStateSliceName.selectedSession:
+        ActionState<SelectedStyleAnalysisSession>(),
+    ManagerStateSliceName.createSession: ActionState<void>(),
+    ManagerStateSliceName.addMessageToSession: ActionState<void>(),
+    ManagerStateSliceName.deleteSession: ActionState<void>(),
+  };
+
+  // --- Session UI States ---
+  final Map<String, SessionUIState> _sessionUIStates = {};
+
+  // --- Streaming State ---
+  final Map<String, SessionStreamingState> _streamingStates = {};
+
+  // --- General State ---
   String? _error;
 
-  // Store messages for the selected session
-  String? _selectedSessionId;
-  List<ChatMessage> _selectedSessionMessages = [];
-  bool _isLoadingMessages = false;
+  // --- Session Getters ---
+  List<StyleAnalysisSession> get sessions =>
+      _getStateSlice<List<StyleAnalysisSession>>(
+        ManagerStateSliceName.sessions,
+      ).data ??
+      [];
 
-  // Temporary user ID - replace with actual auth later
-  static const String tempUserId = 'day2TestId5';
+  bool get isCreatingSession =>
+      _getStateSlice<void>(ManagerStateSliceName.createSession).isLoading;
 
-  List<StyleAnalysisSession> get sessions => List.unmodifiable(_sessions);
-  bool get isLoading => _isLoading;
+  bool get isSessionsLoading => _getStateSlice<List<StyleAnalysisSession>>(
+    ManagerStateSliceName.sessions,
+  ).isLoading;
+
+  String? get sessionsError => _getStateSlice<List<StyleAnalysisSession>>(
+    ManagerStateSliceName.sessions,
+  ).error;
+
+  // --- Selected Session Getters ---
+  SelectedStyleAnalysisSession? get selectedSession =>
+      _getStateSlice<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+      ).data;
+
+  String? get selectedSessionId => selectedSession?.sessionId;
+
+  List<ChatMessage> get selectedSessionMessages =>
+      selectedSession?.messages ?? [];
+
+  bool get isSelectedSessionLoading =>
+      _getStateSlice<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+      ).isLoading;
+
+  bool get isSelectedSessionStreaming {
+    final sessionId = selectedSession?.sessionId;
+    if (sessionId == null) return false;
+    return _getSessionStreamingState(sessionId).isStreaming;
+  }
+
+  String? get selectedSessionStreamingText {
+    final sessionId = selectedSession?.sessionId;
+    if (sessionId == null) return null;
+    return _getSessionStreamingState(sessionId).streamingText;
+  }
+
+  String? get selectedSessionError =>
+      _getStateSlice<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+      ).error;
+
+  String? get selectedSessionDraftText {
+    final sessionId = selectedSession?.sessionId;
+    if (sessionId == null) return null;
+    return _getSessionUIState(sessionId).draftText;
+  }
+
+  bool get isSelectedSessionAwaitingResponse {
+    final isInitiatingStreamForSelectedSession =
+        selectedSessionId != null &&
+        initiatingStreamingSessionIds.contains(selectedSessionId);
+
+    return isCreatingSession || isInitiatingStreamForSelectedSession;
+  }
+
+  // --- Streaming Getters ---
+  bool get hasActiveStreaming =>
+      _streamingStates.values.any((s) => s.isStreaming);
+
+  List<String> get streamingSessionIds => _streamingStates.entries
+      .where((e) => e.value.isStreaming)
+      .map((e) => e.key)
+      .toList();
+
+  List<String> get initiatingStreamingSessionIds => _streamingStates.entries
+      .where((e) => e.value.isInitiatingStreaming)
+      .map((e) => e.key)
+      .toList();
+
   String? get error => _error;
 
-  String? get selectedSessionId => _selectedSessionId;
-  List<ChatMessage> get selectedSessionMessages =>
-      List.unmodifiable(_selectedSessionMessages);
-  bool get isLoadingMessages => _isLoadingMessages;
+  // --- Sessions Operations ---
+  Future<String?> createSession({String? title}) async {
+    // Extract messages to send before appending loading message
+    final messages = selectedSession?.messages ?? [];
 
-  final EnvironmentConfig _config = EnvironmentManager.environmentData;
+    _updateState(
+      ManagerStateSliceName.createSession,
+      StateUpdateType.loading,
+      appendLoadingMessage: true,
+    );
 
-  Future<void> streamAssistantResponse(
-    String sessionId, {
-    ContextMode contextMode = ContextMode.recent,
-  }) async {
-    try {
-      print('Starting AI response stream for session: $sessionId');
+    // Convert ChatMessage list to MessageEntry format
+    final messageEntries = messages.map((msg) {
+      return {
+        'role': msg.isUser ? 'user' : 'system',
+        'prompt': msg.text,
+        'remoteImage': msg.remoteImage != null
+            ? {'url': msg.remoteImage!.url, 'key': msg.remoteImage!.key}
+            : null,
+      };
+    }).toList();
 
-      final request = http.Request(
-        'GET',
-        Uri.parse(
-          '${_config.api?.baseUrl}/style-analysis/sessions/$sessionId/stream?userId=$tempUserId&contextMode=${contextMode.name}',
+    final response = await _apiService.createSession(messages: messageEntries);
+
+    if (response.isSuccess && response.data != null) {
+      final sessionId = response.data!;
+
+      _updateState<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+        StateUpdateType.success,
+        data: SelectedStyleAnalysisSession(
+          sessionId: sessionId,
+          messages: messages,
         ),
       );
 
-      request.headers['Content-Type'] = 'application/json';
-      request.headers['Accept'] = 'text/event-stream';
-
-      print('Request URL: ${request.url}');
-      print('Request headers: ${request.headers}');
-
-      final streamedResponse = await request.send();
-
-      print('Response status code: ${streamedResponse.statusCode}');
-      print('Response headers: ${streamedResponse.headers}');
-
-      if (streamedResponse.statusCode == 200) {
-        String buffer = '';
-        int chunkCount = 0;
-
-        await for (var chunk in streamedResponse.stream.transform(
-          utf8.decoder,
-        )) {
-          chunkCount++;
-          print('Received chunk #$chunkCount: $chunk');
-          buffer += chunk;
-
-          // Process complete lines (SSE events end with \n\n)
-          while (buffer.contains('\n\n')) {
-            final endIndex = buffer.indexOf('\n\n');
-            final event = buffer.substring(0, endIndex);
-            buffer = buffer.substring(endIndex + 2);
-
-            print('Processing event: $event');
-
-            // Parse SSE event
-            if (event.startsWith('data: ')) {
-              final data = event.substring(6); // Remove 'data: ' prefix
-              print('Extracted data: $data');
-
-              if (data == '[DONE]') {
-                print('Stream completed');
-                break;
-              }
-
-              try {
-                final jsonData = json.decode(data);
-
-                // Handle the streamed chunk
-                // Example: {"content": "partial text...", "done": false}
-                print('Received chunk: $jsonData');
-
-                // TODO: Update UI with streaming text
-                // You might want to accumulate chunks and update a message in real-time
-              } catch (e) {
-                print('Error parsing chunk: $e');
-              }
-            }
-          }
-        }
-
-        print('Stream finished');
-      } else {
-        _error = 'Failed to get AI response: ${streamedResponse.statusCode}';
-        print(_error);
-        notifyListeners();
-      }
-    } catch (e) {
-      _error = 'Failed to stream AI response: $e';
-      print('Error streaming AI response: $e');
-      notifyListeners();
-    }
-  }
-
-  // Create a new session
-  Future<String?> createSession({
-    required List<ChatMessage> messages,
-    String? title,
-  }) async {
-    try {
-      print('Creating new style analysis session');
-
-      // Convert ChatMessage list to MessageEntry format
-      final messageEntries = messages.map((msg) {
-        return {
-          'role': msg.isUser ? 'user' : 'system',
-          'prompt': msg.text,
-          'remoteImage': msg.remoteImage != null
-              ? {'url': msg.remoteImage!.url, 'key': msg.remoteImage!.key}
-              : null,
-        };
-      }).toList();
-
-      print('Message entries: $messageEntries');
-
-      final requestBody = {'userId': tempUserId, 'messages': messageEntries};
-
-      final response = await http.post(
-        Uri.parse('${_config.api?.baseUrl}/style-analysis/sessions'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(requestBody),
+      _updateState<void>(
+        ManagerStateSliceName.createSession,
+        StateUpdateType.success,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = json.decode(response.body);
-        final sessionId = responseData['sessionId'] ?? responseData['id'];
-        print('Session created successfully: $sessionId');
+      streamAssistantResponse(sessionId, contextMode: ContextMode.all);
+      fetchSessions();
 
-        // Make request to streaming endpoint with sessionId to get AI response
-        streamAssistantResponse(sessionId, contextMode: ContextMode.all);
-
-        // Optionally refresh sessions list
-        await fetchSessions();
-
-        return sessionId;
-      } else {
-        _error =
-            'Failed to create session: ${response.statusCode} - ${response.body}';
-        print(_error);
-        notifyListeners();
-        return null;
-      }
-    } catch (e) {
-      _error = 'Failed to create session: $e';
-      print('Error creating session: $e');
-      notifyListeners();
+      return sessionId;
+    } else {
+      _updateState(
+        ManagerStateSliceName.createSession,
+        StateUpdateType.error,
+        error:
+            response.error ?? 'Unknown error occurred while creating session',
+        clearLoadingMessage: true,
+      );
       return null;
     }
   }
 
-  // Fetch sessions from API
   Future<void> fetchSessions() async {
-    _setLoading(true);
-    _error = null;
+    _updateState<List<StyleAnalysisSession>>(
+      ManagerStateSliceName.sessions,
+      StateUpdateType.loading,
+    );
 
-    print('Fetching style analysis sessions for userId: $tempUserId');
+    final response = await _apiService.fetchSessions();
 
-    try {
-      final response = await http.get(
-        Uri.parse(
-          '${_config.api?.baseUrl}/style-analysis/sessions?userId=$tempUserId',
-        ),
-        headers: {'Content-Type': 'application/json'},
+    if (response.isSuccess && response.data != null) {
+      final List<StyleAnalysisSession> sessions = response.data!;
+
+      // Sort by most recent first
+      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      _updateState<List<StyleAnalysisSession>>(
+        ManagerStateSliceName.sessions,
+        StateUpdateType.success,
+        data: sessions,
       );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> sessionsJson = json.decode(
-          response.body,
-        )['sessions'];
-        print('all sessions $sessionsJson');
-        _sessions = sessionsJson
-            .map((json) => StyleAnalysisSession.fromJson(json))
-            .toList();
-
-        // Sort by most recent first
-        _sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      } else {
-        _error = 'Failed to load sessions: ${response.statusCode}';
-      }
-    } catch (e) {
-      _error = 'Network error: $e';
-    } finally {
-      _setLoading(false);
+    } else {
+      _updateState(
+        ManagerStateSliceName.sessions,
+        StateUpdateType.error,
+        error:
+            response.error ?? 'Failed to load sessions: ${response.statusCode}',
+      );
     }
   }
 
-  // Fetch messages for a specific session
-  Future<bool> fetchSessionMessages(String sessionId) async {
-    _isLoadingMessages = true;
-    _error = null;
-    notifyListeners();
-
-    print('Fetching messages for session: $sessionId');
-
-    try {
-      final response = await http.get(
-        Uri.parse(
-          '${_config.api?.baseUrl}/style-analysis/sessions/$sessionId/messages?userId=$tempUserId',
-        ),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        print('Response data: $responseData');
-        final List<dynamic> messagesJson = responseData['messages'] ?? [];
-        print('Messages JSON: $messagesJson');
-
-        _selectedSessionId = sessionId;
-        _selectedSessionMessages = messagesJson
-            .map((json) => ChatMessage.fromJson(json))
-            .toList();
-
-        print('Loaded ${_selectedSessionMessages.length} messages');
-        _isLoadingMessages = false;
-        notifyListeners();
-        return true;
-      } else {
-        _error = 'Failed to load messages: ${response.statusCode}';
-        _isLoadingMessages = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _error = 'Failed to fetch messages: $e';
-      _isLoadingMessages = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Clear current session data
-  void clearCurrentSession() {
-    _selectedSessionId = null;
-    _selectedSessionMessages = [];
-    notifyListeners();
-  }
-
-  // Delete session
   Future<bool> deleteSession(String sessionId) async {
-    try {
-      print('Deleting session: $sessionId');
+    _updateState<void>(
+      ManagerStateSliceName.deleteSession,
+      StateUpdateType.loading,
+    );
+    final response = await _apiService.deleteSession(sessionId);
 
-      final response = await http.delete(
-        Uri.parse(
-          '${_config.api?.baseUrl}/style-analysis/sessions/$sessionId?userId=$tempUserId',
-        ),
-        headers: {'Content-Type': 'application/json'},
+    if (response.isSuccess) {
+      // Remove from local list
+      final updatedSessions = sessions.where((s) => s.id != sessionId).toList();
+
+      _updateState<List<StyleAnalysisSession>>(
+        ManagerStateSliceName.sessions,
+        StateUpdateType.success,
+        data: updatedSessions,
       );
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        // Remove from local list
-        _sessions.removeWhere((s) => s.id == sessionId);
-        notifyListeners();
-        print('Session deleted successfully');
-        return true;
-      } else {
-        _error = 'Failed to delete session: ${response.statusCode}';
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _error = 'Failed to delete session: $e';
-      notifyListeners();
+      return true;
+    } else {
+      _updateState<void>(
+        ManagerStateSliceName.deleteSession,
+        StateUpdateType.error,
+        error:
+            response.error ??
+            'Failed to delete session: ${response.statusCode}',
+      );
       return false;
     }
   }
 
-  void _setLoading(bool loading) {
-    _isLoading = loading;
+  // --- Selected Session Operations ---
+  void setSelectedSessionId(String sessionId) {
+    _updateState<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+      StateUpdateType.success,
+      data: SelectedStyleAnalysisSession(
+        sessionId: sessionId,
+        messages: [], // Messages will be loaded separately
+      ),
+    );
+
+    _syncStreamingStateToMessages(sessionId);
+  }
+
+  Future<bool> fetchSelectedSessionMessages() async {
+    final sessionId = selectedSessionId;
+    if (sessionId == null) {
+      _updateState(
+        ManagerStateSliceName.selectedSession,
+        StateUpdateType.error,
+        error: 'No session selected',
+      );
+      return false;
+    }
+
+    final isStreaming = _getSessionStreamingState(sessionId).isStreaming;
+
+    _updateState<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+      StateUpdateType.loading,
+      data: SelectedStyleAnalysisSession(sessionId: sessionId, messages: []),
+    );
+
+    final response = await _apiService.fetchSessionMessages(sessionId);
+
+    if (response.isSuccess && response.data != null) {
+      _updateState<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+        StateUpdateType.success,
+        data: SelectedStyleAnalysisSession.fromJson({
+          'session_id': sessionId,
+          'messages': response.data!,
+        }),
+        appendLoadingMessage: isSelectedSessionAwaitingResponse,
+        clearLoadingMessage: !isSelectedSessionAwaitingResponse,
+      );
+
+      // Sync any active streaming state to the messages
+      if (isStreaming) {
+        syncStreamingStateAfterFetch();
+      }
+
+      return true;
+    } else {
+      _updateState(
+        ManagerStateSliceName.selectedSession,
+        StateUpdateType.error,
+        error:
+            response.error ?? 'Failed to load messages: ${response.statusCode}',
+        data: SelectedStyleAnalysisSession(sessionId: sessionId, messages: []),
+      );
+      return false;
+    }
+  }
+
+  Future<void> addMessageToSelectedSession(
+    ChatMessage message, {
+    bool remoteUpdate = true,
+  }) async {
+    final sessionId = selectedSessionId;
+
+    if (sessionId == null) {
+      _updateState(
+        ManagerStateSliceName.addMessageToSession,
+        StateUpdateType.error,
+        error: 'No session selected',
+      );
+      return;
+    }
+
+    addToSelectedSessionMessages(message);
+
+    if (!remoteUpdate) return;
+
+    _updateState<void>(
+      ManagerStateSliceName.addMessageToSession,
+      StateUpdateType.loading,
+      appendLoadingMessage: true,
+    );
+
+    final messageData = {
+      'role': message.isUser ? 'user' : 'system',
+      'prompt': message.text,
+      'remoteImage': message.remoteImage != null
+          ? {'url': message.remoteImage!.url, 'key': message.remoteImage!.key}
+          : null,
+    };
+
+    final response = await _apiService.addMessageToSession(
+      sessionId: sessionId,
+      message: messageData,
+    );
+
+    if (response.isSuccess) {
+      _updateState<void>(
+        ManagerStateSliceName.addMessageToSession,
+        StateUpdateType.success,
+      );
+      streamSelectedSessionResponse();
+    } else {
+      _updateState(
+        ManagerStateSliceName.addMessageToSession,
+        StateUpdateType.error,
+        error:
+            response.error ?? 'Failed to add message: ${response.statusCode}',
+        clearLoadingMessage: true,
+      );
+    }
+  }
+
+  Future<void> streamSelectedSessionResponse({
+    ContextMode contextMode = ContextMode.recent,
+  }) async {
+    final sessionId = selectedSessionId;
+
+    if (sessionId == null) {
+      _setError('No session selected for streaming');
+      return;
+    }
+
+    await streamAssistantResponse(sessionId, contextMode: contextMode);
+  }
+
+  void disposeSelectedSession({String? messageInputText}) {
+    if (selectedSession?.sessionId != null) {
+      _setSessionUIState(
+        selectedSession!.sessionId!,
+        draftText: messageInputText ?? '',
+      );
+    }
+
+    _updateState<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+      StateUpdateType.initial,
+    );
+  }
+
+  // --- Streaming Operations ---
+  Future<void> streamAssistantResponse(
+    String sessionId, {
+    ContextMode contextMode = ContextMode.recent,
+    VoidCallback? onComplete,
+  }) async {
+    try {
+      _updateSessionStreamingStatus(
+        sessionId,
+        SessionStreamingStatus.initiating,
+      );
+
+      final streamedResponse = await _apiService.streamAssistantResponse(
+        sessionId: sessionId,
+        contextMode: contextMode.name,
+      );
+
+      if (streamedResponse.statusCode == 200) {
+        int chunkCount = 0;
+        String accumulatedText = '';
+        bool isFirstChunk = true;
+        final sessionStreamBuffer = SessionStreamBuffer();
+
+        await for (var rawChunk in streamedResponse.stream.transform(
+          utf8.decoder,
+        )) {
+          chunkCount++;
+          print('Received raw chunk #$chunkCount: $rawChunk');
+
+          final parsedChunks = sessionStreamBuffer.parseChunk(
+            rawChunk,
+            sessionId,
+          );
+
+          for (final parsedChunk in parsedChunks) {
+            accumulatedText += parsedChunk.chunkText;
+            print(
+              'Parsed chunk text: "${parsedChunk.chunkText}" for session: ${parsedChunk.sessionId}',
+            );
+
+            if (isFirstChunk) {
+              _updateSessionStreamingStatus(
+                parsedChunk.sessionId,
+                SessionStreamingStatus.streamStarted,
+                updatedChunk: accumulatedText,
+              );
+              isFirstChunk = false;
+            } else {
+              _updateSessionStreamingStatus(
+                parsedChunk.sessionId,
+                SessionStreamingStatus.streaming,
+                updatedChunk: accumulatedText,
+              );
+            }
+          }
+        }
+
+        //Clear the buffer
+        sessionStreamBuffer.clear();
+
+        _updateSessionStreamingStatus(
+          sessionId,
+          SessionStreamingStatus.completed,
+          finalChunk: accumulatedText,
+        );
+
+        onComplete?.call();
+      } else {
+        _updateSessionStreamingStatus(
+          sessionId,
+          SessionStreamingStatus.error,
+          error: 'Failed to get AI response: ${streamedResponse.statusCode}',
+        );
+      }
+    } catch (e) {
+      _updateSessionStreamingStatus(
+        sessionId,
+        SessionStreamingStatus.error,
+        error: 'Failed to stream AI response: $e',
+      );
+    }
+  }
+
+  void syncStreamingStateAfterFetch() {
+    final sessionId = selectedSessionId;
+    if (sessionId == null) return;
+
+    final streamingState = _getSessionStreamingState(sessionId);
+
+    if (!streamingState.isStreaming || streamingState.streamingText.isEmpty) {
+      return;
+    }
+
+    final messages = selectedSessionMessages;
+
+    // If there's no loading message and no bot message being updated, add one
+    if (messages.isEmpty) {
+      addToSelectedSessionMessages(
+        ChatMessage(
+          isUser: false,
+          text: streamingState.streamingText,
+          timestamp: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    final lastMessage = messages.last;
+
+    // If last message is a loading message, replace it with streaming text
+    if (lastMessage.isLoading) {
+      _removeLoadingMessage();
+      addToSelectedSessionMessages(
+        ChatMessage(
+          isUser: false,
+          text: streamingState.streamingText,
+          timestamp: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    // If last message is a bot message, update it with the streaming text
+    if (!lastMessage.isUser) {
+      _replaceLastBotMessageWithChunk(sessionId, streamingState.streamingText);
+      return;
+    }
+
+    // If last message is user message, add a new bot message with streaming text
+    addToSelectedSessionMessages(
+      ChatMessage(
+        isUser: false,
+        text: streamingState.streamingText,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
+
+  // --- Helpers ---
+  void addToSelectedSessionMessages(ChatMessage message) {
+    final selectedSessionState = _getStateSlice<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+    );
+    print(
+      'Adding message to selected session: ${selectedSessionState.data?.sessionId} with message: ${message.text}',
+    );
+    _updateState<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+      StateUpdateType.success,
+      data: SelectedStyleAnalysisSession(
+        sessionId: selectedSessionState.data?.sessionId,
+        messages: [...?selectedSessionState.data?.messages, message],
+      ),
+    );
+  }
+
+  void initializeNewSession(
+    File? outfitImageFile,
+    RemoteImage? outfitRemoteImage,
+  ) {
+    addToSelectedSessionMessages(
+      ChatMessage(
+        isUser: true,
+        timestamp: DateTime.now(),
+        imageFile: outfitImageFile,
+        remoteImage: outfitRemoteImage,
+        text: _initialStyleAnalysisPrompt,
+      ),
+    );
+
+    addToSelectedSessionMessages(
+      ChatMessage(
+        isUser: false,
+        timestamp: DateTime.now(),
+        text: _initialBotReply,
+      ),
+    );
+  }
+
+  void _setSessionUIState(String sessionId, {String draftText = ''}) {
+    final prevSessionUIState = _sessionUIStates[sessionId] ?? SessionUIState();
+    _sessionUIStates[sessionId] = prevSessionUIState.copyWith(
+      draftText: draftText,
+    );
     notifyListeners();
   }
 
-  void clearError() {
-    _error = null;
+  SessionUIState _getSessionUIState(String sessionId) {
+    final sessionUIState = _sessionUIStates[sessionId];
+    return sessionUIState ?? SessionUIState();
+  }
+
+  void _clearError() => _setError(null);
+
+  void _setError(String? error) {
+    if (_error != error) {
+      _error = error;
+      notifyListeners();
+    }
+  }
+
+  void _addLoadingMessage() {
+    final messages =
+        _getStateSlice<SelectedStyleAnalysisSession>(
+          ManagerStateSliceName.selectedSession,
+        ).data?.messages ??
+        [];
+
+    // Avoid adding multiple loading bubbles
+    if (messages.isNotEmpty && messages.last.isLoading) return;
+
+    final loadingMessage = ChatMessage(
+      isUser: false,
+      isLoading: true,
+      timestamp: DateTime.now(),
+    );
+    addToSelectedSessionMessages(loadingMessage);
+  }
+
+  void _removeLoadingMessage() {
+    final messages =
+        _getStateSlice<SelectedStyleAnalysisSession>(
+          ManagerStateSliceName.selectedSession,
+        ).data?.messages ??
+        [];
+    if (messages.isNotEmpty && messages.last.isLoading) {
+      _updateState<SelectedStyleAnalysisSession>(
+        ManagerStateSliceName.selectedSession,
+        StateUpdateType.success,
+        data: SelectedStyleAnalysisSession(
+          sessionId: _getStateSlice<SelectedStyleAnalysisSession>(
+            ManagerStateSliceName.selectedSession,
+          ).data?.sessionId,
+          messages: messages.sublist(0, messages.length - 1),
+        ),
+      );
+    }
+  }
+
+  void _replaceLastBotMessageWithChunk(String? sessionId, String updatedChunk) {
+    final selectedSession = _getStateSlice<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+    ).data;
+
+    // Only update messages if this is the currently selected session
+    if (selectedSession?.sessionId != sessionId) {
+      print('Session $sessionId is not selected, skipping message update');
+      return;
+    }
+
+    final messages = selectedSession?.messages ?? [];
+
+    // If no messages, add a new bot message
+    if (messages.isEmpty) {
+      addToSelectedSessionMessages(
+        ChatMessage(
+          isUser: false,
+          text: updatedChunk,
+          timestamp: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    print('Replacing last bot message with chunk: $updatedChunk $sessionId');
+
+    // If last message is user message, add a new bot message
+    if (messages.last.isUser) {
+      addToSelectedSessionMessages(
+        ChatMessage(
+          isUser: false,
+          text: updatedChunk,
+          timestamp: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    // Replace the last bot message
+    final lastBotMessage = messages.last;
+    final updatedBotMessage = ChatMessage(
+      isUser: false,
+      text: updatedChunk,
+      timestamp: lastBotMessage.timestamp,
+    );
+
+    _updateState<SelectedStyleAnalysisSession>(
+      ManagerStateSliceName.selectedSession,
+      StateUpdateType.success,
+      data: SelectedStyleAnalysisSession(
+        sessionId: selectedSession?.sessionId,
+        messages: [
+          ...messages.sublist(0, messages.length - 1),
+          updatedBotMessage,
+        ],
+      ),
+    );
+  }
+
+  void _updateSessionStreamingStatus(
+    String sessionId,
+    SessionStreamingStatus status, {
+    String? error,
+    String? updatedChunk,
+    String? finalChunk,
+  }) {
+    switch (status) {
+      case SessionStreamingStatus.idle:
+        _streamingStates[sessionId] = SessionStreamingState.initial();
+      case SessionStreamingStatus.initiating:
+        _streamingStates[sessionId] = SessionStreamingState.initiateStream();
+        _addLoadingMessage();
+      case SessionStreamingStatus.streaming:
+        _streamingStates[sessionId] = SessionStreamingState.isStreaming(
+          updatedChunk: updatedChunk,
+        );
+        _replaceLastBotMessageWithChunk(sessionId, updatedChunk ?? '');
+      case SessionStreamingStatus.streamStarted:
+        _streamingStates[sessionId] = SessionStreamingState.isStreaming(
+          updatedChunk: updatedChunk,
+        );
+        _removeLoadingMessage();
+        addToSelectedSessionMessages(
+          ChatMessage(
+            isUser: false,
+            text: updatedChunk ?? '',
+            timestamp: DateTime.now(),
+          ),
+        );
+      case SessionStreamingStatus.completed:
+        _streamingStates[sessionId] = SessionStreamingState.completeStream(
+          finalChunk: finalChunk,
+        );
+        // Update the last message with the final chunk instead of refetching
+        if (finalChunk != null) {
+          _replaceLastBotMessageWithChunk(sessionId, finalChunk);
+        }
+        _removeLoadingMessage();
+      case SessionStreamingStatus.error:
+        _streamingStates[sessionId] = SessionStreamingState.error(
+          error ?? 'Unknown streaming error',
+        );
+        _removeLoadingMessage();
+    }
     notifyListeners();
+  }
+
+  SessionStreamingState _getSessionStreamingState(String sessionId) {
+    return _streamingStates[sessionId] ?? SessionStreamingState.initial();
+  }
+
+  void _syncStreamingStateToMessages(String sessionId) {
+    final streamingState = _getSessionStreamingState(sessionId);
+
+    if (streamingState.isStreaming && streamingState.streamingText.isNotEmpty) {
+      print(
+        'Syncing streaming state for session $sessionId: ${streamingState.streamingText}',
+      );
+
+      // We need to wait for messages to be fetched first, then sync
+      // This will be called again after fetchSelectedSessionMessages completes
+    }
+  }
+
+  void _updateState<T>(
+    ManagerStateSliceName sliceName,
+    StateUpdateType updateType, {
+    T? data,
+    String? error,
+    bool appendLoadingMessage = false,
+    bool clearLoadingMessage = false,
+  }) {
+    switch (updateType) {
+      case StateUpdateType.initial:
+        _stateSlices[sliceName] = ActionState<T>.initial();
+      case StateUpdateType.loading:
+        _stateSlices[sliceName] = ActionState<T>.loading();
+      case StateUpdateType.success:
+        _stateSlices[sliceName] = ActionState<T>.success(data);
+      case StateUpdateType.error:
+        _stateSlices[sliceName] = ActionState<T>.error(error);
+    }
+
+    if (updateType != StateUpdateType.success && data != null) {
+      final prev = _stateSlices[sliceName] as ActionState<T>;
+      _stateSlices[sliceName] = prev.copyWith(data: data, error: error);
+    }
+
+    if (appendLoadingMessage) {
+      _addLoadingMessage();
+    }
+
+    if (clearLoadingMessage) {
+      _removeLoadingMessage();
+    }
+
+    notifyListeners();
+  }
+
+  ActionState<T> _getStateSlice<T>(ManagerStateSliceName sliceName) {
+    return _stateSlices[sliceName] as ActionState<T>;
   }
 }
