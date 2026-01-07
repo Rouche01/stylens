@@ -151,8 +151,6 @@ class SelectedSessionSlice {
         )
         .toList();
 
-    print('Creating session with messages: $messageEntries');
-
     final response = await _sliceStateManager.execute(
       action: () => _apiService.createSession(messages: messageEntries),
       onSuccess: (response) {
