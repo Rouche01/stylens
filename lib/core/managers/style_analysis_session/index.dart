@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:stylens_app/core/services/style_analysis_api_service.dart';
 import 'package:stylens_app/models/action_state.dart';
-import 'package:stylens_app/models/chat_message.dart';
+import 'package:stylens_app/models/style_analysis_session_message.dart';
 import 'package:stylens_app/models/remote_image.dart';
 import 'package:stylens_app/models/selected_session.dart';
 import 'package:stylens_app/models/session_streaming_state.dart';
@@ -26,6 +26,9 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   // --- API Service ---
   late final StyleAnalysisApiService _apiService;
+
+  // --- Error Callbacks ---
+  void Function(String message)? onStreamError;
 
   // --- State Slices (unified storage) ---
   final Map<ManagerStateSliceName, ActionState<dynamic>> _stateSlices = {
@@ -75,21 +78,28 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // ============================================================
   List<StyleAnalysisSession> get sessions => _sessionsSlice.sessions;
   bool get isSessionsLoading => _sessionsSlice.isLoading;
+  bool get isLoadingMoreSessions => _sessionsSlice.isLoadingMore;
+  bool get hasMoreSessions => _sessionsSlice.hasMore;
   String? get sessionsError => _sessionsSlice.error;
 
   // ============================================================
   // SELECTED SESSION - Getters
   // ============================================================
   String? get selectedSessionId => _selectedSessionSlice.sessionId;
-  List<ChatMessage> get selectedSessionMessages =>
+  List<StyleAnalysisSessionMessage> get selectedSessionMessages =>
       _selectedSessionSlice.messages;
   bool get isSelectedSessionLoading => _selectedSessionSlice.isLoading;
+  bool get isLoadingMoreMessages => _selectedSessionSlice.isLoadingMoreMessages;
+  bool get hasMoreMessages => _selectedSessionSlice.hasMoreMessages;
   String? get selectedSessionError => _selectedSessionSlice.error;
   String? get selectedSessionDraftText => _selectedSessionSlice.draftText;
 
   bool get isCreatingSession =>
       (_stateSlices[ManagerStateSliceName.createSession] as ActionState<void>)
           .isLoading;
+  String? get createSessionError =>
+      (_stateSlices[ManagerStateSliceName.createSession] as ActionState<void>)
+          .error;
 
   // ============================================================
   // STREAMING - Getters
@@ -123,7 +133,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // ============================================================
   // SESSIONS OPERATIONS
   // ============================================================
-  Future<void> fetchSessions() => _sessionsSlice.fetch();
+  Future<void> fetchSessions({bool refresh = false}) =>
+      _sessionsSlice.fetch(refresh: refresh);
+
+  Future<void> loadMoreSessions() => _sessionsSlice.loadMore();
 
   Future<bool> deleteSession(String sessionId) =>
       _sessionsSlice.delete(sessionId);
@@ -160,6 +173,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     return success;
   }
 
+  Future<bool> loadMoreMessages() async {
+    return await _selectedSessionSlice.loadMoreMessages();
+  }
+
   void initializeNewSession(File? imageFile, RemoteImage? remoteImage) {
     _selectedSessionSlice.initializeNew(imageFile, remoteImage);
   }
@@ -170,7 +187,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     _selectedSessionSlice.addLoadingMessage();
     notifyListeners();
 
-    final sessionId = await _selectedSessionSlice.create();
+    final sessionId = await _selectedSessionSlice.create((message) {
+      _stateSlices[ManagerStateSliceName.createSession] =
+          ActionState<void>.error(message);
+    });
 
     if (sessionId != null) {
       _stateSlices[ManagerStateSliceName.createSession] =
@@ -180,8 +200,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       _sessionsSlice.fetch();
       await _startStreaming(sessionId, contextMode: ContextMode.all);
     } else {
-      _stateSlices[ManagerStateSliceName.createSession] =
-          ActionState<void>.error('Failed to create session');
+      print('Failed to create session in manager $createSessionError');
       _selectedSessionSlice.removeLoadingMessage();
       notifyListeners();
     }
@@ -189,15 +208,31 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     return sessionId;
   }
 
-  Future<void> addMessageToSelectedSession(ChatMessage message) async {
-    _selectedSessionSlice.addMessage(message);
+  Future<void> addMessageToSelectedSession(
+    UserRole userRole, {
+    String? text,
+    File? imageFile,
+    RemoteImage? remoteImage,
+    isLoading = false,
+  }) async {
+    _selectedSessionSlice.addMessage(
+      userRole,
+      text: text,
+      imageFile: imageFile,
+      remoteImage: remoteImage,
+      isLoading: isLoading,
+    );
 
     _stateSlices[ManagerStateSliceName.addMessageToSession] =
         ActionState<void>.loading();
     _selectedSessionSlice.addLoadingMessage();
     notifyListeners();
 
-    final success = await _selectedSessionSlice.addMessageRemote(message);
+    final success = await _selectedSessionSlice.addMessageRemote(
+      userRole,
+      text: text,
+      remoteImage: remoteImage,
+    );
 
     if (success) {
       _stateSlices[ManagerStateSliceName.addMessageToSession] =
@@ -216,8 +251,20 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     }
   }
 
-  void addToSelectedSessionMessages(ChatMessage message) {
-    _selectedSessionSlice.addMessage(message);
+  void addToSelectedSessionMessages(
+    UserRole userRole, {
+    String? text,
+    File? imageFile,
+    RemoteImage? remoteImage,
+    isLoading = false,
+  }) {
+    _selectedSessionSlice.addMessage(
+      userRole,
+      text: text,
+      imageFile: imageFile,
+      remoteImage: remoteImage,
+      isLoading: isLoading,
+    );
   }
 
   void disposeSelectedSession({String? messageInputText}) {
@@ -241,9 +288,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       onStreamStarted: (id, text) {
         if (_selectedSessionSlice.sessionId == id) {
           _selectedSessionSlice.removeLoadingMessage();
-          _selectedSessionSlice.addMessage(
-            ChatMessage(isUser: false, text: text, timestamp: DateTime.now()),
-          );
+          _selectedSessionSlice.addMessage(UserRole.assistant, text: text);
         }
       },
       onChunk: (id, text) {
@@ -260,6 +305,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       onError: (id, error) {
         if (_selectedSessionSlice.sessionId == id) {
           _selectedSessionSlice.removeLoadingMessage();
+          onStreamError?.call(error);
         }
       },
     );
@@ -276,30 +322,21 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
     if (messages.isEmpty) {
       _selectedSessionSlice.addMessage(
-        ChatMessage(
-          isUser: false,
-          text: state.streamingText,
-          timestamp: DateTime.now(),
-        ),
+        UserRole.assistant,
+        text: state.streamingText,
       );
     } else if (messages.last.isLoading) {
       _selectedSessionSlice.removeLoadingMessage();
       _selectedSessionSlice.addMessage(
-        ChatMessage(
-          isUser: false,
-          text: state.streamingText,
-          timestamp: DateTime.now(),
-        ),
+        UserRole.assistant,
+        text: state.streamingText,
       );
-    } else if (!messages.last.isUser) {
+    } else if (!messages.last.isUserMessage) {
       _selectedSessionSlice.replaceLastBotMessage(state.streamingText);
     } else {
       _selectedSessionSlice.addMessage(
-        ChatMessage(
-          isUser: false,
-          text: state.streamingText,
-          timestamp: DateTime.now(),
-        ),
+        UserRole.assistant,
+        text: state.streamingText,
       );
     }
   }

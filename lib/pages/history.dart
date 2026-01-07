@@ -13,10 +13,26 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void initState() {
     super.initState();
-    // Load sessions when page initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StyleAnalysisSessionManager>().fetchSessions();
     });
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollEndNotification ||
+        notification is ScrollUpdateNotification) {
+      final metrics = notification.metrics;
+      final isNearBottom = metrics.pixels >= metrics.maxScrollExtent - 200;
+
+      if (isNearBottom) {
+        final sessionManager = context.read<StyleAnalysisSessionManager>();
+        if (!sessionManager.isLoadingMoreSessions &&
+            sessionManager.hasMoreSessions) {
+          sessionManager.loadMoreSessions();
+        }
+      }
+    }
+    return false;
   }
 
   Future<void> _openSession(String sessionId) async {
@@ -29,9 +45,8 @@ class _HistoryPageState extends State<HistoryPage> {
       MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
     );
 
-    // Refresh sessions when returning from style analysis page
     if (mounted) {
-      sessionManager.fetchSessions();
+      sessionManager.fetchSessions(refresh: true);
     }
   }
 
@@ -51,18 +66,22 @@ class _HistoryPageState extends State<HistoryPage> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
-              context.read<StyleAnalysisSessionManager>().fetchSessions();
+              context.read<StyleAnalysisSessionManager>().fetchSessions(
+                refresh: true,
+              );
             },
           ),
         ],
       ),
       body: Consumer<StyleAnalysisSessionManager>(
         builder: (context, sessionManager, child) {
-          if (sessionManager.isSessionsLoading) {
+          if (sessionManager.isSessionsLoading &&
+              sessionManager.sessions.isEmpty) {
             return Center(child: CircularProgressIndicator());
           }
 
-          if (sessionManager.sessionsError != null) {
+          if (sessionManager.sessionsError != null &&
+              sessionManager.sessions.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -77,7 +96,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      sessionManager.fetchSessions();
+                      sessionManager.fetchSessions(refresh: true);
                     },
                     child: Text('Retry'),
                   ),
@@ -107,24 +126,46 @@ class _HistoryPageState extends State<HistoryPage> {
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () => sessionManager.fetchSessions(),
-            child: ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: sessionManager.sessions.length,
-              itemBuilder: (context, index) {
-                final session = sessionManager.sessions[index];
-                final isSessionBusy = sessionManager.isSessionBusy(session.id);
+          final itemCount =
+              sessionManager.sessions.length +
+              (sessionManager.isLoadingMoreSessions ? 1 : 0);
 
-                return SessionCard(
-                  session: session,
-                  isBusy: isSessionBusy,
-                  onTap: () => _openSession(session.id),
-                  onDelete: () => context
-                      .read<StyleAnalysisSessionManager>()
-                      .deleteSession(session.id),
-                );
-              },
+          return NotificationListener<ScrollNotification>(
+            onNotification: _handleScrollNotification,
+            child: RefreshIndicator(
+              onRefresh: () => sessionManager.fetchSessions(refresh: true),
+              child: ListView.builder(
+                padding: EdgeInsets.all(16),
+                itemCount: itemCount,
+                itemBuilder: (context, index) {
+                  if (index == sessionManager.sessions.length) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final session = sessionManager.sessions[index];
+                  final isSessionBusy = sessionManager.isSessionBusy(
+                    session.id,
+                  );
+
+                  return SessionCard(
+                    session: session,
+                    isBusy: isSessionBusy,
+                    onTap: () => _openSession(session.id),
+                    onDelete: () => context
+                        .read<StyleAnalysisSessionManager>()
+                        .deleteSession(session.id),
+                  );
+                },
+              ),
             ),
           );
         },

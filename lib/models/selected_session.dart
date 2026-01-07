@@ -1,8 +1,8 @@
-import 'package:stylens_app/models/chat_message.dart';
+import 'package:stylens_app/models/style_analysis_session_message.dart';
 
 class SelectedStyleAnalysisSession {
   final String? sessionId;
-  final List<ChatMessage> messages;
+  final List<StyleAnalysisSessionMessage> messages;
 
   SelectedStyleAnalysisSession({this.sessionId, this.messages = const []});
 
@@ -11,7 +11,11 @@ class SelectedStyleAnalysisSession {
       sessionId: json['session_id'] as String?,
       messages:
           (json['messages'] as List<dynamic>?)
-              ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+              ?.map(
+                (e) => StyleAnalysisSessionMessage.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
     );

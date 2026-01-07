@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_env_config/flutter_env_config.dart';
+import 'package:stylens_app/models/api_responses/session_messages_response.dart';
+import 'package:stylens_app/models/api_responses/style_analysis_sessions_response.dart';
+import 'package:stylens_app/models/api_responses/paginated_response.dart';
 import 'package:stylens_app/models/style_analysis_session.dart';
+import 'package:stylens_app/models/style_analysis_session_message.dart';
 
 class ApiResponse<T> {
   final T? data;
@@ -24,22 +28,32 @@ class StyleAnalysisApiService {
   Map<String, String> get _headers => {'Content-Type': 'application/json'};
 
   // --- Sessions ---
-  Future<ApiResponse<List<StyleAnalysisSession>>> fetchSessions() async {
+  Future<ApiResponse<PaginatedResponse<StyleAnalysisSession>>> fetchSessions({
+    int page = 1,
+    int pageSize = 10,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/style-analysis/sessions?userId=$userId'),
+        Uri.parse(
+          '$_baseUrl/style-analysis/sessions?userId=$userId&page=$page&pageSize=$pageSize',
+        ),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> sessionsJson = json.decode(
-          response.body,
-        )['sessions'];
-        final sessions = sessionsJson
-            .map((json) => StyleAnalysisSession.fromJson(json))
-            .toList();
+        final responseData = json.decode(response.body);
+        final sessionsResponse = StyleAnalysisSessionsResponse.fromJson(
+          responseData,
+        );
+        final sessions = sessionsResponse.sessions;
 
-        return ApiResponse(data: sessions, statusCode: response.statusCode);
+        return ApiResponse(
+          data: PaginatedResponse(
+            items: sessions,
+            pagination: sessionsResponse.pagination,
+          ),
+          statusCode: response.statusCode,
+        );
       }
 
       return ApiResponse(
@@ -102,21 +116,33 @@ class StyleAnalysisApiService {
   }
 
   // --- Messages ---
-  Future<ApiResponse<List<dynamic>>> fetchSessionMessages(
-    String sessionId,
-  ) async {
+  Future<ApiResponse<PaginatedResponse<StyleAnalysisSessionMessage>>>
+  fetchSessionMessages(
+    String sessionId, {
+    int page = 1,
+    int pageSize = 10,
+  }) async {
     try {
       final response = await http.get(
         Uri.parse(
-          '$_baseUrl/style-analysis/sessions/$sessionId/messages?userId=$userId',
+          '$_baseUrl/style-analysis/sessions/$sessionId/messages?userId=$userId&page=$page&pageSize=$pageSize',
         ),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        final List<dynamic> messagesJson = responseData['messages'] ?? [];
-        return ApiResponse(data: messagesJson, statusCode: response.statusCode);
+        final sessionMessagesResponse = SessionMessagesResponse.fromJson(
+          responseData,
+        );
+
+        return ApiResponse(
+          data: PaginatedResponse(
+            items: sessionMessagesResponse.messages,
+            pagination: sessionMessagesResponse.pagination,
+          ),
+          statusCode: response.statusCode,
+        );
       }
 
       return ApiResponse(

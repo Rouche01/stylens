@@ -1,5 +1,6 @@
 import 'package:stylens_app/core/services/style_analysis_api_service.dart';
 import 'package:stylens_app/models/action_state.dart';
+import 'package:stylens_app/models/api_responses/pagination_info.dart';
 import 'package:stylens_app/models/style_analysis_session.dart';
 
 /// Manages operations for the sessions list
@@ -9,6 +10,10 @@ class SessionsSlice {
   final ActionState<List<StyleAnalysisSession>> Function() _getState;
   final void Function(ActionState<List<StyleAnalysisSession>>) _setState;
   final void Function() _notifyListeners;
+
+  // --- Pagination State ---
+  PaginationInfo? _paginationInfo;
+  bool _isLoadingMore = false;
 
   SessionsSlice({
     required StyleAnalysisApiService apiService,
@@ -23,22 +28,54 @@ class SessionsSlice {
   // --- Getters ---
   List<StyleAnalysisSession> get sessions => _getState().data ?? [];
   bool get isLoading => _getState().isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _paginationInfo?.hasNextPage ?? false;
+  int get currentPage => _paginationInfo?.page ?? 1;
   String? get error => _getState().error;
 
   // --- Operations ---
-  Future<void> fetch() async {
+  Future<void> fetch({bool refresh = false}) async {
+    if (refresh) {
+      _paginationInfo = null;
+    }
+
     _setState(ActionState.loading());
     _notifyListeners();
 
     final response = await _apiService.fetchSessions();
 
     if (response.isSuccess && response.data != null) {
-      final sessions = response.data!;
-      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final paginatedResponse = response.data!;
+      final sessions = paginatedResponse.items;
+
+      _paginationInfo = paginatedResponse.pagination;
+
       _setState(ActionState.success(sessions));
     } else {
       _setState(ActionState.error(response.error ?? 'Failed to load sessions'));
     }
+    _notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (!hasMore || _isLoadingMore || isLoading) return;
+
+    _isLoadingMore = true;
+    _notifyListeners();
+
+    final response = await _apiService.fetchSessions(page: currentPage + 1);
+
+    if (response.isSuccess && response.data != null) {
+      final paginatedResponse = response.data!;
+      final newSessions = paginatedResponse.items;
+
+      _paginationInfo = paginatedResponse.pagination;
+
+      final updatedSessions = [...sessions, ...newSessions];
+      _setState(ActionState.success(updatedSessions));
+    }
+
+    _isLoadingMore = false;
     _notifyListeners();
   }
 

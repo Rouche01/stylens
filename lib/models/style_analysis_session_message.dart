@@ -13,27 +13,37 @@ import 'package:stylens_app/models/remote_image.dart';
 //   },
 // ]
 
-class ChatMessage {
+enum UserRole { user, assistant, system }
+
+class StyleAnalysisSessionMessage {
   final String? text;
-  final bool isUser;
+  final UserRole role;
   final DateTime timestamp;
   final bool isLoading;
   final File? imageFile; // Local image file reference
   final RemoteImage? remoteImage; // Remote image object
 
-  ChatMessage({
+  bool get isUserMessage => role == UserRole.user;
+  bool get isAssistantMessage => role == UserRole.assistant;
+  bool get isSystemMessage => role == UserRole.system;
+
+  StyleAnalysisSessionMessage({
     this.text,
-    required this.isUser,
     required this.timestamp,
     this.isLoading = false,
     this.imageFile,
     this.remoteImage,
+    this.role = UserRole.user,
   });
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    return ChatMessage(
+  factory StyleAnalysisSessionMessage.fromJson(Map<String, dynamic> json) {
+    return StyleAnalysisSessionMessage(
       text: json['content'],
-      isUser: json['role'] == 'user',
+      role: json['role'] == 'user'
+          ? UserRole.user
+          : (json['role'] == 'assistant'
+                ? UserRole.assistant
+                : UserRole.system),
       timestamp: DateTime.fromMillisecondsSinceEpoch(json['created_at']),
       imageFile: null, // Don't load local file from JSON
       remoteImage: json['image_url'] != null
@@ -49,7 +59,7 @@ class ChatMessage {
   Map<String, dynamic> toJson() {
     return {
       'content': text,
-      'role': isUser ? 'user' : 'system',
+      'role': role,
       'created_at': timestamp.millisecondsSinceEpoch,
       'image_url': remoteImage?.url,
       'image_key': remoteImage?.key,

@@ -84,6 +84,7 @@ class SessionStreamingSlice {
                 SessionStreamingStatus.streamStarted,
                 updatedChunk: accumulated,
               );
+              print('Do we start streaming here?');
               onStreamStarted(chunk.sessionId, accumulated);
               isFirst = false;
             } else {
@@ -105,6 +106,9 @@ class SessionStreamingSlice {
         );
         onCompleted(sessionId, accumulated);
       } else {
+        print(
+          'Streaming failed with status: ${response.statusCode} ${response.reasonPhrase}',
+        );
         final error = 'Failed: ${response.statusCode}';
         _updateStatus(sessionId, SessionStreamingStatus.error, error: error);
         onError(sessionId, error);

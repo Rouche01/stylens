@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:stylens_app/widgets/animated_typing_dots.dart';
 import 'package:stylens_app/widgets/image_with_fallback.dart';
-import '../models/chat_message.dart';
+import 'package:stylens_app/models/style_analysis_session_message.dart';
 
 class MessageBubble extends StatelessWidget {
-  final ChatMessage message;
+  final StyleAnalysisSessionMessage message;
 
   const MessageBubble({super.key, required this.message});
 
@@ -12,14 +12,14 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     if (message.isLoading) {
       return Row(
-        mainAxisAlignment: message.isUser
+        mainAxisAlignment: message.isUserMessage
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: message.isUser
+              color: message.isUserMessage
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
@@ -31,15 +31,17 @@ class MessageBubble extends StatelessWidget {
     }
 
     return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: message.isUserMessage
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       child: Container(
-        margin: EdgeInsets.only(bottom: 16),
         padding: EdgeInsets.all(12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
+          minWidth: 100,
         ),
         decoration: BoxDecoration(
-          color: message.isUser
+          color: message.isUserMessage
               ? Theme.of(context).colorScheme.primaryContainer
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
@@ -70,7 +72,7 @@ class MessageBubble extends StatelessWidget {
                 child: Text(
                   message.text!,
                   style: TextStyle(
-                    color: message.isUser
+                    color: message.isUserMessage
                         ? Theme.of(context).colorScheme.onPrimary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:stylens_app/core/services/style_analysis_api_service.dart';
 import 'package:stylens_app/models/action_state.dart';
-import 'package:stylens_app/models/chat_message.dart';
+import 'package:stylens_app/models/style_analysis_session_message.dart';
 import 'package:stylens_app/models/remote_image.dart';
 import 'package:stylens_app/models/selected_session.dart';
 import 'package:stylens_app/models/session_streaming_state.dart';
@@ -85,7 +85,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   String? get selectedSessionId => selectedSession?.sessionId;
 
-  List<ChatMessage> get selectedSessionMessages =>
+  List<StyleAnalysisSessionMessage> get selectedSessionMessages =>
       selectedSession?.messages ?? [];
 
   bool get isSelectedSessionLoading =>
@@ -151,10 +151,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       appendLoadingMessage: true,
     );
 
-    // Convert ChatMessage list to MessageEntry format
+    // Convert StyleAnalysisSessionMessage list to MessageEntry format
     final messageEntries = messages.map((msg) {
       return {
-        'role': msg.isUser ? 'user' : 'system',
+        'role': msg.role.name,
         'prompt': msg.text,
         'remoteImage': msg.remoteImage != null
             ? {'url': msg.remoteImage!.url, 'key': msg.remoteImage!.key}
@@ -206,14 +206,16 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     final response = await _apiService.fetchSessions();
 
     if (response.isSuccess && response.data != null) {
-      final List<StyleAnalysisSession> sessions = response.data!;
+      final paginatedResponse = response.data!;
 
       // Sort by most recent first
-      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      paginatedResponse.items.sort(
+        (a, b) => b.updatedAt.compareTo(a.updatedAt),
+      );
       _updateState<List<StyleAnalysisSession>>(
         ManagerStateSliceName.sessions,
         StateUpdateType.success,
-        data: sessions,
+        data: paginatedResponse.items,
       );
     } else {
       _updateState(
@@ -295,7 +297,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
         StateUpdateType.success,
         data: SelectedStyleAnalysisSession.fromJson({
           'session_id': sessionId,
-          'messages': response.data!,
+          'messages': response.data?.items ?? [],
         }),
         appendLoadingMessage: isSelectedSessionAwaitingResponse,
         clearLoadingMessage: !isSelectedSessionAwaitingResponse,
@@ -320,7 +322,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   }
 
   Future<void> addMessageToSelectedSession(
-    ChatMessage message, {
+    StyleAnalysisSessionMessage message, {
     bool remoteUpdate = true,
   }) async {
     final sessionId = selectedSessionId;
@@ -345,7 +347,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     );
 
     final messageData = {
-      'role': message.isUser ? 'user' : 'system',
+      'role': message.role.name,
       'prompt': message.text,
       'remoteImage': message.remoteImage != null
           ? {'url': message.remoteImage!.url, 'key': message.remoteImage!.key}
@@ -499,8 +501,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     // If there's no loading message and no bot message being updated, add one
     if (messages.isEmpty) {
       addToSelectedSessionMessages(
-        ChatMessage(
-          isUser: false,
+        StyleAnalysisSessionMessage(
+          role: UserRole.assistant,
           text: streamingState.streamingText,
           timestamp: DateTime.now(),
         ),
@@ -514,8 +516,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     if (lastMessage.isLoading) {
       _removeLoadingMessage();
       addToSelectedSessionMessages(
-        ChatMessage(
-          isUser: false,
+        StyleAnalysisSessionMessage(
+          role: UserRole.assistant,
           text: streamingState.streamingText,
           timestamp: DateTime.now(),
         ),
@@ -524,15 +526,15 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     }
 
     // If last message is a bot message, update it with the streaming text
-    if (!lastMessage.isUser) {
+    if (!lastMessage.isUserMessage) {
       _replaceLastBotMessageWithChunk(sessionId, streamingState.streamingText);
       return;
     }
 
     // If last message is user message, add a new bot message with streaming text
     addToSelectedSessionMessages(
-      ChatMessage(
-        isUser: false,
+      StyleAnalysisSessionMessage(
+        role: UserRole.assistant,
         text: streamingState.streamingText,
         timestamp: DateTime.now(),
       ),
@@ -540,19 +542,16 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   }
 
   // --- Helpers ---
-  void addToSelectedSessionMessages(ChatMessage message) {
-    final selectedSessionState = _getStateSlice<SelectedStyleAnalysisSession>(
-      ManagerStateSliceName.selectedSession,
-    );
+  void addToSelectedSessionMessages(StyleAnalysisSessionMessage message) {
     print(
-      'Adding message to selected session: ${selectedSessionState.data?.sessionId} with message: ${message.text}',
+      'Adding message to selected session: ${selectedSession?.sessionId} with message: ${message.text}',
     );
     _updateState<SelectedStyleAnalysisSession>(
       ManagerStateSliceName.selectedSession,
       StateUpdateType.success,
       data: SelectedStyleAnalysisSession(
-        sessionId: selectedSessionState.data?.sessionId,
-        messages: [...?selectedSessionState.data?.messages, message],
+        sessionId: selectedSession?.sessionId,
+        messages: [...?selectedSession?.messages, message],
       ),
     );
   }
@@ -562,8 +561,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     RemoteImage? outfitRemoteImage,
   ) {
     addToSelectedSessionMessages(
-      ChatMessage(
-        isUser: true,
+      StyleAnalysisSessionMessage(
+        role: UserRole.user,
         timestamp: DateTime.now(),
         imageFile: outfitImageFile,
         remoteImage: outfitRemoteImage,
@@ -572,8 +571,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     );
 
     addToSelectedSessionMessages(
-      ChatMessage(
-        isUser: false,
+      StyleAnalysisSessionMessage(
+        role: UserRole.system,
         timestamp: DateTime.now(),
         text: _initialBotReply,
       ),
@@ -612,8 +611,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     // Avoid adding multiple loading bubbles
     if (messages.isNotEmpty && messages.last.isLoading) return;
 
-    final loadingMessage = ChatMessage(
-      isUser: false,
+    final loadingMessage = StyleAnalysisSessionMessage(
+      role: UserRole.assistant,
       isLoading: true,
       timestamp: DateTime.now(),
     );
@@ -656,8 +655,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     // If no messages, add a new bot message
     if (messages.isEmpty) {
       addToSelectedSessionMessages(
-        ChatMessage(
-          isUser: false,
+        StyleAnalysisSessionMessage(
+          role: UserRole.assistant,
           text: updatedChunk,
           timestamp: DateTime.now(),
         ),
@@ -668,10 +667,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     print('Replacing last bot message with chunk: $updatedChunk $sessionId');
 
     // If last message is user message, add a new bot message
-    if (messages.last.isUser) {
+    if (messages.last.isUserMessage) {
       addToSelectedSessionMessages(
-        ChatMessage(
-          isUser: false,
+        StyleAnalysisSessionMessage(
+          role: UserRole.assistant,
           text: updatedChunk,
           timestamp: DateTime.now(),
         ),
@@ -681,8 +680,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
     // Replace the last bot message
     final lastBotMessage = messages.last;
-    final updatedBotMessage = ChatMessage(
-      isUser: false,
+    final updatedBotMessage = StyleAnalysisSessionMessage(
+      role: UserRole.assistant,
       text: updatedChunk,
       timestamp: lastBotMessage.timestamp,
     );
@@ -724,8 +723,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
         );
         _removeLoadingMessage();
         addToSelectedSessionMessages(
-          ChatMessage(
-            isUser: false,
+          StyleAnalysisSessionMessage(
+            role: UserRole.assistant,
             text: updatedChunk ?? '',
             timestamp: DateTime.now(),
           ),
