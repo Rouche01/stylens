@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
-import 'package:stylens_app/core/managers/style_analysis_session/index.dart';
-import 'package:stylens_app/models/remote_image.dart';
-import 'package:stylens_app/widgets/error_display.dart';
-import 'package:stylens_app/widgets/message_bubble.dart';
-import 'package:stylens_app/widgets/message_input.dart';
-import 'package:stylens_app/models/style_analysis_session_message.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/widgets/error_display.dart';
+import 'package:gostylens/widgets/message_bubble.dart';
+import 'package:gostylens/widgets/message_input.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   final File? outfitImageFile;
@@ -171,18 +171,22 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      title: Text(
-        'GoStylens',
-        style: TextStyle(
-          fontFamily: 'ClashDisplay',
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.onSecondary,
-        ),
+      title: Row(
+        children: [
+          Text(
+            'GoStylens',
+            style: TextStyle(
+              fontFamily: 'ClashDisplay',
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSecondary,
+            ),
+          ),
+        ],
       ),
       titleSpacing: 0,
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
+        icon: Icon(Icons.arrow_back),
         onPressed: () => Navigator.pop(context),
       ),
     );

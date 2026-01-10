@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:flutter_env_config/enums/env_enum.dart';
 import 'package:provider/provider.dart';
-import 'package:stylens_app/core/managers/global_loader/index.dart';
+import 'package:gostylens/pages/splash.dart';
 import 'core/managers/style_analysis_session/index.dart';
-import 'pages/closet.dart';
-import 'pages/capture.dart';
-import 'pages/history.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,67 +82,13 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: MyHomePage(),
+        home: SplashPage(),
       ),
     );
   }
 }
 
 class MyAppState extends ChangeNotifier {}
-
-class MyHomePage extends StatefulWidget {
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  var selectedIndex = 1;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget page;
-
-    switch (selectedIndex) {
-      case 0:
-        page = ClosetPage();
-      case 1:
-        page = CapturePage();
-      case 2:
-        page = HistoryPage();
-      default:
-        throw UnimplementedError('no widget for $selectedIndex');
-    }
-
-    return GlobalLoaderScope(
-      child: Scaffold(
-        body: page,
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.checkroom),
-              label: 'Closet',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.camera_alt),
-              label: 'Capture',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'History',
-            ),
-          ],
-          currentIndex: selectedIndex,
-          onTap: (index) {
-            setState(() {
-              selectedIndex = index;
-            });
-          },
-        ),
-      ),
-    );
-  }
-}
 
 class ErrorApp extends StatelessWidget {
   const ErrorApp({required this.errorMessage, super.key});

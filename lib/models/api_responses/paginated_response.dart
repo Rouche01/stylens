@@ -1,4 +1,4 @@
-import 'package:stylens_app/models/api_responses/pagination_info.dart';
+import 'package:gostylens/models/api_responses/pagination_info.dart';
 
 class PaginatedResponse<T> {
   final List<T> items;

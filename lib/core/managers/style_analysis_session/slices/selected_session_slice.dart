@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:stylens_app/core/managers/slice_state_manager.dart';
-import 'package:stylens_app/core/services/style_analysis_api_service.dart';
-import 'package:stylens_app/models/action_state.dart';
-import 'package:stylens_app/models/api_responses/pagination_info.dart';
-import 'package:stylens_app/models/style_analysis_session_message.dart';
-import 'package:stylens_app/models/remote_image.dart';
-import 'package:stylens_app/models/selected_session.dart';
-import 'package:stylens_app/models/session_ui_state.dart';
+import 'package:gostylens/core/managers/slice_state_manager.dart';
+import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/models/action_state.dart';
+import 'package:gostylens/models/api_responses/pagination_info.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/models/selected_session.dart';
+import 'package:gostylens/models/session_ui_state.dart';
 
 /// Manages operations for the currently selected session
 /// State is stored in the parent manager's _stateSlices map

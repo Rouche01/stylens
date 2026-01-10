@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:stylens_app/models/remote_image.dart';
+import 'package:gostylens/models/remote_image.dart';
 
 // [
 //   {

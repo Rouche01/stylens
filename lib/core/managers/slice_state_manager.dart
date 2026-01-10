@@ -1,4 +1,4 @@
-import 'package:stylens_app/models/action_state.dart';
+import 'package:gostylens/models/action_state.dart';
 
 enum ActionType { initial, loading, success, error }
 

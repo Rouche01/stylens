@@ -1,4 +1,4 @@
-import 'package:stylens_app/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
 
 class SelectedStyleAnalysisSession {
   final String? sessionId;

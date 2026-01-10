@@ -1,5 +1,5 @@
-import 'package:stylens_app/models/api_responses/pagination_info.dart';
-import 'package:stylens_app/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/api_responses/pagination_info.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
 
 class SessionMessagesResponse {
   final String sessionId;

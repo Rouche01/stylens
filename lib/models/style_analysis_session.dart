@@ -1,4 +1,4 @@
-import 'package:stylens_app/models/remote_image.dart';
+import 'package:gostylens/models/remote_image.dart';
 
 class StyleAnalysisSession {
   final String id;

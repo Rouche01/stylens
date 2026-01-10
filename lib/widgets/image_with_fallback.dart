@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:http/http.dart' as http;
-import 'package:stylens_app/models/remote_image.dart';
+import 'package:gostylens/models/remote_image.dart';
 
 Future<String> regenerateImageUrl(String imageKey) async {
   EnvironmentConfig config = EnvironmentManager.environmentData;

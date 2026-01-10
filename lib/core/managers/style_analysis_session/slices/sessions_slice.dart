@@ -1,7 +1,7 @@
-import 'package:stylens_app/core/services/style_analysis_api_service.dart';
-import 'package:stylens_app/models/action_state.dart';
-import 'package:stylens_app/models/api_responses/pagination_info.dart';
-import 'package:stylens_app/models/style_analysis_session.dart';
+import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/models/action_state.dart';
+import 'package:gostylens/models/api_responses/pagination_info.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
 
 /// Manages operations for the sessions list
 /// State is stored in the parent manager's _stateSlices map

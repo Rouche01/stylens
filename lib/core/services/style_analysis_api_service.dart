@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_env_config/flutter_env_config.dart';
-import 'package:stylens_app/models/api_responses/session_messages_response.dart';
-import 'package:stylens_app/models/api_responses/style_analysis_sessions_response.dart';
-import 'package:stylens_app/models/api_responses/paginated_response.dart';
-import 'package:stylens_app/models/style_analysis_session.dart';
-import 'package:stylens_app/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/api_responses/session_messages_response.dart';
+import 'package:gostylens/models/api_responses/style_analysis_sessions_response.dart';
+import 'package:gostylens/models/api_responses/paginated_response.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
 
 class ApiResponse<T> {
   final T? data;

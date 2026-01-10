@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:stylens_app/core/services/style_analysis_api_service.dart';
-import 'package:stylens_app/models/session_streaming_state.dart';
-import 'package:stylens_app/utils/streaming_utils.dart';
+import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/models/session_streaming_state.dart';
+import 'package:gostylens/utils/streaming_utils.dart';
 
 enum ContextMode { recent, all, last }
 

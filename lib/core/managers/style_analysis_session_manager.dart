@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:stylens_app/core/services/style_analysis_api_service.dart';
-import 'package:stylens_app/models/action_state.dart';
-import 'package:stylens_app/models/style_analysis_session_message.dart';
-import 'package:stylens_app/models/remote_image.dart';
-import 'package:stylens_app/models/selected_session.dart';
-import 'package:stylens_app/models/session_streaming_state.dart';
-import 'package:stylens_app/models/session_ui_state.dart';
-import 'package:stylens_app/models/style_analysis_session.dart';
-import 'package:stylens_app/utils/streaming_utils.dart';
+import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/models/action_state.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/models/selected_session.dart';
+import 'package:gostylens/models/session_streaming_state.dart';
+import 'package:gostylens/models/session_ui_state.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
+import 'package:gostylens/utils/streaming_utils.dart';
 
 enum ContextMode { recent, all, last }
 

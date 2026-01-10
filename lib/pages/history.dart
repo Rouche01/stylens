@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:stylens_app/core/managers/style_analysis_session/index.dart';
-import 'package:stylens_app/pages/style_analysis.dart';
-import 'package:stylens_app/widgets/style_analysis_session_card.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/pages/style_analysis.dart';
+import 'package:gostylens/widgets/style_analysis_session_card.dart';
 
 class HistoryPage extends StatefulWidget {
   @override

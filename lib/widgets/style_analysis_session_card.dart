@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:stylens_app/models/style_analysis_session.dart';
-import 'package:stylens_app/widgets/animated_typing_dots.dart';
-import 'package:stylens_app/widgets/image_with_fallback.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
+import 'package:gostylens/widgets/animated_typing_dots.dart';
+import 'package:gostylens/widgets/image_with_fallback.dart';
 
 class SessionCard extends StatelessWidget {
   final StyleAnalysisSession session;
