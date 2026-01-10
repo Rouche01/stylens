@@ -50,6 +50,8 @@ flutter:
           weight: 900
   assets:
     - assets/
+    - assets/icon/google_logo.png
+    - assets/icon/icon.png
 
 flutter_launcher_icons:
   android: "launcher_icon"
