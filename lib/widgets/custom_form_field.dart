@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-enum FieldType { email, password, text }
+enum FieldType { email, password, text, number }
 
 class CustomFormField extends StatefulWidget {
   final TextEditingController controller;
@@ -52,12 +53,21 @@ class _CustomFormFieldState extends State<CustomFormField> {
   @override
   Widget build(BuildContext context) {
     bool isPassword = widget.fieldType == FieldType.password;
+    List<TextInputFormatter>? inputFormatters;
+
+    if (widget.fieldType == FieldType.number) {
+      inputFormatters = [FilteringTextInputFormatter.digitsOnly];
+    }
+
     return TextFormField(
       controller: widget.controller,
       obscureText: isPassword,
       keyboardType: widget.fieldType == FieldType.email
           ? TextInputType.emailAddress
+          : widget.fieldType == FieldType.number
+          ? TextInputType.number
           : TextInputType.text,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         hintText: widget.hintText,
         hintStyle:

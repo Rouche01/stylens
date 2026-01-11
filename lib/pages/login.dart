@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/pages/home.dart';
+import 'package:gostylens/pages/otp_verification.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,20 +16,20 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isUsingEmail = false;
+  final supabase = Supabase.instance.client;
 
-  void _login() {
+  bool get _isEmailEmpty => _emailController.text.trim().isEmpty;
+
+  Future<void> _login() async {
     if (_formKey.currentState?.validate() ?? false) {
-      if (!_isUsingEmail) {
-        setState(() {
-          _isUsingEmail = true;
-        });
-      } else {
-        // Handle login with email and password
-        print('Logging in as ${_emailController.text} with password');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logging in as ${_emailController.text}')),
+      // await supabase.auth.signInWithOtp(email: _emailController.text);
+
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) =>
+                OtpVerificationPage(email: _emailController.text.trim()),
+          ),
         );
       }
     }
@@ -42,7 +44,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -74,9 +75,14 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 32),
                   Image.asset('assets/icon/icon.png', width: 72, height: 72),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Login or Sign Up',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  Text(
+                    'Login / Sign Up',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontFamily: 'ClashDisplay',
+                    ),
                   ),
                   const SizedBox(height: 32),
                   CustomFormField(
@@ -86,22 +92,16 @@ class _LoginPageState extends State<LoginPage> {
                     validator: (value) => value != null && value.contains('@')
                         ? null
                         : 'Enter a valid email',
+                    onChanged: (_) => setState(() {}),
                   ),
-                  if (_isUsingEmail) ...[
-                    const SizedBox(height: 16),
-                    CustomFormField(
-                      controller: _passwordController,
-                      fieldType: FieldType.password,
-                      hintText: 'Password',
-                      validator: (value) => value != null && value.length >= 6
-                          ? null
-                          : 'Enter at least 6 characters',
-                    ),
-                  ],
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: PrimaryButton(label: 'Continue', onPressed: _login),
+                    child: PrimaryButton(
+                      label: 'Continue',
+                      onPressed: _login,
+                      disabled: _isEmailEmpty,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildDivider(),

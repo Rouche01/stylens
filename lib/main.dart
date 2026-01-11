@@ -3,6 +3,7 @@ import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:flutter_env_config/enums/env_enum.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/pages/splash.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/managers/style_analysis_session/index.dart';
 
 void main() async {
@@ -13,6 +14,12 @@ void main() async {
       configFile: 'assets/config.json',
       targetEnvironment: Environment.dev,
     );
+
+    await Supabase.initialize(
+      url: 'https://cbrdzscnkgcqdgqplhmx.supabase.co',
+      anonKey: 'sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI',
+    );
+
     runApp(MyApp());
   } catch (e) {
     runApp(ErrorApp(errorMessage: e.toString()));

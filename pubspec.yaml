@@ -16,6 +16,7 @@ dependencies:
   flutter_env_config: ^1.0.2
   supabase_flutter: ^2.12.0
   google_sign_in: ^7.2.0
+  font_awesome_flutter: ^10.12.0
 
 dev_dependencies:
   flutter_test:

@@ -1,0 +1,172 @@
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gostylens/widgets/custom_outlined_button.dart';
+import 'package:gostylens/widgets/primary_button.dart';
+import 'package:gostylens/widgets/step_progress_bar.dart';
+
+class OnboardingGenderPage extends StatefulWidget {
+  const OnboardingGenderPage({super.key});
+
+  @override
+  State<OnboardingGenderPage> createState() => _OnboardingGenderPageState();
+}
+
+class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
+  int? _selectedIndex = 0;
+
+  final List<_GenderOption> _options = [
+    _GenderOption('Men', Icons.male),
+    _GenderOption('Women', Icons.female),
+    _GenderOption('Non-binary', Icons.transgender),
+    _GenderOption('Prefer not to say', Icons.person_outline),
+  ];
+
+  void _onContinue() {
+    // Handle continue with selected gender
+  }
+
+  void _onSkip() {
+    // Handle skip
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      FontAwesomeIcons.arrowLeftLong,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StepProgressBar(
+                      totalSteps: 2,
+                      currentStep: 2,
+                      activeColor: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'Which best describes you?',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                  fontFamily: 'ClashDisplay',
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 32),
+              ...List.generate(_options.length, (index) {
+                final option = _options[index];
+                final isSelected = _selectedIndex == index;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Material(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary.withAlpha(50)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        setState(() {
+                          _selectedIndex = index;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 18,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            if (option.icon != null)
+                              Icon(option.icon, color: Colors.black54)
+                            else
+                              const SizedBox(width: 24),
+                            if (option.icon != null) const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                option.label,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(
+                                Icons.check,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              Text(
+                'Gender helps us give better styling advice.',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: CustomOutlinedButton(
+                      label: 'Skip',
+                      onPressed: _onSkip,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: PrimaryButton(
+                      label: 'Finish',
+                      onPressed: _onContinue,
+                      disabled: _selectedIndex == null,
+                      icon: const Icon(Icons.arrow_forward, size: 20),
+                      iconAlignment: IconAlignment.end,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenderOption {
+  final String label;
+  final IconData? icon;
+  const _GenderOption(this.label, this.icon);
+}

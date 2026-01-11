@@ -6,6 +6,10 @@
       "baseUrl": "http://localhost:8787",
       "timeout": 30000
     },
+    "supabase": {
+      "url": "https://cbrdzscnkgcqdgqplhmx.supabase.co",
+      "anonKey": "sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI"
+    },
     "ciCd": {
       "variables": {
         "apiKeyEnvVar": "DEV_API_KEY",
@@ -63,9 +67,10 @@
       ]
     },
     "theming": {
-      "primaryColor": "#FF5733",
-      "secondaryColor": "#33FF57",
-      "fontFamily": "Roboto"
+      "primaryColor": "0xFF3D4A3D",
+      "secondaryColor": "0xFFB8E994",
+      "tertiaryColor": "0xFFE8F5E8",
+      "fontFamily": "Metropolis"
     },
     "thirdPartyServices": {
       "firebaseConfig": {
@@ -86,6 +91,10 @@
       "stripeConfig": {
         "publishableKey": "",
         "secretKey": ""
+      },
+      "supabase": {
+        "url": "https://cbrdzscnkgcqdgqplhmx.supabase.co",
+        "anonKey": "sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI"
       }
     },
     "scheduledTasks": {
@@ -183,6 +192,10 @@
       "stripeConfig": {
         "publishableKey": "",
         "secretKey": ""
+      },
+      "supabase": {
+        "url": "https://cbrdzscnkgcqdgqplhmx.supabase.co",
+        "anonKey": "sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI"
       }
     },
     "scheduledTasks": {
@@ -280,6 +293,10 @@
       "stripeConfig": {
         "publishableKey": "",
         "secretKey": ""
+      },
+      "supabase": {
+        "url": "https://cbrdzscnkgcqdgqplhmx.supabase.co",
+        "anonKey": "sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI"
       }
     },
     "scheduledTasks": {
