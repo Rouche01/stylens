@@ -8,6 +8,7 @@ class PrimaryButton extends StatelessWidget {
   final IconAlignment? iconAlignment;
   final double? width;
   final bool disabled;
+  final bool isLoading;
 
   const PrimaryButton({
     super.key,
@@ -18,6 +19,7 @@ class PrimaryButton extends StatelessWidget {
     this.iconAlignment,
     this.width,
     this.disabled = false,
+    this.isLoading = false,
   });
 
   @override
@@ -25,10 +27,10 @@ class PrimaryButton extends StatelessWidget {
     final ButtonStyle effectiveStyle =
         style ??
         ElevatedButton.styleFrom(
-          backgroundColor: disabled
+          backgroundColor: disabled || isLoading
               ? Colors.grey.shade300
               : Theme.of(context).colorScheme.primary,
-          foregroundColor: disabled
+          foregroundColor: disabled || isLoading
               ? Colors.grey.shade600
               : Theme.of(context).colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
@@ -38,18 +40,31 @@ class PrimaryButton extends StatelessWidget {
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         );
 
-    final buttonChild = icon != null
+    Widget childContent = isLoading
+        ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+          )
+        : Text(label);
+
+    final buttonChild = icon != null && !isLoading
         ? ElevatedButton.icon(
             icon: icon!,
             label: Text(label),
             style: effectiveStyle,
-            onPressed: disabled ? null : onPressed,
+            onPressed: disabled || isLoading ? null : onPressed,
             iconAlignment: iconAlignment ?? IconAlignment.start,
           )
         : ElevatedButton(
             style: effectiveStyle,
-            onPressed: disabled ? null : onPressed,
-            child: Text(label),
+            onPressed: disabled || isLoading ? null : onPressed,
+            child: childContent,
           );
 
     return SizedBox(width: width ?? double.infinity, child: buttonChild);

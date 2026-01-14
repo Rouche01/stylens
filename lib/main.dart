@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:flutter_env_config/enums/env_enum.dart';
+import 'package:gostylens/core/managers/auth_state/index.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/pages/splash.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => MyAppState()),
         ChangeNotifierProvider(create: (_) => StyleAnalysisSessionManager()),
+        ChangeNotifierProvider(create: (_) => AuthStateManager()),
       ],
       child: MaterialApp(
         title: 'Stylens',
