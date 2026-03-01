@@ -1,24 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_env_config/flutter_env_config.dart';
-import 'package:flutter_env_config/enums/env_enum.dart';
 import 'package:gostylens/core/managers/auth_state/index.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/pages/login.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/managers/style_analysis_session/index.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await FlutterEnvConfig.init(
-      configFile: 'assets/config.json',
-      targetEnvironment: Environment.dev,
-    );
+    await dotenv.load(fileName: ".env");
 
     await Supabase.initialize(
-      url: 'https://cbrdzscnkgcqdgqplhmx.supabase.co',
-      anonKey: 'sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI',
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
     );
 
     runApp(const MyApp());

@@ -13,11 +13,11 @@ dependencies:
   english_words: ^4.0.0
   provider: ^6.1.5
   http: ^1.5.0
-  flutter_env_config: ^1.0.2
   supabase_flutter: ^2.12.0
   google_sign_in: ^7.2.0
   font_awesome_flutter: ^10.12.0
   flutter_native_splash: ^2.4.7
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +51,7 @@ flutter:
         - asset: assets/fonts/Metropolis-Black.otf
           weight: 900
   assets:
+    - .env
     - assets/
     - assets/icon/google_logo.png
     - assets/icon/icon.png

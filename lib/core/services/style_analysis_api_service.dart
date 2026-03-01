@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_env_config/flutter_env_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/models/api_responses/session_messages_response.dart';
 import 'package:gostylens/models/api_responses/style_analysis_sessions_response.dart';
 import 'package:gostylens/models/api_responses/paginated_response.dart';
@@ -18,12 +18,11 @@ class ApiResponse<T> {
 }
 
 class StyleAnalysisApiService {
-  final EnvironmentConfig _config = EnvironmentManager.environmentData;
   final String userId;
 
   StyleAnalysisApiService({required this.userId});
 
-  String get _baseUrl => _config.api?.baseUrl ?? '';
+  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
 
   Map<String, String> get _headers => {'Content-Type': 'application/json'};
 

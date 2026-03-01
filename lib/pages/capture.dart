@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_env_config/flutter_env_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
@@ -17,8 +17,6 @@ class CapturePage extends StatefulWidget {
 
 class _CapturePageState extends State<CapturePage> {
   final ImagePicker _picker = ImagePicker();
-
-  EnvironmentConfig config = EnvironmentManager.environmentData;
 
   Future<void> _navigateToStyleAnalysis(File imageFile, String filename) async {
     final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
@@ -42,7 +40,7 @@ class _CapturePageState extends State<CapturePage> {
     try {
       final presignedUrlRes = await http.get(
         Uri.parse(
-          "${config.api?.baseUrl}/assets/upload-url?filename=$filename",
+          "${dotenv.env['API_BASE_URL']}/assets/upload-url?filename=$filename",
         ),
         headers: {"Content-Type": "application/json"},
       );

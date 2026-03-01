@@ -1,16 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_env_config/flutter_env_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/models/remote_image.dart';
 
 Future<String> regenerateImageUrl(String imageKey) async {
-  EnvironmentConfig config = EnvironmentManager.environmentData;
-
   try {
     final presignedUrlRes = await http.get(
       Uri.parse(
-        "${config.api?.baseUrl}/assets/download-url?filename=$imageKey",
+        "${dotenv.env['API_BASE_URL']}/assets/download-url?filename=$imageKey",
       ),
       headers: {"Content-Type": "application/json"},
     );
