@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:provider/provider.dart';
-import 'package:gostylens/pages/auth.dart';
+import 'package:gostylens/pages/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'core/managers/style_analysis_session/index.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   try {
     await dotenv.load(fileName: ".env");
@@ -89,7 +91,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const AuthPage(),
+        home: const AuthGate(),
       ),
     );
   }
