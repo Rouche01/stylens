@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:gostylens/pages/login.dart';
+import 'package:gostylens/pages/auth.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -16,7 +16,7 @@ class _SplashPageState extends State<SplashPage> {
     Timer(const Duration(seconds: 3), () {
       Navigator.of(
         context,
-      ).pushReplacement(MaterialPageRoute(builder: (context) => LoginPage()));
+      ).pushReplacement(MaterialPageRoute(builder: (context) => AuthPage()));
     });
   }
 

@@ -7,19 +7,32 @@ import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class AuthPage extends StatefulWidget {
+  const AuthPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<AuthPage> createState() => _AuthPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _AuthPageState extends State<AuthPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   late AuthStateManager _authStateManager;
 
-  bool get _isEmailEmpty => _emailController.text.trim().isEmpty;
+  String? _validateEmail(String? value) {
+    final email = value?.trim();
+    if (email == null || email.isEmpty) {
+      return 'Enter your email';
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      return 'Enter a valid email';
+    }
+    return null;
+  }
+
+  bool get _isValidEmail {
+    return _validateEmail(_emailController.text) == null;
+  }
 
   @override
   void initState() {
@@ -92,8 +105,8 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 32),
                       Image.asset(
                         'assets/icon/icon.png',
-                        width: 50,
-                        height: 50,
+                        width: 55,
+                        height: 55,
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -110,10 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _emailController,
                         fieldType: FieldType.email,
                         hintText: 'Email',
-                        validator: (value) =>
-                            value != null && value.contains('@')
-                            ? null
-                            : 'Enter a valid email',
+                        validator: _validateEmail,
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 16),
@@ -122,7 +132,8 @@ class _LoginPageState extends State<LoginPage> {
                         child: PrimaryButton(
                           label: 'Continue',
                           onPressed: authStateManager.isLoading ? null : _login,
-                          disabled: _isEmailEmpty || authStateManager.isLoading,
+                          disabled:
+                              !_isValidEmail || authStateManager.isLoading,
                           isLoading: authStateManager.isLoading,
                         ),
                       ),

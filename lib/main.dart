@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state/index.dart';
 import 'package:provider/provider.dart';
-import 'package:gostylens/pages/login.dart';
+import 'package:gostylens/pages/auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/managers/style_analysis_session/index.dart';
@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const LoginPage(),
+        home: const AuthPage(),
       ),
     );
   }

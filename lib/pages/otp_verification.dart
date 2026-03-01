@@ -106,8 +106,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     children: [
                       Image.asset(
                         'assets/icon/icon.png',
-                        width: 72,
-                        height: 72,
+                        width: 55,
+                        height: 55,
                       ),
                       const SizedBox(height: 10),
                       Text(
