@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gostylens/core/managers/auth_state/index.dart';
+import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/pages/home.dart';
 import 'package:gostylens/pages/otp_verification.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';

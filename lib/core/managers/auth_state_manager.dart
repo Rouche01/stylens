@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/services/user_api_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthStateManager extends ChangeNotifier {
   final supabase = Supabase.instance.client;
+  final UserApiService _userApiService = UserApiService();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -14,6 +16,7 @@ class AuthStateManager extends ChangeNotifier {
   bool _canResendOTP = false;
   bool get canResendOTP => _canResendOTP;
 
+  String? _lastEmailSent;
   Timer? _otpResendTimer;
 
   Future<void> initiateLoginWithOtp(
@@ -21,11 +24,22 @@ class AuthStateManager extends ChangeNotifier {
     void Function()? onSuccess,
     void Function(String error)? onError,
   }) async {
+    if (!_canResendOTP &&
+        _lastEmailSent == email &&
+        _otpResendTimer != null &&
+        _otpResendTimer!.isActive) {
+      // Smart Throttle: We are still actively counting down for this exact email.
+      // Don't send a new OTP and don't reset the timer. Just proceed to verify screen.
+      onSuccess?.call();
+      return;
+    }
+
     _isLoading = true;
     notifyListeners();
 
     try {
       await supabase.auth.signInWithOtp(email: email);
+      _lastEmailSent = email;
       _startResendOTPTimer();
       onSuccess?.call();
     } catch (e) {
@@ -40,7 +54,7 @@ class AuthStateManager extends ChangeNotifier {
     String email,
     String otp, {
     OtpType type = OtpType.email,
-    void Function()? onSuccess,
+    void Function(bool isNewUser)? onSuccess,
     void Function(String error)? onError,
   }) async {
     _isLoading = true;
@@ -54,9 +68,21 @@ class AuthStateManager extends ChangeNotifier {
       );
 
       if (response.user != null) {
-        onSuccess?.call();
-      } else {
-        onError?.call('Invalid OTP or user not found.');
+        // Check if user exists in the backend API
+        final userResponse = await _userApiService.getUserByAuthId(
+          response.user!.id,
+        );
+
+        if (userResponse.isSuccess) {
+          // User exists, they are not new
+          onSuccess?.call(false);
+        } else if (userResponse.statusCode == 404) {
+          // User explicitly not found, they are a brand new user
+          onSuccess?.call(true);
+        } else {
+          // It failed for some other reason (500 Server Error, Network, etc.)
+          onError?.call('Failed to verify user profile: ${userResponse.error}');
+        }
       }
     } catch (e) {
       onError?.call(e.toString());

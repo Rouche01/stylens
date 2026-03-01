@@ -127,125 +127,129 @@ class _CapturePageState extends State<CapturePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Column(
-          children: [
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  // vertical: 8.0,
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    // vertical: 8.0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Image.asset('assets/imgs/logo_primary.png', height: 28),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfileMenuPage(),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.account_circle),
+                        iconSize: 39,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Image.asset('assets/imgs/logo_primary.png', height: 28),
-                    IconButton(
-                      onPressed: () {
-                        Navigator.push(
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: 16.0,
+                    right: 16.0,
+                    top: 0,
+                    bottom: 16.0,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileMenuPage(),
-                          ),
-                        );
-                      },
-                      icon: Icon(Icons.account_circle),
-                      iconSize: 39,
-                      color: Theme.of(context).colorScheme.primary,
+                        ).colorScheme.outline.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                      color: Theme.of(context).colorScheme.surfaceDim,
                     ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  left: 16.0,
-                  right: 16.0,
-                  top: 0,
-                  bottom: 16.0,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.5),
-                      width: 1,
-                    ),
-                    color: Theme.of(context).colorScheme.surfaceDim,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('📸', style: TextStyle(fontSize: 80)),
-                        SizedBox(height: 24),
-                        Text(
-                          'Strike a Pose!',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                // fontWeight: FontWeight.bold,
-                                fontFamily: 'ClashDisplay',
-                                fontWeight: FontWeight.w500,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.9),
-                                height: 1.5,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 32),
-                        ElevatedButton.icon(
-                          onPressed: _takePhoto,
-                          icon: Icon(Icons.photo_camera),
-                          label: Text('Take Photo'),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.onPrimary,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('📸', style: TextStyle(fontSize: 80)),
+                          SizedBox(height: 24),
+                          Text(
+                            'Strike a Pose!',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                  // fontWeight: FontWeight.bold,
+                                  fontFamily: 'ClashDisplay',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: _chooseFromGallery,
-                          icon: Icon(Icons.photo_library),
-                          label: Text('Choose from Gallery'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
+                          SizedBox(height: 16),
+                          Text(
+                            "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.9),
+                                  height: 1.5,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 32),
+                          ElevatedButton.icon(
+                            onPressed: _takePhoto,
+                            icon: Icon(Icons.photo_camera),
+                            label: Text('Take Photo'),
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary,
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: _chooseFromGallery,
+                            icon: Icon(Icons.photo_library),
+                            label: Text('Choose from Gallery'),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/managers/auth_state/index.dart';
+import 'package:gostylens/core/managers/auth_state_manager.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/pages/home.dart';
 import 'package:gostylens/pages/onboarding_name.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/primary_button.dart';
@@ -22,6 +23,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   final supabase = Supabase.instance.client;
 
   late AuthStateManager _authStateManager;
+  late UserStateManager _userStateManager;
   bool get _isOtpEmpty => _otpController.text.trim().isEmpty;
 
   late final TapGestureRecognizer _resendTapRecognizer;
@@ -30,30 +32,66 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   void initState() {
     super.initState();
     _authStateManager = context.read<AuthStateManager>();
-    _resendTapRecognizer = TapGestureRecognizer()
-      ..onTap = _authStateManager.canResendOTP ? _onResend : null;
+    _userStateManager = context.read<UserStateManager>();
+    _resendTapRecognizer = TapGestureRecognizer();
   }
 
   void _onResend() {
-    // Implement resend OTP logic here
+    _authStateManager.initiateLoginWithOtp(
+      widget.email,
+      onSuccess: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Verification code resent!')),
+          );
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error)));
+        }
+      },
+    );
   }
 
-  Future<void> _verifyOtp() async {
+  void _verifyOtp() {
     if (_formKey.currentState?.validate() ?? false) {
-      // await supabase.auth.signInWithOtp(email: _emailController.text);
+      _authStateManager.verifyOTP(
+        widget.email,
+        _otpController.text.trim(),
+        onSuccess: (isNewUser) {
+          if (!mounted) return;
 
-      // // Handle login with email and password
-      // print('Logging in as ${_emailController.text} with password');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('OTP ${_otpController.text} verified successfully.'),
-          ),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => OnboardingNamePage()),
-        );
-      }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Verification successful!')),
+          );
+
+          if (!isNewUser) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => MyHomePage()),
+              (route) => false,
+            );
+          } else {
+            // Brand new user in our DB, navigate to Onboarding
+            _userStateManager.updateRegistrationDraft(email: widget.email);
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const OnboardingNamePage(),
+              ),
+              (route) => false,
+            );
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(error)));
+          }
+        },
+      );
     }
   }
 
@@ -61,7 +99,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   void dispose() {
     _otpController.dispose();
     _resendTapRecognizer.dispose();
-    _authStateManager.dispose();
     super.dispose();
   }
 
@@ -158,8 +195,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         width: double.infinity,
                         child: PrimaryButton(
                           label: 'Verify Code',
-                          onPressed: _verifyOtp,
-                          disabled: _isOtpEmpty,
+                          onPressed: authStateManager.isLoading
+                              ? null
+                              : _verifyOtp,
+                          disabled: _isOtpEmpty || authStateManager.isLoading,
+                          isLoading: authStateManager.isLoading,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -179,7 +219,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                     ? TextDecoration.underline
                                     : TextDecoration.none,
                               ),
-                              recognizer: _resendTapRecognizer,
+                              recognizer: _resendTapRecognizer
+                                ..onTap = canResend ? _onResend : null,
                             ),
                           ],
                         ),

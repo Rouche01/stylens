@@ -3,6 +3,8 @@ import 'package:gostylens/pages/onboarding_gender.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:provider/provider.dart';
 
 class OnboardingNamePage extends StatefulWidget {
   const OnboardingNamePage({super.key});
@@ -31,9 +33,13 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
   }
 
   void _onContinue() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => OnboardingGenderPage()));
+    context.read<UserStateManager>().updateRegistrationDraft(
+      name: _nameController.text.trim(),
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const OnboardingGenderPage()),
+    );
   }
 
   @override

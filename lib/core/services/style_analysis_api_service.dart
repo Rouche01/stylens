@@ -6,16 +6,7 @@ import 'package:gostylens/models/api_responses/style_analysis_sessions_response.
 import 'package:gostylens/models/api_responses/paginated_response.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
-
-class ApiResponse<T> {
-  final T? data;
-  final String? error;
-  final int statusCode;
-
-  ApiResponse({this.data, this.error, required this.statusCode});
-
-  bool get isSuccess => statusCode >= 200 && statusCode < 300;
-}
+import 'package:gostylens/models/api_responses/api_response.dart';
 
 class StyleAnalysisApiService {
   final String userId;

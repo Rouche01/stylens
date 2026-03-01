@@ -3,6 +3,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/models/api_responses/gender.dart';
+import 'package:gostylens/pages/home.dart';
+import 'package:provider/provider.dart';
 
 class OnboardingGenderPage extends StatefulWidget {
   const OnboardingGenderPage({super.key});
@@ -15,18 +19,60 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
   int? _selectedIndex = 0;
 
   final List<_GenderOption> _options = [
-    _GenderOption('Men', Icons.male),
-    _GenderOption('Women', Icons.female),
-    _GenderOption('Non-binary', Icons.transgender),
-    _GenderOption('Prefer not to say', Icons.person_outline),
+    _GenderOption('Men', Gender.male, Icons.male),
+    _GenderOption('Women', Gender.female, Icons.female),
+    _GenderOption('Non-binary', Gender.nonBinary, Icons.transgender),
+    _GenderOption(
+      'Prefer not to say',
+      Gender.unspecified,
+      Icons.person_outline,
+    ),
   ];
 
   void _onContinue() {
-    // Handle continue with selected gender
+    if (_selectedIndex == null) return;
+
+    final gender = _options[_selectedIndex!].gender;
+
+    final userStateManager = context.read<UserStateManager>();
+    userStateManager.updateRegistrationDraft(gender: gender);
+
+    userStateManager.createProfile(
+      onSuccess: () {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => MyHomePage()),
+          (route) => false,
+        );
+      },
+      onError: (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      },
+    );
   }
 
   void _onSkip() {
-    // Handle skip
+    final userStateManager = context.read<UserStateManager>();
+    userStateManager.updateRegistrationDraft(gender: Gender.unspecified);
+
+    userStateManager.createProfile(
+      onSuccess: () {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => MyHomePage()),
+          (route) => false,
+        );
+      },
+      onError: (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      },
+    );
   }
 
   @override
@@ -134,27 +180,38 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                 textAlign: TextAlign.left,
               ),
               const Spacer(),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: CustomOutlinedButton(
-                      label: 'Skip',
-                      onPressed: _onSkip,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: PrimaryButton(
-                      label: 'Finish',
-                      onPressed: _onContinue,
-                      disabled: _selectedIndex == null,
-                      icon: const Icon(Icons.arrow_forward, size: 20),
-                      iconAlignment: IconAlignment.end,
-                    ),
-                  ),
-                ],
+              Consumer<UserStateManager>(
+                builder: (context, userStateManager, child) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: CustomOutlinedButton(
+                          label: 'Skip',
+                          onPressed: userStateManager.isLoading
+                              ? null
+                              : _onSkip,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 2,
+                        child: PrimaryButton(
+                          label: 'Finish',
+                          onPressed: userStateManager.isLoading
+                              ? null
+                              : _onContinue,
+                          disabled:
+                              _selectedIndex == null ||
+                              userStateManager.isLoading,
+                          isLoading: userStateManager.isLoading,
+                          icon: const Icon(Icons.arrow_forward, size: 20),
+                          iconAlignment: IconAlignment.end,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
             ],
@@ -167,6 +224,7 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
 
 class _GenderOption {
   final String label;
+  final Gender gender;
   final IconData? icon;
-  const _GenderOption(this.label, this.icon);
+  const _GenderOption(this.label, this.gender, this.icon);
 }
