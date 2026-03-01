@@ -24,15 +24,7 @@ class _SplashPageState extends State<SplashPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Text(
-          'GoStylens',
-          style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'ClashDisplay',
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
+        child: Image.asset('assets/imgs/logo_green.png', height: 40),
       ),
       backgroundColor: Theme.of(context).colorScheme.primary,
     );

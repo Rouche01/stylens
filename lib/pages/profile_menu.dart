@@ -12,7 +12,7 @@ class ProfileMenuPage extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'ClashDisplay',
                 fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSecondary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ],
@@ -22,6 +22,7 @@ class ProfileMenuPage extends StatelessWidget {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
       body: Center(child: Text('Profile Menu Page')),

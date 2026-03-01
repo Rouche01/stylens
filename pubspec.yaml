@@ -17,6 +17,7 @@ dependencies:
   supabase_flutter: ^2.12.0
   google_sign_in: ^7.2.0
   font_awesome_flutter: ^10.12.0
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -53,6 +54,8 @@ flutter:
     - assets/
     - assets/icon/google_logo.png
     - assets/icon/icon.png
+    - assets/imgs/logo_primary.png
+    - assets/imgs/logo_green.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

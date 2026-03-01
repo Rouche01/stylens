@@ -3,7 +3,7 @@ import 'package:flutter_env_config/flutter_env_config.dart';
 import 'package:flutter_env_config/enums/env_enum.dart';
 import 'package:gostylens/core/managers/auth_state/index.dart';
 import 'package:provider/provider.dart';
-import 'package:gostylens/pages/splash.dart';
+import 'package:gostylens/pages/login.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/managers/style_analysis_session/index.dart';
 
@@ -21,7 +21,7 @@ void main() async {
       anonKey: 'sb_publishable_pUHp7dPz_WLLYzXyMeQQbg_CMqdlonI',
     );
 
-    runApp(MyApp());
+    runApp(const MyApp());
   } catch (e) {
     runApp(ErrorApp(errorMessage: e.toString()));
   }
@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: SplashPage(),
+        home: const LoginPage(),
       ),
     );
   }

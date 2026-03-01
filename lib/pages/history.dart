@@ -59,6 +59,7 @@ class _HistoryPageState extends State<HistoryPage> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontFamily: 'ClashDisplay',
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ),
         centerTitle: false,
@@ -70,6 +71,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 refresh: true,
               );
             },
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ],
       ),

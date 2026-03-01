@@ -142,16 +142,7 @@ class _CapturePageState extends State<CapturePage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'GoStylens',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'ClashDisplay',
-                            // fontSize: 20,
-                          ),
-                    ),
+                    Image.asset('assets/imgs/logo_primary.png', height: 28),
                     IconButton(
                       onPressed: () {
                         Navigator.push(
@@ -162,7 +153,7 @@ class _CapturePageState extends State<CapturePage> {
                         );
                       },
                       icon: Icon(Icons.account_circle),
-                      iconSize: 36,
+                      iconSize: 39,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ],
@@ -200,7 +191,9 @@ class _CapturePageState extends State<CapturePage> {
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.bold,
+                                // fontWeight: FontWeight.bold,
+                                fontFamily: 'ClashDisplay',
+                                fontWeight: FontWeight.w500,
                               ),
                           textAlign: TextAlign.center,
                         ),
