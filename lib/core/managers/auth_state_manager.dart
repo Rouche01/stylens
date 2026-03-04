@@ -110,6 +110,24 @@ class AuthStateManager extends ChangeNotifier {
     });
   }
 
+  Future<void> logOut({
+    void Function()? onSuccess,
+    void Function(String error)? onError,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await supabase.auth.signOut();
+      onSuccess?.call();
+    } catch (e) {
+      onError?.call(e.toString());
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _otpResendTimer?.cancel();

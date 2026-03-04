@@ -22,8 +22,6 @@ enum ManagerStateSliceName {
 }
 
 class StyleAnalysisSessionManager extends ChangeNotifier {
-  static const String tempUserId = 'day2TestId5';
-
   // --- API Service ---
   late final StyleAnalysisApiService _apiService;
 
@@ -46,7 +44,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   late final SessionStreamingSlice _streamingSlice;
 
   StyleAnalysisSessionManager() {
-    _apiService = StyleAnalysisApiService(userId: tempUserId);
+    _apiService = StyleAnalysisApiService();
 
     _streamingSlice = SessionStreamingSlice(
       apiService: _apiService,

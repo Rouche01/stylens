@@ -108,6 +108,9 @@ class UserStateManager extends ChangeNotifier {
             null; // Clear the draft state after successful creation
         _currentUser =
             response.data; // Save the newly created profile into memory
+
+        // Refresh the session to ensure the user claim is updated
+        await Supabase.instance.client.auth.refreshSession();
         onSuccess?.call();
       } else {
         onError?.call(response.error ?? 'Failed to create user profile.');

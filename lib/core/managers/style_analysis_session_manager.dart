@@ -27,8 +27,6 @@ enum StateUpdateType { loading, success, error, initial }
 // Deprecated: Use slice managers instead
 class StyleAnalysisSessionManager extends ChangeNotifier {
   // --- Config ---
-  // Temporary user ID for testing purposes
-  static const String tempUserId = 'day2TestId5';
   static const _initialStyleAnalysisPrompt =
       'What do you think about my outfit?';
 
@@ -36,9 +34,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       "Looking great! 🔥 What's the occasion for this outfit?";
 
   // --- API Service ---
-  final StyleAnalysisApiService _apiService = StyleAnalysisApiService(
-    userId: tempUserId,
-  );
+  final StyleAnalysisApiService _apiService = StyleAnalysisApiService();
 
   // --- State Slices ---
   final Map<ManagerStateSliceName, ActionState<dynamic>> _stateSlices = {

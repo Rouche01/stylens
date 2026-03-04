@@ -7,15 +7,22 @@ import 'package:gostylens/models/api_responses/paginated_response.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class StyleAnalysisApiService {
-  final String userId;
-
-  StyleAnalysisApiService({required this.userId});
+  StyleAnalysisApiService();
 
   String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
 
-  Map<String, String> get _headers => {'Content-Type': 'application/json'};
+  Future<Map<String, String>> get _headers async {
+    final session = supabase.Supabase.instance.client.auth.currentSession;
+    final token = session?.accessToken;
+
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   // --- Sessions ---
   Future<ApiResponse<PaginatedResponse<StyleAnalysisSession>>> fetchSessions({
@@ -23,11 +30,12 @@ class StyleAnalysisApiService {
     int pageSize = 10,
   }) async {
     try {
+      final headers = await _headers;
       final response = await http.get(
         Uri.parse(
-          '$_baseUrl/style-analysis/sessions?userId=$userId&page=$page&pageSize=$pageSize',
+          '$_baseUrl/style-analysis/sessions?page=$page&pageSize=$pageSize',
         ),
-        headers: _headers,
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -59,11 +67,12 @@ class StyleAnalysisApiService {
     required List<Map<String, dynamic>> messages,
   }) async {
     try {
-      final requestBody = {'userId': userId, 'messages': messages};
+      final requestBody = {'messages': messages};
+      final headers = await _headers;
 
       final response = await http.post(
         Uri.parse('$_baseUrl/style-analysis/sessions'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(requestBody),
       );
 
@@ -85,11 +94,10 @@ class StyleAnalysisApiService {
 
   Future<ApiResponse<void>> deleteSession(String sessionId) async {
     try {
+      final headers = await _headers;
       final response = await http.delete(
-        Uri.parse(
-          '$_baseUrl/style-analysis/sessions/$sessionId?userId=$userId',
-        ),
-        headers: _headers,
+        Uri.parse('$_baseUrl/style-analysis/sessions/$sessionId'),
+        headers: headers,
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
@@ -113,11 +121,12 @@ class StyleAnalysisApiService {
     int pageSize = 10,
   }) async {
     try {
+      final headers = await _headers;
       final response = await http.get(
         Uri.parse(
-          '$_baseUrl/style-analysis/sessions/$sessionId/messages?userId=$userId&page=$page&pageSize=$pageSize',
+          '$_baseUrl/style-analysis/sessions/$sessionId/messages?page=$page&pageSize=$pageSize',
         ),
-        headers: _headers,
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -149,11 +158,12 @@ class StyleAnalysisApiService {
     required Map<String, dynamic> message,
   }) async {
     try {
-      final requestBody = {'userId': userId, 'message': message};
+      final requestBody = {'message': message};
+      final headers = await _headers;
 
       final response = await http.post(
         Uri.parse('$_baseUrl/style-analysis/sessions/$sessionId/messages'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(requestBody),
       );
 
@@ -179,12 +189,17 @@ class StyleAnalysisApiService {
     final request = http.Request(
       'GET',
       Uri.parse(
-        '$_baseUrl/style-analysis/sessions/$sessionId/stream?userId=$userId&contextMode=$contextMode',
+        '$_baseUrl/style-analysis/sessions/$sessionId/stream?contextMode=$contextMode',
       ),
     );
 
     request.headers['Content-Type'] = 'application/json';
     request.headers['Accept'] = 'text/event-stream';
+
+    final session = supabase.Supabase.instance.client.auth.currentSession;
+    if (session?.accessToken != null) {
+      request.headers['Authorization'] = 'Bearer ${session!.accessToken}';
+    }
 
     return await request.send();
   }

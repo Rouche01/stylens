@@ -3,18 +3,28 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class UserApiService {
   String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
 
-  Map<String, String> get _headers => {'Content-Type': 'application/json'};
+  Future<Map<String, String>> get _headers async {
+    final session = supabase.Supabase.instance.client.auth.currentSession;
+    final token = session?.accessToken;
+
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   /// Fetches a user from the database by their Auth ID.
   Future<ApiResponse<User>> getUserByAuthId(String authId) async {
     try {
+      final headers = await _headers;
       final response = await http.get(
         Uri.parse('$_baseUrl/users/auth/$authId'),
-        headers: _headers,
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -50,9 +60,10 @@ class UserApiService {
         if (email != null) 'email': email,
       };
 
+      final headers = await _headers;
       final response = await http.post(
         Uri.parse('$_baseUrl/users'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(requestBody),
       );
 
