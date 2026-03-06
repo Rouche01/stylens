@@ -7,6 +7,7 @@ import 'package:gostylens/widgets/error_display.dart';
 import 'package:gostylens/widgets/message_bubble.dart';
 import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/widgets/session_actions_menu.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   final File? outfitImageFile;
@@ -172,15 +173,29 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   AppBar _buildAppBar() {
     return AppBar(
       title: Row(
-        children: [Image.asset('assets/imgs/logo_primary.png', height: 26)],
+        children: [Image.asset('assets/imgs/logo_primary.png', height: 24)],
       ),
       titleSpacing: 0,
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
-        icon: Icon(Icons.arrow_back),
+        icon: const Icon(Icons.arrow_back),
         onPressed: () => Navigator.pop(context),
         color: Theme.of(context).colorScheme.primary,
       ),
+      actions: [
+        Consumer<StyleAnalysisSessionManager>(
+          builder: (context, sessionManager, child) {
+            final session = sessionManager.selectedSession;
+            if (session == null) return const SizedBox.shrink();
+
+            return SessionActionsMenu(
+              session: session,
+              position: PopupMenuPosition.under,
+              iconColor: Theme.of(context).colorScheme.primary,
+            );
+          },
+        ),
+      ],
     );
   }
 

@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
+import 'package:gostylens/widgets/session_actions_menu.dart';
 
 class SessionCard extends StatefulWidget {
   final StyleAnalysisSession session;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-  final VoidCallback? onFavorite;
-  final VoidCallback? onRename;
   final bool isBusy;
   final bool showFavoriteIndicator;
 
@@ -17,8 +16,6 @@ class SessionCard extends StatefulWidget {
     required this.session,
     required this.onTap,
     required this.onDelete,
-    this.onFavorite,
-    this.onRename,
     this.isBusy = false,
     this.showFavoriteIndicator = true,
   });
@@ -140,50 +137,10 @@ class _SessionCardState extends State<SessionCard> {
               // Status and actions
               Column(
                 children: [
-                  PopupMenuButton(
-                    key: _popupKey,
-                    icon: Icon(Icons.more_vert, size: 20),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        onTap: widget.onFavorite ?? () {},
-                        child: Row(
-                          children: [
-                            Icon(
-                              widget.session.isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              size: 16,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              widget.session.isFavorite
-                                  ? 'Remove from favorites'
-                                  : 'Add to favorites',
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        onTap: widget.onRename ?? () {},
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 16),
-                            SizedBox(width: 8),
-                            Text('Rename'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        onTap: widget.onDelete,
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
+                  SessionActionsMenu(
+                    session: widget.session,
+                    onDelete: widget.onDelete,
+                    iconSize: 20,
                   ),
                 ],
               ),

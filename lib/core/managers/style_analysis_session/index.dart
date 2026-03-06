@@ -92,6 +92,16 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   String? get selectedSessionError => _selectedSessionSlice.error;
   String? get selectedSessionDraftText => _selectedSessionSlice.draftText;
 
+  StyleAnalysisSession? get selectedSession {
+    final id = selectedSessionId;
+    if (id == null) return null;
+    try {
+      return sessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool get isCreatingSession =>
       (_stateSlices[ManagerStateSliceName.createSession] as ActionState<void>)
           .isLoading;
