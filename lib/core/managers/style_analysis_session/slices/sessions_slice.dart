@@ -14,6 +14,7 @@ class SessionsSlice {
   // --- Pagination State ---
   PaginationInfo? _paginationInfo;
   bool _isLoadingMore = false;
+  bool? _isFavouriteFilter;
 
   SessionsSlice({
     required StyleAnalysisApiService apiService,
@@ -34,15 +35,23 @@ class SessionsSlice {
   String? get error => _getState().error;
 
   // --- Operations ---
-  Future<void> fetch({bool refresh = false}) async {
-    if (refresh) {
+  Future<void> fetch({bool refresh = false, bool? isFavourite}) async {
+    // Only fetch fresh data if refresh is explicitly requested, or if the filter changed.
+    final filterChanged = isFavourite != _isFavouriteFilter;
+
+    if (refresh || filterChanged) {
       _paginationInfo = null;
+      if (!refresh) {
+        _setState(ActionState.success([]));
+      }
     }
+
+    _isFavouriteFilter = isFavourite;
 
     _setState(ActionState.loading());
     _notifyListeners();
 
-    final response = await _apiService.fetchSessions();
+    final response = await _apiService.fetchSessions(isFavourite: isFavourite);
 
     if (response.isSuccess && response.data != null) {
       final paginatedResponse = response.data!;
@@ -63,7 +72,10 @@ class SessionsSlice {
     _isLoadingMore = true;
     _notifyListeners();
 
-    final response = await _apiService.fetchSessions(page: currentPage + 1);
+    final response = await _apiService.fetchSessions(
+      page: currentPage + 1,
+      isFavourite: _isFavouriteFilter,
+    );
 
     if (response.isSuccess && response.data != null) {
       final paginatedResponse = response.data!;
@@ -123,5 +135,34 @@ class SessionsSlice {
       return true;
     }
     return false;
+  }
+
+  Future<bool> toggleFavorite(
+    String sessionId,
+    bool isFavorite, {
+    void Function(String error)? onError,
+  }) async {
+    final previousSessions = List<StyleAnalysisSession>.from(sessions);
+
+    final updated = sessions.map((s) {
+      if (s.id == sessionId) {
+        return s.copyWith(isFavorite: isFavorite);
+      }
+      return s;
+    }).toList();
+
+    _setState(ActionState.success(updated));
+    _notifyListeners();
+
+    final response = await _apiService.toggleFavorite(sessionId, isFavorite);
+
+    if (!response.isSuccess) {
+      _setState(ActionState.success(previousSessions));
+      _notifyListeners();
+      onError?.call(response.error ?? 'Failed to update favorite status');
+      return false;
+    }
+
+    return true;
   }
 }

@@ -28,15 +28,19 @@ class StyleAnalysisApiService {
   Future<ApiResponse<PaginatedResponse<StyleAnalysisSession>>> fetchSessions({
     int page = 1,
     int pageSize = 10,
+    bool? isFavourite,
   }) async {
     try {
       final headers = await _headers;
-      final response = await http.get(
-        Uri.parse(
-          '$_baseUrl/style-analysis/sessions?page=$page&pageSize=$pageSize',
-        ),
-        headers: headers,
-      );
+
+      String url =
+          '$_baseUrl/style-analysis/sessions?page=$page&pageSize=$pageSize';
+
+      if (isFavourite != null) {
+        url += '&is_favourite=$isFavourite';
+      }
+
+      final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -178,6 +182,35 @@ class StyleAnalysisApiService {
       );
     } catch (e) {
       return ApiResponse(error: 'Failed to add message: $e', statusCode: -1);
+    }
+  }
+
+  Future<ApiResponse<void>> toggleFavorite(
+    String sessionId,
+    bool isFavorite,
+  ) async {
+    try {
+      final headers = await _headers;
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/style-analysis/sessions/$sessionId/favourite'),
+        headers: headers,
+        body: jsonEncode({'isFavourite': isFavorite}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return ApiResponse(statusCode: response.statusCode);
+      }
+
+      return ApiResponse(
+        error:
+            'Failed to update favorite status: ${response.statusCode} - ${response.body}',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(
+        error: 'Failed to update favorite status: $e',
+        statusCode: -1,
+      );
     }
   }
 

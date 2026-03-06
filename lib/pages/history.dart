@@ -10,6 +10,8 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+  String _selectedFilter = 'All';
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +52,46 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+  Widget _buildFilterPill(String title) {
+    final isSelected = _selectedFilter == title;
+    return InkWell(
+      onTap: () {
+        if (_selectedFilter != title) {
+          setState(() {
+            _selectedFilter = title;
+          });
+          context.read<StyleAnalysisSessionManager>().fetchSessions(
+            isFavourite: title == 'Favorites' ? true : null,
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.tertiary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+            width: 0,
+          ),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected
+                ? Theme.of(context).colorScheme.tertiary
+                : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,6 +111,7 @@ class _HistoryPageState extends State<HistoryPage> {
             onPressed: () {
               context.read<StyleAnalysisSessionManager>().fetchSessions(
                 refresh: true,
+                isFavourite: _selectedFilter == 'Favorites' ? true : null,
               );
             },
             color: Theme.of(context).colorScheme.secondary,
@@ -98,7 +141,12 @@ class _HistoryPageState extends State<HistoryPage> {
                   SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      sessionManager.fetchSessions(refresh: true);
+                      sessionManager.fetchSessions(
+                        refresh: true,
+                        isFavourite: _selectedFilter == 'Favorites'
+                            ? true
+                            : null,
+                      );
                     },
                     child: Text('Retry'),
                   ),
@@ -107,68 +155,136 @@ class _HistoryPageState extends State<HistoryPage> {
             );
           }
 
-          if (sessionManager.sessions.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 48, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No style sessions yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Start by capturing an outfit!',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                ],
+          final allSessions = sessionManager.sessions;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Filters row
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 8,
+                ),
+                child: Row(
+                  children: [
+                    _buildFilterPill('All'),
+                    SizedBox(width: 8),
+                    _buildFilterPill('Favorites'),
+                  ],
+                ),
               ),
-            );
-          }
+              // Body
+              Expanded(
+                child: allSessions.isEmpty && !sessionManager.isSessionsLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _selectedFilter == 'All'
+                                  ? Icons.history
+                                  : Icons.favorite_border,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              _selectedFilter == 'All'
+                                  ? 'No style sessions yet'
+                                  : 'No favorites yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            if (_selectedFilter == 'All') ...[
+                              SizedBox(height: 8),
+                              Text(
+                                'Start by capturing an outfit!',
+                                style: TextStyle(color: Colors.grey[500]),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : NotificationListener<ScrollNotification>(
+                        onNotification: _handleScrollNotification,
+                        child: RefreshIndicator(
+                          onRefresh: () => sessionManager.fetchSessions(
+                            refresh: true,
+                            isFavourite: _selectedFilter == 'Favorites'
+                                ? true
+                                : null,
+                          ),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 8,
+                              bottom: 16,
+                            ),
+                            itemCount:
+                                allSessions.length +
+                                (sessionManager.isLoadingMoreSessions ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == allSessions.length) {
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
 
-          final itemCount =
-              sessionManager.sessions.length +
-              (sessionManager.isLoadingMoreSessions ? 1 : 0);
+                              final session = allSessions[index];
+                              final isSessionBusy = sessionManager
+                                  .isSessionBusy(session.id);
 
-          return NotificationListener<ScrollNotification>(
-            onNotification: _handleScrollNotification,
-            child: RefreshIndicator(
-              onRefresh: () => sessionManager.fetchSessions(refresh: true),
-              child: ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: itemCount,
-                itemBuilder: (context, index) {
-                  if (index == sessionManager.sessions.length) {
-                    return Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                              return SessionCard(
+                                session: session,
+                                isBusy: isSessionBusy,
+                                showFavoriteIndicator:
+                                    _selectedFilter != 'Favorites',
+                                onTap: () => _openSession(session.id),
+                                onFavorite: () {
+                                  context
+                                      .read<StyleAnalysisSessionManager>()
+                                      .toggleFavorite(
+                                        session.id,
+                                        !session.isFavorite,
+                                        onError: (error) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(error),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      );
+                                },
+                                onDelete: () => context
+                                    .read<StyleAnalysisSessionManager>()
+                                    .deleteSession(session.id),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    );
-                  }
-
-                  final session = sessionManager.sessions[index];
-                  final isSessionBusy = sessionManager.isSessionBusy(
-                    session.id,
-                  );
-
-                  return SessionCard(
-                    session: session,
-                    isBusy: isSessionBusy,
-                    onTap: () => _openSession(session.id),
-                    onDelete: () => context
-                        .read<StyleAnalysisSessionManager>()
-                        .deleteSession(session.id),
-                  );
-                },
               ),
-            ),
+            ],
           );
         },
       ),

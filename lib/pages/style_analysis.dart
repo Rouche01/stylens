@@ -172,22 +172,14 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   AppBar _buildAppBar() {
     return AppBar(
       title: Row(
-        children: [
-          Text(
-            'GoStylens',
-            style: TextStyle(
-              fontFamily: 'ClashDisplay',
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSecondary,
-            ),
-          ),
-        ],
+        children: [Image.asset('assets/imgs/logo_primary.png', height: 26)],
       ),
       titleSpacing: 0,
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
         icon: Icon(Icons.arrow_back),
         onPressed: () => Navigator.pop(context),
+        color: Theme.of(context).colorScheme.primary,
       ),
     );
   }

@@ -131,13 +131,19 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // ============================================================
   // SESSIONS OPERATIONS
   // ============================================================
-  Future<void> fetchSessions({bool refresh = false}) =>
-      _sessionsSlice.fetch(refresh: refresh);
+  Future<void> fetchSessions({bool refresh = false, bool? isFavourite}) =>
+      _sessionsSlice.fetch(refresh: refresh, isFavourite: isFavourite);
 
   Future<void> loadMoreSessions() => _sessionsSlice.loadMore();
 
   Future<bool> deleteSession(String sessionId) =>
       _sessionsSlice.delete(sessionId);
+
+  Future<bool> toggleFavorite(
+    String sessionId,
+    bool isFavorite, {
+    void Function(String error)? onError,
+  }) => _sessionsSlice.toggleFavorite(sessionId, isFavorite, onError: onError);
 
   // ============================================================
   // SELECTED SESSION OPERATIONS

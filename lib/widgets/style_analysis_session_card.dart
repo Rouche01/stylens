@@ -3,26 +3,51 @@ import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 
-class SessionCard extends StatelessWidget {
+class SessionCard extends StatefulWidget {
   final StyleAnalysisSession session;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onFavorite;
+  final VoidCallback? onRename;
   final bool isBusy;
+  final bool showFavoriteIndicator;
 
   const SessionCard({
     super.key,
     required this.session,
     required this.onTap,
     required this.onDelete,
+    this.onFavorite,
+    this.onRename,
     this.isBusy = false,
+    this.showFavoriteIndicator = true,
   });
 
   @override
+  State<SessionCard> createState() => _SessionCardState();
+}
+
+class _SessionCardState extends State<SessionCard> {
+  final _popupKey = GlobalKey<PopupMenuButtonState>();
+
+  @override
   Widget build(BuildContext context) {
+    final isFav = widget.session.isFavorite && widget.showFavoriteIndicator;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Card(
       margin: EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: isFav
+            ? BorderSide(color: primaryColor.withValues(alpha: 0.4), width: 1.5)
+            : BorderSide.none,
+      ),
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onLongPress: () {
+          _popupKey.currentState?.showButtonMenu();
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: EdgeInsets.all(16),
@@ -30,9 +55,10 @@ class SessionCard extends StatelessWidget {
             children: [
               // Outfit image
               Stack(
+                clipBehavior: Clip.none,
                 children: [
                   ImageWithFallback(
-                    remoteImage: session.remoteImage,
+                    remoteImage: widget.session.remoteImage,
                     width: 60,
                     height: 60,
                     fit: BoxFit.cover,
@@ -47,7 +73,7 @@ class SessionCard extends StatelessWidget {
                       child: Icon(Icons.image, color: Colors.grey),
                     ),
                   ),
-                  if (isBusy)
+                  if (widget.isBusy)
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
@@ -62,6 +88,30 @@ class SessionCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (isFav)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 3,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.favorite,
+                          size: 12,
+                          color: primaryColor,
+                        ),
+                      ),
+                    ),
                 ],
               ),
               SizedBox(width: 16),
@@ -71,7 +121,7 @@ class SessionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      session.title,
+                      widget.session.title,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -81,7 +131,7 @@ class SessionCard extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      _formatDate(session.updatedAt),
+                      _formatDate(widget.session.updatedAt),
                       style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     ),
                   ],
@@ -91,15 +141,45 @@ class SessionCard extends StatelessWidget {
               Column(
                 children: [
                   PopupMenuButton(
+                    key: _popupKey,
                     icon: Icon(Icons.more_vert, size: 20),
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                        onTap: onDelete,
+                        onTap: widget.onFavorite ?? () {},
+                        child: Row(
+                          children: [
+                            Icon(
+                              widget.session.isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              widget.session.isFavorite
+                                  ? 'Remove from favorites'
+                                  : 'Add to favorites',
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        onTap: widget.onRename ?? () {},
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 16),
+                            SizedBox(width: 8),
+                            Text('Rename'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        onTap: widget.onDelete,
                         child: Row(
                           children: [
                             Icon(Icons.delete, size: 16, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Delete'),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
