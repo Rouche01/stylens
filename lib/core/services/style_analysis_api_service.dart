@@ -214,6 +214,32 @@ class StyleAnalysisApiService {
     }
   }
 
+  Future<ApiResponse<void>> updateSessionProperties(
+    String sessionId,
+    Map<String, dynamic> properties,
+  ) async {
+    try {
+      final headers = await _headers;
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/style-analysis/sessions/$sessionId'),
+        headers: headers,
+        body: jsonEncode(properties),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return ApiResponse(statusCode: response.statusCode);
+      }
+
+      return ApiResponse(
+        error:
+            'Failed to update session: ${response.statusCode} - ${response.body}',
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(error: 'Failed to update session: $e', statusCode: -1);
+    }
+  }
+
   // --- Streaming ---
   Future<http.StreamedResponse> streamAssistantResponse({
     required String sessionId,

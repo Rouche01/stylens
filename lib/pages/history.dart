@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/pages/style_analysis.dart';
 import 'package:gostylens/widgets/style_analysis_session_card.dart';
 
@@ -50,6 +51,77 @@ class _HistoryPageState extends State<HistoryPage> {
     if (mounted) {
       sessionManager.fetchSessions(refresh: true);
     }
+  }
+
+  void _showRenameDialog(StyleAnalysisSession session) {
+    final controller = TextEditingController(text: session.title);
+
+    // Delay to let the PopupMenu fully dismiss before opening the dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 24),
+          actionsPadding: EdgeInsets.only(right: 16, bottom: 8, top: 0),
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+          title: Text(
+            'Rename Session',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 18,
+            ),
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Enter new name',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: Text(
+                'Rename',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ).then((newName) {
+        if (!mounted) return;
+        if (newName != null && newName.isNotEmpty && newName != session.title) {
+          context.read<StyleAnalysisSessionManager>().renameSession(
+            session.id,
+            newName,
+            onError: (error) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: Colors.red),
+                );
+              }
+            },
+          );
+        }
+      });
+    });
   }
 
   Widget _buildFilterPill(String title) {
@@ -274,6 +346,9 @@ class _HistoryPageState extends State<HistoryPage> {
                                           }
                                         },
                                       );
+                                },
+                                onRename: () {
+                                  _showRenameDialog(session);
                                 },
                                 onDelete: () => context
                                     .read<StyleAnalysisSessionManager>()

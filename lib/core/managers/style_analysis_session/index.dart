@@ -145,6 +145,12 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     void Function(String error)? onError,
   }) => _sessionsSlice.toggleFavorite(sessionId, isFavorite, onError: onError);
 
+  Future<bool> renameSession(
+    String sessionId,
+    String title, {
+    void Function(String error)? onError,
+  }) => _sessionsSlice.renameSession(sessionId, title, onError: onError);
+
   // ============================================================
   // SELECTED SESSION OPERATIONS
   // ============================================================

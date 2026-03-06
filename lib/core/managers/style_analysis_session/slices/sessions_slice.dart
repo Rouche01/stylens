@@ -165,4 +165,35 @@ class SessionsSlice {
 
     return true;
   }
+
+  Future<bool> renameSession(
+    String sessionId,
+    String title, {
+    void Function(String error)? onError,
+  }) async {
+    final previousSessions = List<StyleAnalysisSession>.from(sessions);
+
+    final updated = sessions.map((s) {
+      if (s.id == sessionId) {
+        return s.copyWith(title: title);
+      }
+      return s;
+    }).toList();
+
+    _setState(ActionState.success(updated));
+    _notifyListeners();
+
+    final response = await _apiService.updateSessionProperties(sessionId, {
+      'title': title,
+    });
+
+    if (!response.isSuccess) {
+      _setState(ActionState.success(previousSessions));
+      _notifyListeners();
+      onError?.call(response.error ?? 'Failed to rename session');
+      return false;
+    }
+
+    return true;
+  }
 }
