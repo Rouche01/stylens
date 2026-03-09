@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/services/user_api_service.dart';
+import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';

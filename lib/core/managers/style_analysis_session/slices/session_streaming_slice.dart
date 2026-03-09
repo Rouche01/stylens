@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/session_streaming_state.dart';
 import 'package:gostylens/utils/streaming_utils.dart';
 

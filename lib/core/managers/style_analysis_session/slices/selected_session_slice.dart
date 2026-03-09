@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:gostylens/core/managers/slice_state_manager.dart';
-import 'package:gostylens/core/services/style_analysis_api_service.dart';
+import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
