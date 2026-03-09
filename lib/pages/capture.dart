@@ -9,7 +9,7 @@ import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
-import 'package:gostylens/widgets/paywall_dialog.dart';
+import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'profile_menu.dart';
 import 'dart:io';
@@ -107,10 +107,10 @@ class _CapturePageState extends State<CapturePage> {
       return true;
     }
 
-    // They've hit the limit. Show the paywall dialog.
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => const PaywallDialog(),
+    // They've hit the limit. Show the paywall page.
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const PaywallPage()),
     );
 
     return result == true;
