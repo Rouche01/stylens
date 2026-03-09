@@ -1,4 +1,5 @@
 import 'package:gostylens/models/api_responses/gender.dart';
+import 'package:gostylens/models/api_responses/subscription.dart';
 
 class User {
   final String id;
@@ -9,6 +10,7 @@ class User {
   final int createdAt;
   final int updatedAt;
   final int isActive;
+  final Subscription subscription;
 
   const User({
     required this.id,
@@ -19,6 +21,7 @@ class User {
     required this.createdAt,
     required this.updatedAt,
     required this.isActive,
+    required this.subscription,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -33,6 +36,9 @@ class User {
       createdAt: json['created_at'] as int,
       updatedAt: json['updated_at'] as int,
       isActive: json['is_active'] as int,
+      subscription: Subscription.fromJson(
+        json['subscription'] as Map<String, dynamic>,
+      ),
     );
   }
 
@@ -46,6 +52,7 @@ class User {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'is_active': isActive,
+      'subscription': subscription.toJson(),
     };
   }
 
@@ -60,6 +67,7 @@ class User {
     int? createdAt,
     int? updatedAt,
     int? isActive,
+    Subscription? subscription,
   }) {
     return User(
       id: id ?? this.id,
@@ -70,6 +78,7 @@ class User {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
+      subscription: subscription ?? this.subscription,
     );
   }
 }

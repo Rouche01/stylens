@@ -5,6 +5,7 @@ import 'package:gostylens/widgets/auth_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'core/managers/style_analysis_session/index.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
@@ -40,7 +41,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MyAppState()),
         ChangeNotifierProvider(create: (_) => StyleAnalysisSessionManager()),
         ChangeNotifierProvider(create: (_) => AuthStateManager()),
-        ChangeNotifierProvider(create: (_) => UserStateManager()),
+        ChangeNotifierProvider(create: (_) => SubscriptionManager()),
+        ChangeNotifierProxyProvider<SubscriptionManager, UserStateManager>(
+          create: (context) =>
+              UserStateManager(context.read<SubscriptionManager>()),
+          update: (context, subscriptionManager, previous) =>
+              previous ?? UserStateManager(subscriptionManager),
+        ),
       ],
       child: MaterialApp(
         title: 'Stylens',

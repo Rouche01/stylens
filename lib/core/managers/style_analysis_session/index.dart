@@ -78,6 +78,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   bool get isSessionsLoading => _sessionsSlice.isLoading;
   bool get isLoadingMoreSessions => _sessionsSlice.isLoadingMore;
   bool get hasMoreSessions => _sessionsSlice.hasMore;
+  int get totalCount => _sessionsSlice.totalCount;
   String? get sessionsError => _sessionsSlice.error;
 
   // ============================================================

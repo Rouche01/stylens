@@ -38,8 +38,9 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: gender);
 
     userStateManager.createProfile(
-      onSuccess: () {
+      onSuccess: (user) {
         if (!mounted) return;
+
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => MyHomePage()),
           (route) => false,
@@ -59,8 +60,9 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: Gender.unspecified);
 
     userStateManager.createProfile(
-      onSuccess: () {
+      onSuccess: (user) {
         if (!mounted) return;
+
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => MyHomePage()),
           (route) => false,

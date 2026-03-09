@@ -35,11 +35,10 @@ class _AuthGateState extends State<AuthGate> {
         if (session != null) {
           // Fetch the user data locally before letting them in
           context.read<UserStateManager>().fetchCurrentUser(
-            onSuccess: () {
+            onSuccess: (user) {
               if (mounted) {
-                print(
-                  "User fetched successfully ${context.read<UserStateManager>().currentUser?.toJson()}",
-                );
+                print("User fetched successfully ${user.toJson()}");
+
                 FlutterNativeSplash.remove();
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (context) => MyHomePage()),

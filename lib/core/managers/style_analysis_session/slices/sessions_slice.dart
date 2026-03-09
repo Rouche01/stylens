@@ -32,6 +32,7 @@ class SessionsSlice {
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMore => _paginationInfo?.hasNextPage ?? false;
   int get currentPage => _paginationInfo?.page ?? 1;
+  int get totalCount => _paginationInfo?.totalItems ?? 0;
   String? get error => _getState().error;
 
   // --- Operations ---

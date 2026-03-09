@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/user_api_service.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
+import 'package:gostylens/models/api_responses/subscription.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 class UserStateManager extends ChangeNotifier {
-  final UserApiService _userApiService = UserApiService();
+  final UserApiService _userApiService;
+  final SubscriptionManager _subscriptionManager;
+
+  UserStateManager(this._subscriptionManager, {UserApiService? userApiService})
+    : _userApiService = userApiService ?? UserApiService();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -28,6 +34,12 @@ class UserStateManager extends ChangeNotifier {
         createdAt: 0,
         updatedAt: 0,
         isActive: 1,
+        subscription: const Subscription(
+          id: 'draft',
+          userId: '',
+          tier: 'free',
+          status: 'active',
+        ),
       );
     } else {
       _registrationDraft = _registrationDraft!.copyWith(
@@ -41,7 +53,7 @@ class UserStateManager extends ChangeNotifier {
 
   /// Fetches the profile of the currently authenticated Supabase user from the backend DB.
   Future<void> fetchCurrentUser({
-    void Function()? onSuccess,
+    void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
     final supabaseUser = Supabase.instance.client.auth.currentUser;
@@ -55,10 +67,12 @@ class UserStateManager extends ChangeNotifier {
 
     try {
       final response = await _userApiService.getUserByAuthId(supabaseUser.id);
+      final userData = response.data;
 
-      if (response.isSuccess && response.data != null) {
-        _currentUser = response.data;
-        onSuccess?.call();
+      if (response.isSuccess && userData != null) {
+        _currentUser = userData;
+        _subscriptionManager.initialize(userData.id);
+        onSuccess?.call(userData);
       } else {
         onError?.call(response.error ?? 'Failed to load user profile.');
       }
@@ -72,7 +86,7 @@ class UserStateManager extends ChangeNotifier {
 
   /// Creates a new user profile in the backend DB for the authenticated Supabase user.
   Future<void> createProfile({
-    void Function()? onSuccess,
+    void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
     final supabaseUser = Supabase.instance.client.auth.currentUser;
@@ -102,16 +116,16 @@ class UserStateManager extends ChangeNotifier {
         gender: genderToSave.value,
         email: emailToSave,
       );
+      final userData = response.data;
 
-      if (response.isSuccess && response.data != null) {
+      if (response.isSuccess && userData != null) {
         _registrationDraft =
             null; // Clear the draft state after successful creation
-        _currentUser =
-            response.data; // Save the newly created profile into memory
+        _currentUser = userData; // Save the newly created profile into memory
 
         // Refresh the session to ensure the user claim is updated
         await Supabase.instance.client.auth.refreshSession();
-        onSuccess?.call();
+        onSuccess?.call(userData);
       } else {
         onError?.call(response.error ?? 'Failed to create user profile.');
       }

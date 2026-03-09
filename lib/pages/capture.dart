@@ -6,6 +6,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/widgets/paywall_dialog.dart';
+import 'package:provider/provider.dart';
 import 'profile_menu.dart';
 import 'dart:io';
 import 'style_analysis.dart';
@@ -83,7 +88,38 @@ class _CapturePageState extends State<CapturePage> {
     }
   }
 
+  Future<bool> _checkLimitsAndProceed() async {
+    final userManager = context.read<UserStateManager>();
+    final sessionManager = context.read<StyleAnalysisSessionManager>();
+    final subManager = context.read<SubscriptionManager>();
+
+    final user = userManager.currentUser;
+    if (user == null) return false;
+
+    // Entitlement checks
+    final isPro = subManager.isPro;
+    if (isPro || !user.subscription.isFree) {
+      return true;
+    }
+
+    // They are on the Free tier. Do they have < 3 sessions?
+    if (sessionManager.totalCount < 3) {
+      return true;
+    }
+
+    // They've hit the limit. Show the paywall dialog.
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const PaywallDialog(),
+    );
+
+    return result == true;
+  }
+
   Future<void> _takePhoto() async {
+    final canProceed = await _checkLimitsAndProceed();
+    if (!canProceed) return;
+
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
@@ -105,6 +141,9 @@ class _CapturePageState extends State<CapturePage> {
   }
 
   Future<void> _chooseFromGallery() async {
+    final canProceed = await _checkLimitsAndProceed();
+    if (!canProceed) return;
+
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
