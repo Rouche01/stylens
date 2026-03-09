@@ -1,4 +1,5 @@
 import 'package:gostylens/models/action_state.dart';
+import 'package:gostylens/utils/string_extensions.dart';
 
 enum ActionType { initial, loading, success, error }
 
@@ -62,8 +63,12 @@ class SliceStateManager<T> {
   }
 
   /// Sets state to error with message
-  void setError(String? message, {bool notify = true}) {
-    _setState(ActionState<T>.error(message));
+  void setError(
+    String? message, {
+    bool retainData = false,
+    bool notify = true,
+  }) {
+    _setState(ActionState<T>.error(message, data: retainData ? data : null));
     if (notify) _notifyListeners();
   }
 
@@ -84,7 +89,7 @@ class SliceStateManager<T> {
           _setState(ActionState<T>.success(data));
         }
       case ActionType.error:
-        _setState(ActionState<T>.error(error));
+        _setState(ActionState<T>.error(error, data: data));
     }
     if (notify) _notifyListeners();
   }
@@ -107,6 +112,7 @@ class SliceStateManager<T> {
     T Function(R result)? onSuccess,
     String Function(dynamic error)? onError,
     bool setLoadingState = true,
+    bool retainDataOnError = false,
   }) async {
     try {
       if (setLoadingState) {
@@ -121,8 +127,9 @@ class SliceStateManager<T> {
 
       return result;
     } catch (e) {
-      final errorMessage = onError?.call(e) ?? e.toString();
-      setError(errorMessage);
+      String errorMessage = e.toString().cleanException();
+      onError?.call(errorMessage);
+      setError(errorMessage, retainData: retainDataOnError);
       return null;
     }
   }

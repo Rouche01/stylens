@@ -7,6 +7,7 @@ import 'package:gostylens/models/api_responses/paginated_response.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:gostylens/utils/api_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class StyleAnalysisApiService {
@@ -59,11 +60,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error: 'Failed to load sessions: ${response.statusCode}',
+        error: parseApiError('Failed to load sessions', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Network error: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Network error', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -87,12 +91,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error:
-            'Failed to create session: ${response.statusCode} - ${response.body}',
+        error: parseApiError('Failed to create session', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Failed to create session: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Failed to create session', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -109,11 +115,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error: 'Failed to delete session: ${response.statusCode}',
+        error: parseApiError('Failed to delete session', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Failed to delete session: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Failed to delete session', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -149,11 +158,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error: 'Failed to load messages: ${response.statusCode}',
+        error: parseApiError('Failed to load messages', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Failed to fetch messages: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Failed to fetch messages', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -176,12 +188,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error:
-            'Failed to add message: ${response.statusCode} - ${response.body}',
+        error: parseApiError('Failed to add message', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Failed to add message: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Failed to add message', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -202,13 +216,15 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error:
-            'Failed to update favorite status: ${response.statusCode} - ${response.body}',
+        error: parseApiError(
+          'Failed to update favorite status',
+          response: response,
+        ),
         statusCode: response.statusCode,
       );
     } catch (e) {
       return ApiResponse(
-        error: 'Failed to update favorite status: $e',
+        error: parseApiError('Failed to update favorite status', error: e),
         statusCode: -1,
       );
     }
@@ -231,12 +247,14 @@ class StyleAnalysisApiService {
       }
 
       return ApiResponse(
-        error:
-            'Failed to update session: ${response.statusCode} - ${response.body}',
+        error: parseApiError('Failed to update session', response: response),
         statusCode: response.statusCode,
       );
     } catch (e) {
-      return ApiResponse(error: 'Failed to update session: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Failed to update session', error: e),
+        statusCode: -1,
+      );
     }
   }
 

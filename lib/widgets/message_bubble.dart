@@ -5,8 +5,9 @@ import 'package:gostylens/models/style_analysis_session_message.dart';
 
 class MessageBubble extends StatelessWidget {
   final StyleAnalysisSessionMessage message;
+  final VoidCallback? onRetry;
 
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +42,11 @@ class MessageBubble extends StatelessWidget {
           minWidth: 100,
         ),
         decoration: BoxDecoration(
-          color: message.isUserMessage
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: message.isError
+              ? Theme.of(context).colorScheme.errorContainer
+              : (message.isUserMessage
+                    ? Theme.of(context).colorScheme.primaryContainer
+                    : Theme.of(context).colorScheme.surfaceContainerHighest),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -69,13 +72,36 @@ class MessageBubble extends StatelessWidget {
                       ? 200
                       : double.infinity,
                 ),
-                child: Text(
-                  message.text!,
-                  style: TextStyle(
-                    color: message.isUserMessage
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        message.text!,
+                        style: TextStyle(
+                          color: message.isError
+                              ? Theme.of(context).colorScheme.onErrorContainer
+                              : (message.isUserMessage
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    if (message.isError && onRetry != null) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: onRetry,
+                        child: Icon(
+                          Icons.refresh,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

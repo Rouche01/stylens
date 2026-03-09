@@ -221,8 +221,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       _sessionsSlice.fetch();
       await _startStreaming(sessionId, contextMode: ContextMode.all);
     } else {
-      print('Failed to create session in manager $createSessionError');
-      _selectedSessionSlice.removeLoadingMessage();
+      _selectedSessionSlice.replaceLoadingWithError(
+        createSessionError ??
+            'Unable to initiate styling session. Please try again.',
+      );
       notifyListeners();
     }
 
@@ -267,8 +269,57 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     } else {
       _stateSlices[ManagerStateSliceName.addMessageToSession] =
           ActionState<void>.error('Failed to add message');
-      _selectedSessionSlice.removeLoadingMessage();
+      _selectedSessionSlice.replaceLoadingWithError(
+        'Failed to send message. Please try again.',
+      );
       notifyListeners();
+    }
+  }
+
+  void removeErrorMessageFromSelectedSession() {
+    _selectedSessionSlice.removeErrorMessage();
+    notifyListeners();
+  }
+
+  Future<void> retryLastFailedAction() async {
+    removeErrorMessageFromSelectedSession();
+    final id = selectedSessionId;
+
+    if (id == null) {
+      // It was a createSession failure
+      await createSession();
+    } else {
+      // It was an addMessage remote failure
+      final messages = selectedSessionMessages;
+      if (messages.isEmpty) return;
+
+      final lastUserMsg = messages.firstWhere((m) => m.isUserMessage);
+
+      _stateSlices[ManagerStateSliceName.addMessageToSession] =
+          ActionState<void>.loading();
+      _selectedSessionSlice.addLoadingMessage();
+      notifyListeners();
+
+      final success = await _selectedSessionSlice.addMessageRemote(
+        UserRole.user,
+        text: lastUserMsg.text,
+        remoteImage: lastUserMsg.remoteImage,
+      );
+
+      if (success) {
+        _stateSlices[ManagerStateSliceName.addMessageToSession] =
+            ActionState<void>.success(null);
+        notifyListeners();
+
+        await _startStreaming(id, contextMode: ContextMode.recent);
+      } else {
+        _stateSlices[ManagerStateSliceName.addMessageToSession] =
+            ActionState<void>.error('Failed to add message');
+        _selectedSessionSlice.replaceLoadingWithError(
+          'Failed to send message. Please try again.',
+        );
+        notifyListeners();
+      }
     }
   }
 

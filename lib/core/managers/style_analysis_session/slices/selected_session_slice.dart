@@ -153,6 +153,8 @@ class SelectedSessionSlice {
 
     final response = await _sliceStateManager.execute(
       action: () => _apiService.createSession(messages: messageEntries),
+      retainDataOnError: true, // Keep the UI messages array alive!
+      setLoadingState: false, // Don't wipe the chat view entirely
       onSuccess: (response) {
         if (response.isSuccess && response.data != null) {
           return SelectedStyleAnalysisSession(
@@ -163,8 +165,8 @@ class SelectedSessionSlice {
         throw Exception(response.error ?? 'Failed to create session');
       },
       onError: (e) {
-        onError?.call('Failed to create session: $e');
-        return 'Failed to create session: $e';
+        onError?.call(e.toString());
+        return e.toString();
       },
     );
 
@@ -192,6 +194,7 @@ class SelectedSessionSlice {
         },
       ),
       setLoadingState: false, // Don't change main state
+      retainDataOnError: true, // Keep the UI messages untouched!
       onSuccess: (response) {
         if (response.isSuccess) {
           // Return current session state unchanged
@@ -223,7 +226,8 @@ class SelectedSessionSlice {
     String? text,
     File? imageFile,
     RemoteImage? remoteImage,
-    isLoading = false,
+    bool isLoading = false,
+    bool isError = false,
   }) {
     final newMessage = StyleAnalysisSessionMessage(
       role: userRole,
@@ -232,6 +236,7 @@ class SelectedSessionSlice {
       remoteImage: remoteImage,
       text: text,
       isLoading: isLoading,
+      isError: isError,
     );
 
     _sliceStateManager.setSuccess(
@@ -273,6 +278,36 @@ class SelectedSessionSlice {
 
   void removeLoadingMessage() {
     if (messages.isNotEmpty && messages.first.isLoading) {
+      _sliceStateManager.setSuccess(
+        SelectedStyleAnalysisSession(
+          sessionId: sessionId,
+          messages: messages.sublist(1),
+        ),
+      );
+    }
+  }
+
+  void replaceLoadingWithError(String errorMessage) {
+    if (messages.isNotEmpty && messages.first.isLoading) {
+      _sliceStateManager.setSuccess(
+        SelectedStyleAnalysisSession(
+          sessionId: sessionId,
+          messages: [
+            StyleAnalysisSessionMessage(
+              role: UserRole.assistant,
+              text: errorMessage,
+              timestamp: DateTime.now(),
+              isError: true,
+            ),
+            ...messages.sublist(1),
+          ],
+        ),
+      );
+    }
+  }
+
+  void removeErrorMessage() {
+    if (messages.isNotEmpty && messages.first.isError) {
       _sliceStateManager.setSuccess(
         SelectedStyleAnalysisSession(
           sessionId: sessionId,

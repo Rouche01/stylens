@@ -20,6 +20,7 @@ class StyleAnalysisSessionMessage {
   final UserRole role;
   final DateTime timestamp;
   final bool isLoading;
+  final bool isError;
   final File? imageFile; // Local image file reference
   final RemoteImage? remoteImage; // Remote image object
 
@@ -31,6 +32,7 @@ class StyleAnalysisSessionMessage {
     this.text,
     required this.timestamp,
     this.isLoading = false,
+    this.isError = false,
     this.imageFile,
     this.remoteImage,
     this.role = UserRole.user,
@@ -53,6 +55,7 @@ class StyleAnalysisSessionMessage {
             })
           : null,
       isLoading: false,
+      isError: json['isError'] ?? false,
     );
   }
 
@@ -64,6 +67,7 @@ class StyleAnalysisSessionMessage {
       'image_url': remoteImage?.url,
       'image_key': remoteImage?.key,
       'isLoading': isLoading,
+      'isError': isError,
     };
   }
 }

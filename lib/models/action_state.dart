@@ -11,7 +11,7 @@ class ActionState<T> {
 
   ActionState.success(this.data) : isLoading = false, error = null;
 
-  ActionState.error(this.error) : isLoading = false, data = null;
+  ActionState.error(this.error, {this.data}) : isLoading = false;
 
   ActionState<T> copyWith({bool? isLoading, T? data, String? error}) {
     return ActionState<T>(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:gostylens/utils/api_utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
@@ -40,8 +41,10 @@ class UserApiService {
         );
       }
     } catch (e) {
-      print('Error fetching user: $e');
-      return ApiResponse(error: 'Network error: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Network error', error: e),
+        statusCode: -1,
+      );
     }
   }
 
@@ -75,13 +78,15 @@ class UserApiService {
         );
       } else {
         return ApiResponse(
-          error: 'Failed to create user: ${response.statusCode}',
+          error: parseApiError('Failed to create user', response: response),
           statusCode: response.statusCode,
         );
       }
     } catch (e) {
-      print('Error creating user: $e');
-      return ApiResponse(error: 'Network error: $e', statusCode: -1);
+      return ApiResponse(
+        error: parseApiError('Network error', error: e),
+        statusCode: -1,
+      );
     }
   }
 }

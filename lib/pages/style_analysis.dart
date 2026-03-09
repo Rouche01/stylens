@@ -276,7 +276,12 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           final message = messages[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: MessageBubble(message: message),
+            child: MessageBubble(
+              message: message,
+              onRetry: message.isError
+                  ? () => sessionManager.retryLastFailedAction()
+                  : null,
+            ),
           );
         },
       ),
