@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
+import 'package:gostylens/widgets/formatted_error_text.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 
@@ -77,9 +78,9 @@ class MessageBubble extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Flexible(
-                      child: Text(
-                        message.text!,
-                        style: TextStyle(
+                      child: FormattedErrorText(
+                        text: message.text!,
+                        baseStyle: TextStyle(
                           color: message.isError
                               ? Theme.of(context).colorScheme.onErrorContainer
                               : (message.isUserMessage

@@ -224,7 +224,8 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
     final messages = sessionManager.selectedSessionMessages;
     final isSendDisabled =
         sessionManager.isSelectedSessionAwaitingResponse ||
-        sessionManager.isSelectedSessionStreaming;
+        sessionManager.isSelectedSessionStreaming ||
+        sessionManager.createSessionError != null;
 
     return Column(
       children: [
