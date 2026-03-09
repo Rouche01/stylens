@@ -4,6 +4,7 @@ class MessageInput extends StatelessWidget {
   final TextEditingController messageController;
   final VoidCallback onSendMessage;
   final bool isSendDisabled;
+  final bool isTextFieldDisabled;
   final shouldAutoFocus = true;
   final FocusNode? focusNode;
 
@@ -12,6 +13,7 @@ class MessageInput extends StatelessWidget {
     required this.messageController,
     required this.onSendMessage,
     this.isSendDisabled = false,
+    this.isTextFieldDisabled = false,
     this.focusNode,
   });
 
@@ -34,6 +36,7 @@ class MessageInput extends StatelessWidget {
               controller: messageController,
               focusNode: focusNode,
               autofocus: shouldAutoFocus,
+              enabled: !isTextFieldDisabled,
               decoration: InputDecoration(
                 hintText: 'Type your message...',
                 border: OutlineInputBorder(

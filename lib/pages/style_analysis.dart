@@ -227,6 +227,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
         sessionManager.isSelectedSessionStreaming ||
         sessionManager.createSessionError != null;
 
+    final isTextFieldDisabled =
+        sessionManager.createSessionError != null ||
+        sessionManager.isCreatingSession;
+
     return Column(
       children: [
         Expanded(child: _buildMessageList(sessionManager, messages)),
@@ -234,6 +238,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           messageController: _messageController,
           onSendMessage: _sendMessage,
           isSendDisabled: isSendDisabled,
+          isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
         ),
       ],
