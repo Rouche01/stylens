@@ -29,6 +29,9 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // --- Error Callbacks ---
   void Function(String message)? onStreamError;
 
+  // --- Sync Callbacks ---
+  void Function()? onSessionCreated;
+
   // --- State Slices (unified storage) ---
   final Map<ManagerStateSliceName, ActionState<dynamic>> _stateSlices = {
     ManagerStateSliceName.sessions: ActionState<List<StyleAnalysisSession>>(),
@@ -229,6 +232,12 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       notifyListeners();
 
       _sessionsSlice.fetch();
+
+      // Delay briefly to allow backend to update usage limits, then sync subscription
+      Future.delayed(const Duration(seconds: 2), () {
+        onSessionCreated?.call();
+      });
+
       await _startStreaming(sessionId, contextMode: ContextMode.all);
     } else {
       _selectedSessionSlice.replaceLoadingWithError(

@@ -39,9 +39,21 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MyAppState()),
-        ChangeNotifierProvider(create: (_) => StyleAnalysisSessionManager()),
         ChangeNotifierProvider(create: (_) => AuthStateManager()),
         ChangeNotifierProvider(create: (_) => SubscriptionManager()),
+        ChangeNotifierProxyProvider<
+          SubscriptionManager,
+          StyleAnalysisSessionManager
+        >(
+          create: (context) => StyleAnalysisSessionManager(),
+          update: (context, subscriptionManager, previous) {
+            final manager = previous ?? StyleAnalysisSessionManager();
+            manager.onSessionCreated = () {
+              subscriptionManager.syncSubscription();
+            };
+            return manager;
+          },
+        ),
         ChangeNotifierProxyProvider<SubscriptionManager, UserStateManager>(
           create: (context) =>
               UserStateManager(context.read<SubscriptionManager>()),

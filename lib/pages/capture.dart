@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'profile_menu.dart';
@@ -93,17 +92,27 @@ class _CapturePageState extends State<CapturePage> {
   }
 
   Future<bool> _checkLimitsAndProceed() async {
-    final userManager = context.read<UserStateManager>();
     final subManager = context.read<SubscriptionManager>();
 
-    final user = userManager.currentUser;
-    if (user == null) return false;
+    final sub = subManager.subscription;
+    if (sub == null) {
+      // Fallback: If for some reason we don't have subscription state yet
+      // (e.g., fast app launch), fetch it quickly.
+      GlobalLoaderController.instance.show('Your stylist is getting ready...');
+      try {
+        await subManager.syncSubscription();
+      } finally {
+        GlobalLoaderController.instance.hide();
+      }
+    }
+
+    final isPro = subManager.isPro;
+    final activeSub = subManager.subscription;
+
+    if (activeSub == null) return false;
 
     // Entitlement checks
-    final isPro = subManager.isPro;
-    if (isPro ||
-        !user.subscription.isFree ||
-        (user.subscription.isFree && !user.subscription.hasReachedLimit)) {
+    if (isPro || !activeSub.isFree || !activeSub.hasReachedLimit) {
       return true;
     }
 

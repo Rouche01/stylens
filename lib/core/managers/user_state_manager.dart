@@ -72,7 +72,10 @@ class UserStateManager extends ChangeNotifier {
 
       if (response.isSuccess && userData != null) {
         _currentUser = userData;
-        _subscriptionManager.initialize(userData.id);
+        _subscriptionManager.initialize(
+          userData.id,
+          initialSubscription: userData.subscription,
+        );
         onSuccess?.call(userData);
       } else {
         onError?.call(response.error ?? 'Failed to load user profile.');
@@ -123,6 +126,10 @@ class UserStateManager extends ChangeNotifier {
         _registrationDraft =
             null; // Clear the draft state after successful creation
         _currentUser = userData; // Save the newly created profile into memory
+        _subscriptionManager.initialize(
+          userData.id,
+          initialSubscription: userData.subscription,
+        );
 
         // Refresh the session to ensure the user claim is updated
         await Supabase.instance.client.auth.refreshSession();
