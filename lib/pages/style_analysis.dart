@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/constants/ux_messages.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
@@ -74,6 +75,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
 
   void _initializeSession() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sessionManager.clearOperationErrors();
       final selectedSessionId = _sessionManager.selectedSessionId;
 
       if (selectedSessionId != null) {
@@ -240,6 +242,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           isSendDisabled: isSendDisabled,
           isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
+          placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
         ),
       ],
     );

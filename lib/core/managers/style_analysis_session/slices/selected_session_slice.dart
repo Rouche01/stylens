@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/managers/slice_state_manager.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
@@ -28,9 +29,8 @@ class SelectedSessionSlice {
     );
   }
 
-  static const _initialPrompt = 'What do you think about my outfit?';
-  static const _initialBotReply =
-      "Looking great! 🔥 What's the occasion for this outfit?";
+  static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
+  static const _initialBotReply = UxMessages.initialStylistReply;
 
   // --- UI State (kept locally in slice) ---
   final Map<String, SessionUIState> _uiStates = {};

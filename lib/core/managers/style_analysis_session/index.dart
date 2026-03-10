@@ -198,7 +198,16 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     return await _selectedSessionSlice.loadMoreMessages();
   }
 
+  void clearOperationErrors() {
+    _stateSlices[ManagerStateSliceName.createSession] =
+        ActionState<void>.initial();
+    _stateSlices[ManagerStateSliceName.addMessageToSession] =
+        ActionState<void>.initial();
+    notifyListeners();
+  }
+
   void initializeNewSession(File? imageFile, RemoteImage? remoteImage) {
+    clearOperationErrors();
     _selectedSessionSlice.initializeNew(imageFile, remoteImage);
   }
 

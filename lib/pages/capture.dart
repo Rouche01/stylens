@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:gostylens/constants/ux_messages.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
@@ -25,7 +26,6 @@ class _CapturePageState extends State<CapturePage> {
 
   Future<void> _navigateToStyleAnalysis(File imageFile, String filename) async {
     final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
-    print(remoteImage?.url);
 
     if (mounted) {
       Navigator.push(
@@ -41,7 +41,7 @@ class _CapturePageState extends State<CapturePage> {
   }
 
   Future<RemoteImage?> _uploadToR2(File imageFile, String filename) async {
-    GlobalLoaderController.instance.show('Analyzing outfit');
+    GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
     try {
       final presignedUrlRes = await http.get(
         Uri.parse(
@@ -64,10 +64,6 @@ class _CapturePageState extends State<CapturePage> {
       final downloadUrl = responseData['downloadUrl'];
       final returnedFilename = responseData['filename'];
 
-      print('Upload URL: $uploadUrl');
-      print('Download URL: $downloadUrl');
-      print('Filename: $returnedFilename');
-
       final imageFileBytes = await imageFile.readAsBytes();
       final uploadImageResp = await http.put(
         Uri.parse(uploadUrl),
@@ -75,10 +71,9 @@ class _CapturePageState extends State<CapturePage> {
       );
 
       if (uploadImageResp.statusCode == 200) {
-        print('✅ Uploaded successfully: ${uploadImageResp.statusCode}');
         return RemoteImage(url: downloadUrl, key: returnedFilename);
       } else {
-        print(
+        debugPrint(
           '❌ Upload failed: ${uploadImageResp.statusCode} ${uploadImageResp.body}',
         );
         return null;

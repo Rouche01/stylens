@@ -19,6 +19,7 @@ dependencies:
   flutter_native_splash: ^2.4.7
   flutter_dotenv: ^6.0.0
   purchases_flutter: ^9.13.1
+  lottie: ^3.3.2
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +55,7 @@ flutter:
   assets:
     - .env
     - assets/
+    - assets/animations/
     - assets/icon/google_logo.png
     - assets/icon/icon.png
     - assets/imgs/logo_primary.png

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/constants/ux_messages.dart';
 
 class MessageInput extends StatelessWidget {
   final TextEditingController messageController;
@@ -7,6 +8,7 @@ class MessageInput extends StatelessWidget {
   final bool isTextFieldDisabled;
   final shouldAutoFocus = true;
   final FocusNode? focusNode;
+  final String? placeholder;
 
   const MessageInput({
     super.key,
@@ -15,6 +17,7 @@ class MessageInput extends StatelessWidget {
     this.isSendDisabled = false,
     this.isTextFieldDisabled = false,
     this.focusNode,
+    this.placeholder = UxMessages.messagePlaceholderDefault,
   });
 
   @override
@@ -38,7 +41,7 @@ class MessageInput extends StatelessWidget {
               autofocus: shouldAutoFocus,
               enabled: !isTextFieldDisabled,
               decoration: InputDecoration(
-                hintText: 'Type your message...',
+                hintText: placeholder,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
