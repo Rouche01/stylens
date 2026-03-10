@@ -9,6 +9,7 @@ import 'package:gostylens/widgets/message_bubble.dart';
 import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
+import 'package:gostylens/pages/paywall.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   final File? outfitImageFile;
@@ -283,13 +284,38 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           }
 
           final message = messages[index];
+          final isFreeLimitError = message.error?.isFreeLimitReached ?? false;
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: MessageBubble(
               message: message,
-              onRetry: message.isError
-                  ? () => sessionManager.retryLastFailedAction()
-                  : null,
+              errorAction: ErrorAction(
+                label: isFreeLimitError ? 'Upgrade plan' : 'Retry',
+                labelStyle: isFreeLimitError
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        decoration: TextDecoration.underline,
+                      )
+                    : null,
+                showIcon: !isFreeLimitError,
+                handleAction: message.isError
+                    ? () {
+                        if (isFreeLimitError) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PaywallPage(),
+                            ),
+                          );
+                        } else {
+                          sessionManager.retryLastFailedAction();
+                        }
+                      }
+                    : null,
+              ),
             ),
           );
         },

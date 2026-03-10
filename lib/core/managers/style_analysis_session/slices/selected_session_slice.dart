@@ -6,6 +6,7 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/session_ui_state.dart';
@@ -227,7 +228,7 @@ class SelectedSessionSlice {
     File? imageFile,
     RemoteImage? remoteImage,
     bool isLoading = false,
-    bool isError = false,
+    StyleAnalysisSessionMessageError? error,
   }) {
     final newMessage = StyleAnalysisSessionMessage(
       role: userRole,
@@ -236,7 +237,7 @@ class SelectedSessionSlice {
       remoteImage: remoteImage,
       text: text,
       isLoading: isLoading,
-      isError: isError,
+      error: error,
     );
 
     _sliceStateManager.setSuccess(
@@ -287,7 +288,7 @@ class SelectedSessionSlice {
     }
   }
 
-  void replaceLoadingWithError(String errorMessage) {
+  void replaceLoadingWithError(StyleAnalysisSessionMessageError error) {
     if (messages.isNotEmpty && messages.first.isLoading) {
       _sliceStateManager.setSuccess(
         SelectedStyleAnalysisSession(
@@ -295,9 +296,8 @@ class SelectedSessionSlice {
           messages: [
             StyleAnalysisSessionMessage(
               role: UserRole.assistant,
-              text: errorMessage,
               timestamp: DateTime.now(),
-              isError: true,
+              error: error,
             ),
             ...messages.sublist(1),
           ],

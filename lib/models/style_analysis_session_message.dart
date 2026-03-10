@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/models/style_analysis_session_message_error.dart';
 
 // [
 //   {
@@ -20,19 +21,22 @@ class StyleAnalysisSessionMessage {
   final UserRole role;
   final DateTime timestamp;
   final bool isLoading;
-  final bool isError;
+  final StyleAnalysisSessionMessageError? error;
   final File? imageFile; // Local image file reference
   final RemoteImage? remoteImage; // Remote image object
 
   bool get isUserMessage => role == UserRole.user;
   bool get isAssistantMessage => role == UserRole.assistant;
   bool get isSystemMessage => role == UserRole.system;
+  bool get isError => error != null;
+
+  String? get displayText => error != null ? error?.message : text;
 
   StyleAnalysisSessionMessage({
     this.text,
     required this.timestamp,
     this.isLoading = false,
-    this.isError = false,
+    this.error,
     this.imageFile,
     this.remoteImage,
     this.role = UserRole.user,
@@ -55,7 +59,9 @@ class StyleAnalysisSessionMessage {
             })
           : null,
       isLoading: false,
-      isError: json['isError'] ?? false,
+      error: json['response_error'] != null
+          ? StyleAnalysisSessionMessageError(message: json['responseError'])
+          : null,
     );
   }
 
@@ -67,7 +73,7 @@ class StyleAnalysisSessionMessage {
       'image_url': remoteImage?.url,
       'image_key': remoteImage?.key,
       'isLoading': isLoading,
-      'isError': isError,
+      'response_error': error,
     };
   }
 }

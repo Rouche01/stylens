@@ -24,19 +24,28 @@ class CapturePage extends StatefulWidget {
 class _CapturePageState extends State<CapturePage> {
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _navigateToStyleAnalysis(File imageFile, String filename) async {
-    final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
+  Future<void> _startStyleAnalysisSession(
+    File imageFile,
+    String filename,
+  ) async {
+    try {
+      final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
 
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StyleAnalysisPage(
-            outfitImageFile: imageFile,
-            remoteImage: remoteImage,
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StyleAnalysisPage(
+              outfitImageFile: imageFile,
+              remoteImage: remoteImage,
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (err) {
+      print('$err');
+    } finally {
+      GlobalLoaderController.instance.hide();
     }
   }
 
@@ -78,8 +87,9 @@ class _CapturePageState extends State<CapturePage> {
         );
         return null;
       }
-    } finally {
+    } catch (e) {
       GlobalLoaderController.instance.hide();
+      rethrow;
     }
   }
 
@@ -124,7 +134,7 @@ class _CapturePageState extends State<CapturePage> {
       );
 
       if (photo != null) {
-        _navigateToStyleAnalysis(File(photo.path), photo.name);
+        _startStyleAnalysisSession(File(photo.path), photo.name);
       }
     } catch (e) {
       if (mounted) {
@@ -148,7 +158,7 @@ class _CapturePageState extends State<CapturePage> {
       );
 
       if (image != null) {
-        _navigateToStyleAnalysis(File(image.path), image.name);
+        _startStyleAnalysisSession(File(image.path), image.name);
       }
     } catch (e) {
       if (mounted) {
