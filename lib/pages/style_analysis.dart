@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
+import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
@@ -173,6 +174,45 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
     return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 
+  ErrorAction _buildMessageErrorAction(MessageErrorType messageErrorType) {
+    if (messageErrorType == MessageErrorType.freeLimitReached) {
+      return ErrorAction(
+        label: 'Upgrade plan',
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+          decoration: TextDecoration.underline,
+        ),
+        showIcon: false,
+        handleAction: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            showDragHandle: true,
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+            barrierColor: Colors.black.withValues(
+              alpha: 0.7,
+            ), // Darker dimming instead of blur for native support
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            builder: (context) => SizedBox(
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: const PaywallPage(isDrawer: true),
+            ),
+          );
+        },
+      );
+    }
+
+    return ErrorAction(
+      label: 'Retry',
+      handleAction: () => _sessionManager.retryLastFailedAction(),
+    );
+  }
+
   AppBar _buildAppBar() {
     return AppBar(
       title: Row(
@@ -284,38 +324,14 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           }
 
           final message = messages[index];
-          final isFreeLimitError = message.error?.isFreeLimitReached ?? false;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: MessageBubble(
               message: message,
-              errorAction: ErrorAction(
-                label: isFreeLimitError ? 'Upgrade plan' : 'Retry',
-                labelStyle: isFreeLimitError
-                    ? TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        decoration: TextDecoration.underline,
-                      )
-                    : null,
-                showIcon: !isFreeLimitError,
-                handleAction: message.isError
-                    ? () {
-                        if (isFreeLimitError) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PaywallPage(),
-                            ),
-                          );
-                        } else {
-                          sessionManager.retryLastFailedAction();
-                        }
-                      }
-                    : null,
-              ),
+              errorAction: message.error != null
+                  ? _buildMessageErrorAction(message.error!.type)
+                  : const ErrorAction(),
             ),
           );
         },

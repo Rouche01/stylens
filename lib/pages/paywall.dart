@@ -4,21 +4,25 @@ import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 
 class PaywallPage extends StatelessWidget {
-  const PaywallPage({super.key});
+  final bool isDrawer;
+
+  const PaywallPage({super.key, this.isDrawer = false});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceDim,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          color: Theme.of(context).colorScheme.primary,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      appBar: isDrawer
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
