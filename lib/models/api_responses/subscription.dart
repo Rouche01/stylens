@@ -7,6 +7,7 @@ class Subscription {
   final String? providerSubscriptionId;
   final String status;
   final int? currentPeriodEnd;
+  final bool hasReachedLimit;
 
   const Subscription({
     required this.id,
@@ -17,6 +18,7 @@ class Subscription {
     this.providerSubscriptionId,
     required this.status,
     this.currentPeriodEnd,
+    required this.hasReachedLimit,
   });
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Subscription {
       providerSubscriptionId: json['provider_subscription_id'] as String?,
       status: json['status'] as String,
       currentPeriodEnd: json['current_period_end'] as int?,
+      hasReachedLimit: json['has_reached_limit'] == 1,
     );
   }
 
@@ -42,6 +45,7 @@ class Subscription {
       'provider_subscription_id': providerSubscriptionId,
       'status': status,
       'current_period_end': currentPeriodEnd,
+      'has_reached_limit': hasReachedLimit,
     };
   }
 

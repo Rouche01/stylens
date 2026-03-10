@@ -9,7 +9,6 @@ import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'profile_menu.dart';
@@ -95,7 +94,6 @@ class _CapturePageState extends State<CapturePage> {
 
   Future<bool> _checkLimitsAndProceed() async {
     final userManager = context.read<UserStateManager>();
-    final sessionManager = context.read<StyleAnalysisSessionManager>();
     final subManager = context.read<SubscriptionManager>();
 
     final user = userManager.currentUser;
@@ -103,12 +101,9 @@ class _CapturePageState extends State<CapturePage> {
 
     // Entitlement checks
     final isPro = subManager.isPro;
-    if (isPro || !user.subscription.isFree) {
-      return true;
-    }
-
-    // They are on the Free tier. Do they have < 3 sessions?
-    if (sessionManager.totalCount < 3) {
+    if (isPro ||
+        !user.subscription.isFree ||
+        (user.subscription.isFree && !user.subscription.hasReachedLimit)) {
       return true;
     }
 

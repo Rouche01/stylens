@@ -9,7 +9,7 @@ class User {
   final String? email;
   final int createdAt;
   final int updatedAt;
-  final int isActive;
+  final bool isActive;
   final Subscription subscription;
 
   const User({
@@ -35,7 +35,7 @@ class User {
       email: json['email'] as String?,
       createdAt: json['created_at'] as int,
       updatedAt: json['updated_at'] as int,
-      isActive: json['is_active'] as int,
+      isActive: json['is_active'] == 1,
       subscription: Subscription.fromJson(
         json['subscription'] as Map<String, dynamic>,
       ),
@@ -56,8 +56,6 @@ class User {
     };
   }
 
-  bool get isActiveBool => isActive == 1;
-
   User copyWith({
     String? id,
     String? authId,
@@ -77,7 +75,7 @@ class User {
       email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      isActive: isActive ?? this.isActive,
+      isActive: this.isActive,
       subscription: subscription ?? this.subscription,
     );
   }

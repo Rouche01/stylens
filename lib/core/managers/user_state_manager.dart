@@ -33,12 +33,13 @@ class UserStateManager extends ChangeNotifier {
         email: email,
         createdAt: 0,
         updatedAt: 0,
-        isActive: 1,
+        isActive: true,
         subscription: const Subscription(
           id: 'draft',
           userId: '',
           tier: 'free',
           status: 'active',
+          hasReachedLimit: false,
         ),
       );
     } else {
