@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'profile_menu.dart';
@@ -52,7 +52,7 @@ class _CapturePageState extends State<CapturePage> {
     try {
       final presignedUrlRes = await http.get(
         Uri.parse(
-          "${dotenv.env['API_BASE_URL']}/assets/upload-url?filename=$filename",
+          "${EnvConfig.apiBaseUrl}/assets/upload-url?filename=$filename",
         ),
         headers: {"Content-Type": "application/json"},
       );

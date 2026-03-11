@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/utils/api_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 abstract class BaseApiService {
   final String resourcePath;
-  String get baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get baseUrl => EnvConfig.apiBaseUrl;
 
   BaseApiService({this.resourcePath = ''});
 

@@ -37,7 +37,7 @@ class _AuthGateState extends State<AuthGate> {
           context.read<UserStateManager>().fetchCurrentUser(
             onSuccess: (user) {
               if (mounted) {
-                print("User fetched successfully ${user.toJson()}");
+                debugPrint("User fetched successfully ${user.toJson()}");
 
                 FlutterNativeSplash.remove();
                 Navigator.of(context).pushReplacement(

@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/core/config/env_config.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 void main() async {
@@ -17,8 +18,8 @@ void main() async {
     await dotenv.load(fileName: ".env");
 
     await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+      url: EnvConfig.supabaseUrl,
+      anonKey: EnvConfig.supabaseAnonKey,
     );
 
     runApp(const MyApp());

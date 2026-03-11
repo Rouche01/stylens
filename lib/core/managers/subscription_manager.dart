@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
+import 'package:gostylens/core/config/env_config.dart';
 
 class SubscriptionManager extends ChangeNotifier {
   final SubscriptionApiService _subscriptionApiService;
@@ -44,13 +45,9 @@ class SubscriptionManager extends ChangeNotifier {
 
       late PurchasesConfiguration configuration;
       if (Platform.isAndroid) {
-        configuration = PurchasesConfiguration(
-          'goog_api_key',
-        ); // TODO: Replace with env vars
+        configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
       } else if (Platform.isIOS) {
-        configuration = PurchasesConfiguration(
-          'test_GLCjlLwYeqaAcxnOycinuoEncoM',
-        );
+        configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
       }
 
       configuration.appUserID = dbId;
