@@ -9,6 +9,7 @@ class SessionActionsMenu extends StatelessWidget {
   final Color? iconColor;
   final double iconSize;
   final PopupMenuPosition position;
+  final Key? popupKey;
 
   const SessionActionsMenu({
     super.key,
@@ -17,6 +18,7 @@ class SessionActionsMenu extends StatelessWidget {
     this.iconColor,
     this.iconSize = 20,
     this.position = PopupMenuPosition.over,
+    this.popupKey,
   });
 
   @override
@@ -24,6 +26,7 @@ class SessionActionsMenu extends StatelessWidget {
     final sessionManager = context.read<StyleAnalysisSessionManager>();
 
     return PopupMenuButton<String>(
+      key: popupKey,
       position: position,
       icon: Icon(Icons.more_vert, size: iconSize, color: iconColor),
       onSelected: (value) {

@@ -107,7 +107,7 @@ class _HistoryPageState extends State<HistoryPage> {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, size: 24),
             onPressed: () {
               context.read<StyleAnalysisSessionManager>().fetchSessions(
                 refresh: true,

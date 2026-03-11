@@ -3,6 +3,7 @@ import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
+import 'package:gostylens/utils/time_utils.dart';
 
 class SessionCard extends StatefulWidget {
   final StyleAnalysisSession session;
@@ -46,7 +47,12 @@ class _SessionCardState extends State<SessionCard> {
           _popupKey.currentState?.showButtonMenu();
         },
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onLongPress: () {
+            _popupKey.currentState?.showButtonMenu();
+          },
+          child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
@@ -128,7 +134,7 @@ class _SessionCardState extends State<SessionCard> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      _formatDate(widget.session.updatedAt),
+                      formatTimeAgo(widget.session.updatedAt),
                       style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     ),
                   ],
@@ -138,6 +144,7 @@ class _SessionCardState extends State<SessionCard> {
               Column(
                 children: [
                   SessionActionsMenu(
+                    popupKey: _popupKey,
                     session: widget.session,
                     onDelete: widget.onDelete,
                     iconSize: 20,
@@ -147,26 +154,9 @@ class _SessionCardState extends State<SessionCard> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
-    }
-  }
 }
