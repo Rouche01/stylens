@@ -1,27 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/config/env_config.dart';
-import 'package:http/http.dart' as http;
+import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 
 Future<String> regenerateImageUrl(String imageKey) async {
-  try {
-    final presignedUrlRes = await http.get(
-      Uri.parse(
-        "${EnvConfig.apiBaseUrl}/assets/download-url?filename=$imageKey",
-      ),
-      headers: {"Content-Type": "application/json"},
-    );
-
-    if (presignedUrlRes.statusCode != 200) {
-      throw Exception("Failed to get upload URL");
-    }
-
-    return presignedUrlRes.body;
-  } catch (e) {
-    print('Error uploading image: $e');
-    return '';
-  }
+  final assetApiService = AssetApiService();
+  return await assetApiService.getDownloadUrl(imageKey);
 }
 
 class ImageWithFallback extends StatefulWidget {

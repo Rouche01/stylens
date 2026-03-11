@@ -1,13 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'profile_menu.dart';
@@ -50,39 +47,23 @@ class _CapturePageState extends State<CapturePage> {
   Future<RemoteImage?> _uploadToR2(File imageFile, String filename) async {
     GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
     try {
-      final presignedUrlRes = await http.get(
-        Uri.parse(
-          "${EnvConfig.apiBaseUrl}/assets/upload-url?filename=$filename",
-        ),
-        headers: {"Content-Type": "application/json"},
-      );
+      final assetApiService = AssetApiService();
+      final responseData = await assetApiService.getUploadUrl(filename);
 
-      if (presignedUrlRes.statusCode != 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Unable to upload outfit image.')),
-          );
-        }
-        throw Exception("Failed to get upload URL");
-      }
-
-      final responseData = json.decode(presignedUrlRes.body);
-      final uploadUrl = responseData['uploadUrl'];
-      final downloadUrl = responseData['downloadUrl'];
-      final returnedFilename = responseData['filename'];
+      final uploadUrl = responseData.uploadUrl;
+      final downloadUrl = responseData.downloadUrl;
+      final returnedFilename = responseData.filename;
 
       final imageFileBytes = await imageFile.readAsBytes();
-      final uploadImageResp = await http.put(
-        Uri.parse(uploadUrl),
-        body: imageFileBytes,
+      final statusCode = await assetApiService.uploadImage(
+        uploadUrl,
+        imageFileBytes,
       );
 
-      if (uploadImageResp.statusCode == 200) {
+      if (statusCode == 200) {
         return RemoteImage(url: downloadUrl, key: returnedFilename);
       } else {
-        debugPrint(
-          '❌ Upload failed: ${uploadImageResp.statusCode} ${uploadImageResp.body}',
-        );
+        debugPrint('❌ Upload failed: $statusCode');
         return null;
       }
     } catch (e) {
