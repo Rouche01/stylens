@@ -6,6 +6,14 @@ class EnvConfig {
   static String get apiBaseUrl => _get('API_BASE_URL');
   static String get revenueCatApiKey => _get('REVENUE_CAT_API_KEY');
 
+  /// Call this on app startup to ensure all required environment variables are present.
+  static void init() {
+    supabaseUrl;
+    supabaseAnonKey;
+    apiBaseUrl;
+    revenueCatApiKey;
+  }
+
   static String _get(String key) {
     final value = dotenv.env[key];
     if (value == null || value.isEmpty) {

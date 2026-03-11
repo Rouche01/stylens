@@ -15,7 +15,13 @@ void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   try {
-    await dotenv.load(fileName: ".env");
+    const String environment = String.fromEnvironment(
+      'ENV',
+      defaultValue: 'development',
+    );
+
+    await dotenv.load(fileName: ".env.$environment");
+    EnvConfig.init();
 
     await Supabase.initialize(
       url: EnvConfig.supabaseUrl,

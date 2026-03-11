@@ -53,7 +53,8 @@ flutter:
         - asset: assets/fonts/Metropolis-Black.otf
           weight: 900
   assets:
-    - .env
+    - .env.development
+    - .env.production
     - assets/
     - assets/animations/
     - assets/icon/google_logo.png
