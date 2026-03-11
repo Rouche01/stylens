@@ -49,8 +49,8 @@ class SubscriptionManager extends ChangeNotifier {
         ); // TODO: Replace with env vars
       } else if (Platform.isIOS) {
         configuration = PurchasesConfiguration(
-          'appl_api_key',
-        ); // TODO: Replace with env vars
+          'test_GLCjlLwYeqaAcxnOycinuoEncoM',
+        );
       }
 
       configuration.appUserID = dbId;
@@ -58,6 +58,10 @@ class SubscriptionManager extends ChangeNotifier {
 
       _customerInfo = await Purchases.getCustomerInfo();
       _offerings = await Purchases.getOfferings();
+
+      print('customer info: ${_customerInfo?.entitlements.all}');
+
+      print('offerings: $_offerings');
 
       // Listen for changing entitlements (e.g. background renewals)
       Purchases.addCustomerInfoUpdateListener((customerInfo) {

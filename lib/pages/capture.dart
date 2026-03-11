@@ -176,6 +176,11 @@ class _CapturePageState extends State<CapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 0,
+        backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+        elevation: 0,
+      ),
       backgroundColor: Theme.of(context).colorScheme.surfaceDim,
       body: Stack(
         children: [

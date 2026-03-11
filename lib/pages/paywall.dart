@@ -15,7 +15,7 @@ class PaywallPage extends StatelessWidget {
       appBar: isDrawer
           ? null
           : AppBar(
-              backgroundColor: Colors.transparent,
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.close),
@@ -133,7 +133,7 @@ class PaywallPage extends StatelessWidget {
                         ),
                         const Spacer(),
                         PrimaryButton(
-                          label: 'Subscribe Now',
+                          label: 'Upgrade to Core',
                           onPressed: () async {
                             final isPro = await subscriptionManager
                                 .purchasePackage(package);
