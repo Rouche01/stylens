@@ -97,11 +97,15 @@ class _CapturePageState extends State<CapturePage> {
       return true;
     }
 
+    bool? result;
+
     // They've hit the limit. Show the paywall page.
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const PaywallPage()),
-    );
+    if (mounted) {
+      result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (context) => const PaywallPage()),
+      );
+    }
 
     return result == true;
   }

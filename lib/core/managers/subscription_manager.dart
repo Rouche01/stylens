@@ -56,10 +56,6 @@ class SubscriptionManager extends ChangeNotifier {
       _customerInfo = await Purchases.getCustomerInfo();
       _offerings = await Purchases.getOfferings();
 
-      print('customer info: ${_customerInfo?.entitlements.all}');
-
-      print('offerings: $_offerings');
-
       // Listen for changing entitlements (e.g. background renewals)
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
         _customerInfo = customerInfo;
