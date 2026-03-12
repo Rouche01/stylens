@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/constants/links.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -6,6 +7,7 @@ import 'package:gostylens/widgets/paywall_feature_card.dart';
 import 'package:gostylens/widgets/paywall_toggle_row.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:purchases_flutter/models/package_wrapper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PaywallPage extends StatefulWidget {
   final bool isDrawer;
@@ -370,7 +372,7 @@ class PaywallFooter extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton(
-                onPressed: () {},
+                onPressed: () => launchUrl(Uri.parse(Links.privacyPolicy)),
                 child: const Text(
                   'Privacy Policy',
                   style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
@@ -378,7 +380,7 @@ class PaywallFooter extends StatelessWidget {
               ),
               const Text('  ', style: TextStyle(color: Color(0xFF6B7280))),
               TextButton(
-                onPressed: () {},
+                onPressed: () => launchUrl(Uri.parse(Links.termsOfUse)),
                 child: const Text(
                   'Terms of Use',
                   style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
