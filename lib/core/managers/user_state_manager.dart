@@ -25,6 +25,9 @@ class UserStateManager extends ChangeNotifier {
   bool _needsOnboarding = false;
   bool get needsOnboarding => _needsOnboarding;
 
+  String? _lastError;
+  String? get lastError => _lastError;
+
   // Registration Draft State
   User? _registrationDraft;
   User? get registrationDraft => _registrationDraft;
@@ -76,10 +79,13 @@ class UserStateManager extends ChangeNotifier {
       final response = await _userApiService.getUserByAuthId(supabaseUser.id);
       final userData = response.data;
 
+      // Regardless of success/failure (except internal error), we've now made the first check
+      _hasCheckedProfile = true;
+
       if (response.isSuccess && userData != null) {
         _currentUser = userData;
-        _hasCheckedProfile = true;
         _needsOnboarding = false;
+        _lastError = null;
         notifyListeners();
         _subscriptionManager.initialize(
           userData.id,
@@ -87,15 +93,20 @@ class UserStateManager extends ChangeNotifier {
         );
         onSuccess?.call(userData);
       } else if (response.statusCode == 404) {
-        _hasCheckedProfile = true;
         _needsOnboarding = true;
+        _lastError = null;
         notifyListeners();
         onError?.call('Profile not found.');
       } else {
-        onError?.call(response.error ?? 'Failed to load user profile.');
+        _lastError = response.error ?? 'Failed to load user profile.';
+        notifyListeners();
+        onError?.call(_lastError!);
       }
     } catch (e) {
-      onError?.call('Error fetching user profile: $e');
+      _hasCheckedProfile = true;
+      _lastError = 'Error fetching user profile: $e';
+      notifyListeners();
+      onError?.call(_lastError!);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -140,7 +151,9 @@ class UserStateManager extends ChangeNotifier {
         _registrationDraft =
             null; // Clear the draft state after successful creation
         _currentUser = userData; // Save the newly created profile into memory
-        _needsOnboarding = false; // Successfully created, no longer needs onboarding
+        _needsOnboarding =
+            false; // Successfully created, no longer needs onboarding
+        _lastError = null;
         notifyListeners();
         _subscriptionManager.initialize(
           userData.id,
@@ -238,6 +251,7 @@ class UserStateManager extends ChangeNotifier {
     _registrationDraft = null;
     _hasCheckedProfile = false;
     _needsOnboarding = false;
+    _lastError = null;
     await _subscriptionManager.reset();
     notifyListeners();
   }

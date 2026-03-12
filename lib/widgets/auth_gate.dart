@@ -17,6 +17,18 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   StreamSubscription<AuthState>? _authSubscription;
+  Type? _lastBuiltType;
+
+  void _handleStackCleanup(Type currentType) {
+    if (_lastBuiltType != null && _lastBuiltType != currentType) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      });
+    }
+    _lastBuiltType = currentType;
+  }
 
   @override
   void initState() {
@@ -62,7 +74,9 @@ class _AuthGateState extends State<AuthGate> {
         // 1. Unauthenticated -> Show Auth Page
         if (session == null) {
           FlutterNativeSplash.remove();
-          return const AuthPage();
+          final widget = const AuthPage();
+          _handleStackCleanup(widget.runtimeType);
+          return widget;
         }
 
         // 2. Authenticated -> Check Profile State
@@ -83,20 +97,67 @@ class _AuthGateState extends State<AuthGate> {
               );
             }
 
+            Widget rootWidget;
+
             // Profile checked, needs onboarding?
             if (userState.needsOnboarding) {
-              FlutterNativeSplash.remove();
-              return const OnboardingNamePage();
+              rootWidget = const OnboardingNamePage();
             }
-
             // Profile checked, exists?
-            if (userState.currentUser != null) {
-              FlutterNativeSplash.remove();
-              return MyHomePage();
+            else if (userState.currentUser != null) {
+              rootWidget = MyHomePage();
+            }
+            // Fallback: This means fetch failed for a non-onboarding reason (e.g. Server down)
+            else {
+              rootWidget = Scaffold(
+                backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+                body: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Oops! Something went wrong',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        userState.lastError ??
+                            'We were unable to load your profile. Please check your connection and try again.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => userState.resetState(),
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed:
+                            () => Supabase.instance.client.auth.signOut(),
+                        child: const Text('Back to Login'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
 
-            // Fallback for unexpected state
-            return const AuthPage();
+            FlutterNativeSplash.remove();
+            _handleStackCleanup(rootWidget.runtimeType);
+            return rootWidget;
           },
         );
       },

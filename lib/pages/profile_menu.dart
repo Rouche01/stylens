@@ -89,7 +89,6 @@ class ProfileMenuPage extends StatelessWidget {
                         content: Text('Account deleted successfully.'),
                       ),
                     );
-                    Navigator.of(context).pop(); // Back to capture/main screen
                   }
                 },
               );
