@@ -115,6 +115,9 @@ class SessionActionsMenu extends StatelessWidget {
           insetPadding: EdgeInsets.symmetric(horizontal: 24),
           actionsPadding: const EdgeInsets.only(right: 16, bottom: 8, top: 0),
           backgroundColor: Theme.of(context).colorScheme.tertiary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             'Rename Session',
             style: TextStyle(

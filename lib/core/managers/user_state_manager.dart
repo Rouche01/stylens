@@ -19,6 +19,12 @@ class UserStateManager extends ChangeNotifier {
   User? _currentUser;
   User? get currentUser => _currentUser;
 
+  bool _hasCheckedProfile = false;
+  bool get hasCheckedProfile => _hasCheckedProfile;
+
+  bool _needsOnboarding = false;
+  bool get needsOnboarding => _needsOnboarding;
+
   // Registration Draft State
   User? _registrationDraft;
   User? get registrationDraft => _registrationDraft;
@@ -72,11 +78,19 @@ class UserStateManager extends ChangeNotifier {
 
       if (response.isSuccess && userData != null) {
         _currentUser = userData;
+        _hasCheckedProfile = true;
+        _needsOnboarding = false;
+        notifyListeners();
         _subscriptionManager.initialize(
           userData.id,
           initialSubscription: userData.subscription,
         );
         onSuccess?.call(userData);
+      } else if (response.statusCode == 404) {
+        _hasCheckedProfile = true;
+        _needsOnboarding = true;
+        notifyListeners();
+        onError?.call('Profile not found.');
       } else {
         onError?.call(response.error ?? 'Failed to load user profile.');
       }
@@ -126,6 +140,8 @@ class UserStateManager extends ChangeNotifier {
         _registrationDraft =
             null; // Clear the draft state after successful creation
         _currentUser = userData; // Save the newly created profile into memory
+        _needsOnboarding = false; // Successfully created, no longer needs onboarding
+        notifyListeners();
         _subscriptionManager.initialize(
           userData.id,
           initialSubscription: userData.subscription,
@@ -145,10 +161,84 @@ class UserStateManager extends ChangeNotifier {
     }
   }
 
-  /// Clears the user state. Should be called when logging out.
-  void clearUser() {
+  /// Updates the current user's profile (name and/or nickname).
+  Future<void> updateProfile({
+    String? name,
+    String? nickname,
+    String? gender,
+    void Function(User user)? onSuccess,
+    void Function(String error)? onError,
+  }) async {
+    if (_currentUser == null) {
+      onError?.call('No user logged in.');
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _userApiService.updateUser(
+        userId: _currentUser!.id,
+        name: name,
+        nickname: nickname,
+        gender: gender,
+      );
+      final userData = response.data;
+
+      if (response.isSuccess && userData != null) {
+        _currentUser = userData;
+        onSuccess?.call(userData);
+      } else {
+        onError?.call(response.error ?? 'Failed to update profile.');
+      }
+    } catch (e) {
+      onError?.call('Error updating profile: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Deletes the current user's account from the backend and signs them out of Supabase.
+  Future<void> deleteAccount({
+    void Function()? onSuccess,
+    void Function(String error)? onError,
+  }) async {
+    if (_currentUser == null) {
+      onError?.call('No user logged in.');
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _userApiService.deleteUser(_currentUser!.id);
+
+      if (response.isSuccess) {
+        // Sign out of Supabase - this will trigger AuthGate to redirect the user
+        await Supabase.instance.client.auth.signOut();
+        await resetState();
+        onSuccess?.call();
+      } else {
+        onError?.call(response.error ?? 'Failed to delete account.');
+      }
+    } catch (e) {
+      onError?.call('Error deleting account: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Clears the user and subscription state. Should be called when logging out.
+  Future<void> resetState() async {
     _currentUser = null;
     _registrationDraft = null;
+    _hasCheckedProfile = false;
+    _needsOnboarding = false;
+    await _subscriptionManager.reset();
     notifyListeners();
   }
 }

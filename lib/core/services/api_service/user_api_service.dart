@@ -35,4 +35,32 @@ class UserApiService extends BaseApiService {
       defaultErrorMessage: 'Failed to create user',
     );
   }
+
+  /// Updates an existing user in the database.
+  Future<ApiResponse<User>> updateUser({
+    required String userId,
+    String? name,
+    String? nickname,
+    String? gender,
+  }) async {
+    final requestBody = {
+      if (name != null) 'name': name,
+      if (nickname != null) 'nickname': nickname,
+      if (gender != null) 'gender': gender,
+    };
+
+    return patch<User>(
+      '/$userId',
+      body: requestBody,
+      fromJson: (data) => User.fromJson(data),
+      defaultErrorMessage: 'Failed to update user',
+    );
+  }
+
+  Future<ApiResponse<void>> deleteUser(String userId) async {
+    return delete<void>(
+      '/$userId',
+      defaultErrorMessage: 'Failed to delete user',
+    );
+  }
 }

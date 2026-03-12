@@ -5,6 +5,7 @@ class User {
   final String id;
   final String authId;
   final String name;
+  final String? nickname;
   final Gender? gender;
   final String? email;
   final int createdAt;
@@ -16,6 +17,7 @@ class User {
     required this.id,
     required this.authId,
     required this.name,
+    this.nickname,
     this.gender,
     this.email,
     required this.createdAt,
@@ -29,6 +31,7 @@ class User {
       id: json['id'] as String,
       authId: json['auth_id'] as String,
       name: json['name'] as String,
+      nickname: json['nickname'] as String?,
       gender: json['gender'] != null
           ? Gender.fromValue(json['gender'] as String)
           : null,
@@ -47,6 +50,7 @@ class User {
       'id': id,
       'auth_id': authId,
       'name': name,
+      if (nickname != null) 'nickname': nickname,
       if (gender != null) 'gender': gender!.value,
       if (email != null) 'email': email,
       'created_at': createdAt,
@@ -60,6 +64,7 @@ class User {
     String? id,
     String? authId,
     String? name,
+    String? nickname,
     Gender? gender,
     String? email,
     int? createdAt,
@@ -71,6 +76,7 @@ class User {
       id: id ?? this.id,
       authId: authId ?? this.authId,
       name: name ?? this.name,
+      nickname: nickname ?? this.nickname,
       gender: gender ?? this.gender,
       email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,

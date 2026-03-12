@@ -34,7 +34,7 @@ class SubscriptionManager extends ChangeNotifier {
     String dbId, {
     Subscription? initialSubscription,
   }) async {
-    if (_isInitialized) return;
+    if (_isInitialized && _currentUserId == dbId) return;
     _currentUserId = dbId;
     _subscription = initialSubscription;
 
@@ -129,5 +129,24 @@ class SubscriptionManager extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Resets the manager state. Should be called when logging out.
+  Future<void> reset() async {
+    try {
+      if (_isInitialized) {
+        await Purchases.logOut();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('RevenueCat LogOut Error: $e');
+      }
+    }
+    _isInitialized = false;
+    _customerInfo = null;
+    _offerings = null;
+    _subscription = null;
+    _currentUserId = null;
+    notifyListeners();
   }
 }

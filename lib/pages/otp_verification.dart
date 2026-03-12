@@ -2,8 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/pages/home.dart';
-import 'package:gostylens/pages/onboarding_name.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:provider/provider.dart';
@@ -68,20 +66,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
             const SnackBar(content: Text('Verification successful!')),
           );
 
-          if (!isNewUser) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => MyHomePage()),
-              (route) => false,
-            );
-          } else {
-            // Brand new user in our DB, navigate to Onboarding
+          if (isNewUser) {
             _userStateManager.updateRegistrationDraft(email: widget.email);
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => const OnboardingNamePage(),
-              ),
-              (route) => false,
-            );
           }
         },
         onError: (error) {

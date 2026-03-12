@@ -5,7 +5,6 @@ import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
-import 'package:gostylens/pages/home.dart';
 import 'package:provider/provider.dart';
 
 class OnboardingGenderPage extends StatefulWidget {
@@ -38,14 +37,6 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: gender);
 
     userStateManager.createProfile(
-      onSuccess: (user) {
-        if (!mounted) return;
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => MyHomePage()),
-          (route) => false,
-        );
-      },
       onError: (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -60,14 +51,6 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: Gender.unspecified);
 
     userStateManager.createProfile(
-      onSuccess: (user) {
-        if (!mounted) return;
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => MyHomePage()),
-          (route) => false,
-        );
-      },
       onError: (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(
