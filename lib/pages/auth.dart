@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
-import 'package:gostylens/pages/home.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/pages/otp_verification.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
@@ -63,10 +63,29 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  void _navigateToHome() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (context) => MyHomePage()));
+
+
+  Future<void> _handleAppleSignIn() async {
+    await _authStateManager.signInWithApple(
+      onSuccess: (isNewUser, {email, name}) {
+        if (mounted) {
+          if (isNewUser) {
+            context.read<UserStateManager>().updateRegistrationDraft(
+              email: email,
+              name: name,
+            );
+          }
+          // No need to navigate manually; AuthGate handles it.
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+        }
+      },
+    );
   }
 
   @override
@@ -149,7 +168,9 @@ class _AuthPageState extends State<AuthPage> {
                             width: 20,
                           ),
                           label: 'Continue with Google',
-                          onPressed: _navigateToHome,
+                          onPressed: () {
+                            // TODO: Implement Google Sign-in
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -158,7 +179,9 @@ class _AuthPageState extends State<AuthPage> {
                         child: CustomOutlinedButton(
                           icon: const Icon(Icons.apple, size: 24),
                           label: 'Continue with Apple',
-                          onPressed: _navigateToHome,
+                          onPressed: authStateManager.isLoading
+                              ? null
+                              : _handleAppleSignIn,
                         ),
                       ),
                       const SizedBox(height: 32),

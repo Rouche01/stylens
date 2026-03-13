@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class AuthStateManager extends ChangeNotifier {
   final supabase = Supabase.instance.client;
@@ -120,6 +123,65 @@ class AuthStateManager extends ChangeNotifier {
     try {
       await supabase.auth.signOut();
       onSuccess?.call();
+    } catch (e) {
+      onError?.call(e.toString());
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signInWithApple({
+    void Function(bool isNewUser, {String? email, String? name})? onSuccess,
+    void Function(String error)? onError,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final rawNonce = supabase.auth.generateRawNonce();
+      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        throw 'No identity token found.';
+      }
+
+      final response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
+      );
+
+      if (response.user != null) {
+        // Extract name and email from Apple credential if available
+        final appleEmail = credential.email;
+        final appleName = credential.givenName;
+
+        // Check if user exists in the backend API
+        final userResponse = await _userApiService.getUserByAuthId(
+          response.user!.id,
+        );
+
+        if (userResponse.isSuccess) {
+          // User exists, they are not new
+          onSuccess?.call(false);
+        } else if (userResponse.statusCode == 404) {
+          // User explicitly not found, they are a brand new user
+          onSuccess?.call(true, email: appleEmail, name: appleName);
+        } else {
+          // It failed for some other reason (500 Server Error, Network, etc.)
+          onError?.call('Failed to verify user profile: ${userResponse.error}');
+        }
+      }
     } catch (e) {
       onError?.call(e.toString());
     } finally {
