@@ -184,6 +184,7 @@ class AuthStateManager extends ChangeNotifier {
       }
     } catch (e) {
       onError?.call(e.toString());
+      print('Error signing in with Apple: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
