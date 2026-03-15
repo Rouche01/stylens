@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:gostylens/core/config/env_config.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthStateManager extends ChangeNotifier {
   final supabase = Supabase.instance.client;
@@ -21,6 +23,7 @@ class AuthStateManager extends ChangeNotifier {
 
   String? _lastEmailSent;
   Timer? _otpResendTimer;
+  bool _isGoogleSignInInitialized = false;
 
   Future<void> initiateLoginWithOtp(
     String email, {
@@ -125,6 +128,67 @@ class AuthStateManager extends ChangeNotifier {
       onSuccess?.call();
     } catch (e) {
       onError?.call(e.toString());
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signInWithGoogle({
+    void Function(bool isNewUser, {String? email, String? name})? onSuccess,
+    void Function(String error)? onError,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+
+    try {
+      if (!_isGoogleSignInInitialized) {
+        await GoogleSignIn.instance.initialize(
+          clientId: EnvConfig.googleOAuthIosClientId,
+          serverClientId: EnvConfig.googleOAuthWebClientId,
+        );
+        _isGoogleSignInInitialized = true;
+      }
+
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final idToken = googleUser.authentication.idToken;
+
+      if (idToken == null) {
+        throw 'No ID token found from Google Sign-In.';
+      }
+
+      final response = await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+      );
+
+      if (response.user != null) {
+        final googleEmail = googleUser.email;
+        final googleName = googleUser.displayName;
+
+        print('Google Email: $googleEmail');
+        print('Google Name: $googleName');
+
+        // Check if user exists in the backend API
+        final userResponse = await _userApiService.getUserByAuthId(
+          response.user!.id,
+        );
+
+        if (userResponse.isSuccess) {
+          // User exists, they are not new
+          onSuccess?.call(false);
+        } else if (userResponse.statusCode == 404) {
+          // User explicitly not found, they are a brand new user
+          onSuccess?.call(true, email: googleEmail, name: googleName);
+        } else {
+          // It failed for some other reason (500 Server Error, Network, etc.)
+          onError?.call('Failed to verify user profile: ${userResponse.error}');
+        }
+      }
+    } catch (e) {
+      onError?.call(e.toString());
+      print('Error signing in with Google: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

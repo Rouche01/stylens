@@ -83,8 +83,14 @@
 				<array>
 					<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 					<string>com.stylenslab.gostylens</string>
-					<!-- Placeholder for Reversed Google Client ID -->
-					<string>com.googleusercontent.apps.REPLACE_WITH_YOUR_CLIENT_ID</string>
+				</array>
+			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.232045667676-hb8tlk4ipe2vp28jo6mqloe939j9cfl3</string>
 				</array>
 			</dict>
 		</array>
@@ -94,6 +100,12 @@
 			<string>http</string>
 			<string>mailto</string>
 			<string>tel</string>
+			<string>googlegmail</string>
+			<string>com.googleusercontent.apps</string>
 		</array>
+		<key>GIDClientID</key>
+		<string>232045667676-hb8tlk4ipe2vp28jo6mqloe939j9cfl3.apps.googleusercontent.com</string>
+		<key>GIDServerClientID</key>
+		<string>232045667676-d1bbp14qlhl090nej8gldjhde5gfbkgb.apps.googleusercontent.com</string>
 	</dict>
 </plist>

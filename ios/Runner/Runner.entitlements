@@ -6,5 +6,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>com.google.GIDSignIn</string>
+		<string>com.stylenslab.gostylens</string>
+	</array>
 </dict>
 </plist>

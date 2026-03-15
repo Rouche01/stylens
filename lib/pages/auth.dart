@@ -65,6 +65,28 @@ class _AuthPageState extends State<AuthPage> {
 
 
 
+  Future<void> _handleGoogleSignIn() async {
+    await _authStateManager.signInWithGoogle(
+      onSuccess: (isNewUser, {email, name}) {
+        if (mounted) {
+          if (isNewUser) {
+            context.read<UserStateManager>().updateRegistrationDraft(
+              email: email,
+              name: name,
+            );
+          }
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+        }
+      },
+    );
+  }
+
   Future<void> _handleAppleSignIn() async {
     await _authStateManager.signInWithApple(
       onSuccess: (isNewUser, {email, name}) {
@@ -75,7 +97,6 @@ class _AuthPageState extends State<AuthPage> {
               name: name,
             );
           }
-          // No need to navigate manually; AuthGate handles it.
         }
       },
       onError: (error) {
@@ -168,9 +189,9 @@ class _AuthPageState extends State<AuthPage> {
                             width: 20,
                           ),
                           label: 'Continue with Google',
-                          onPressed: () {
-                            // TODO: Implement Google Sign-in
-                          },
+                          onPressed: authStateManager.isLoading
+                              ? null
+                              : _handleGoogleSignIn,
                         ),
                       ),
                       const SizedBox(height: 12),
