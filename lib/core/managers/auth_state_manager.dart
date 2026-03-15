@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -141,11 +142,14 @@ class AuthStateManager extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-
     try {
       if (!_isGoogleSignInInitialized) {
+        final String? clientId = Platform.isIOS
+            ? EnvConfig.googleOAuthIosClientId
+            : null;
+
         await GoogleSignIn.instance.initialize(
-          clientId: EnvConfig.googleOAuthIosClientId,
+          clientId: clientId,
           serverClientId: EnvConfig.googleOAuthWebClientId,
         );
         _isGoogleSignInInitialized = true;

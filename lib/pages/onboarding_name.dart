@@ -21,6 +21,13 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
   @override
   void initState() {
     super.initState();
+
+    // Pre-fill name if it exists in the registration draft (from Google/Apple Sign-In)
+    final draft = context.read<UserStateManager>().registrationDraft;
+    if (draft != null && draft.name.isNotEmpty) {
+      _nameController.text = draft.name;
+    }
+
     _nameController.addListener(() {
       setState(() {});
     });

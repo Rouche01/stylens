@@ -4,4 +4,4 @@ flutter_native_splash:
 
   android_12:
     color: "#3D4A3D"
-    image: "assets/imgs/logo_splash.png"
+    image: "assets/icon/gostylens_splash_logo.png"

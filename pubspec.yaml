@@ -59,12 +59,9 @@ flutter:
   assets:
     - .env.development
     - .env.production
-    - assets/
+    - assets/icon/
     - assets/animations/
-    - assets/icon/google_logo.png
-    - assets/icon/icon.png
-    - assets/imgs/logo_primary.png
-    - assets/imgs/logo_green.png
+    - assets/imgs/
 
 flutter_launcher_icons:
   android: "launcher_icon"

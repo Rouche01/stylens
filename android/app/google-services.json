@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727398816020",
+    "project_id": "gostylens-903ed",
+    "storage_bucket": "gostylens-903ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727398816020:android:5afeab15183077fb950a01",
+        "android_client_info": {
+          "package_name": "com.stylenslab.gostylens"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeOoElZJ1U_oI3Lx7fQ22OhFNvu5N6FXc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
