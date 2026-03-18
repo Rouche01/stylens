@@ -148,7 +148,8 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                           _buildInfoRow(
                             context,
                             label: 'Account Plan',
-                            value: tierName,
+                            value:
+                                '$tierName ${subManager.isMonthlyPlan ? "(Monthly)" : "(Annual)"}',
                           ),
                           if (isPro && subscription != null) ...[
                             _buildInfoRow(
@@ -252,7 +253,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                 ),
               ),
 
-              // Cancel subscription (only for pro users)
+              // Cancel subscription / restore purchases (only for pro users)
               if (isPro)
                 SafeArea(
                   child: Padding(
@@ -262,11 +263,17 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                     ),
                     child: Center(
                       child: TextButton(
-                        onPressed: subManager.cancelSubscription,
-                        child: const Text(
-                          'Cancel Subscription',
+                        onPressed: subscription?.status == 'cancelled'
+                            ? subManager.restorePurchases
+                            : subManager.cancelSubscription,
+                        child: Text(
+                          subscription?.status == 'cancelled'
+                              ? 'Restore Subscription'
+                              : 'Cancel Subscription',
                           style: TextStyle(
-                            color: Colors.redAccent,
+                            color: subscription?.status == 'cancelled'
+                                ? cs.primary
+                                : Colors.redAccent,
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
                           ),

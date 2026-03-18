@@ -171,9 +171,6 @@ class AuthStateManager extends ChangeNotifier {
         final googleEmail = googleUser.email;
         final googleName = googleUser.displayName;
 
-        print('Google Email: $googleEmail');
-        print('Google Name: $googleName');
-
         // Check if user exists in the backend API
         final userResponse = await _userApiService.getUserByAuthId(
           response.user!.id,

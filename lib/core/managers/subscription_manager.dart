@@ -4,6 +4,7 @@ import 'package:gostylens/constants/revenue_cat.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
@@ -21,6 +22,7 @@ class SubscriptionManager extends ChangeNotifier {
   Offerings? _offerings;
   Subscription? _subscription;
   String? _currentUserId;
+  Timer? _syncTimer;
 
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
@@ -28,13 +30,40 @@ class SubscriptionManager extends ChangeNotifier {
   Offerings? get offerings => _offerings;
   Subscription? get subscription => _subscription;
 
-  // Checks if the user has the 'premium' entitlement from RevenueCat
+  // Checks if the user has the 'gostylens_core' entitlement from RevenueCat
   bool get userHasCorePlan =>
+      _subscription?.isCore ??
       _customerInfo
           ?.entitlements
           .all[RevenueCatConstants.gostylensCoreEntitlement]
           ?.isActive ??
       false;
+
+  // Checks if the user is on the monthly plan
+  bool get isMonthlyPlan {
+    if (!userHasCorePlan) return false;
+
+    // Check RevenueCat state for the specific product ID
+    final entitlement = _customerInfo
+        ?.entitlements
+        // ignore: invalid_use_of_protected_member
+        .all[RevenueCatConstants.gostylensCoreEntitlement];
+    return entitlement?.productIdentifier ==
+        RevenueCatConstants.coreMonthlyProductIdentifier;
+  }
+
+  // Checks if the user is on the annual plan
+  bool get isAnnualPlan {
+    if (!userHasCorePlan) return false;
+
+    // Check RevenueCat state for the specific product ID
+    final entitlement = _customerInfo
+        ?.entitlements
+        // ignore: invalid_use_of_protected_member
+        .all[RevenueCatConstants.gostylensCoreEntitlement];
+    return entitlement?.productIdentifier ==
+        RevenueCatConstants.coreAnnualProductIdentifier;
+  }
 
   Future<void> initialize(
     String dbId, {
@@ -64,9 +93,22 @@ class SubscriptionManager extends ChangeNotifier {
 
       // Listen for changing entitlements (e.g. background renewals)
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
+        print('Customer info updated: $customerInfo');
         _customerInfo = customerInfo;
         notifyListeners();
+
+        // 🟢 Robustness: Sync with our backend 1 minute after a RC update
+        // This ensures that our own DB session/subscription state reflects the purchase
+        // after the webhook has likely been processed.
+        Future.delayed(const Duration(minutes: 1), () => syncSubscription());
       });
+
+      // 🟢 Periodically sync every 5 minutes for additional safety
+      _syncTimer?.cancel();
+      _syncTimer = Timer.periodic(
+        const Duration(minutes: 5),
+        (_) => syncSubscription(),
+      );
 
       _isInitialized = true;
       notifyListeners();
@@ -178,6 +220,8 @@ class SubscriptionManager extends ChangeNotifier {
     _offerings = null;
     _subscription = null;
     _currentUserId = null;
+    _syncTimer?.cancel();
+    _syncTimer = null;
     notifyListeners();
   }
 }
