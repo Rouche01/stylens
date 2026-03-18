@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:gostylens/constants/revenue_cat.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 import 'package:gostylens/core/services/api_service/index.dart';
@@ -27,8 +29,12 @@ class SubscriptionManager extends ChangeNotifier {
   Subscription? get subscription => _subscription;
 
   // Checks if the user has the 'premium' entitlement from RevenueCat
-  bool get isPro =>
-      _customerInfo?.entitlements.all['premium']?.isActive ?? false;
+  bool get userHasCorePlan =>
+      _customerInfo
+          ?.entitlements
+          .all[RevenueCatConstants.gostylensCoreEntitlement]
+          ?.isActive ??
+      false;
 
   Future<void> initialize(
     String dbId, {
@@ -98,7 +104,7 @@ class SubscriptionManager extends ChangeNotifier {
       // ignore: deprecated_member_use
       final result = await Purchases.purchasePackage(package);
       _customerInfo = result.customerInfo;
-      return isPro;
+      return userHasCorePlan;
     } on PlatformException catch (e) {
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
@@ -119,7 +125,7 @@ class SubscriptionManager extends ChangeNotifier {
       notifyListeners();
 
       _customerInfo = await Purchases.restorePurchases();
-      return isPro;
+      return userHasCorePlan;
     } on PlatformException catch (e) {
       if (kDebugMode) {
         print('Restore error: ${e.message}');
@@ -128,6 +134,31 @@ class SubscriptionManager extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Directs the user to the subscription management page.
+  Future<bool> cancelSubscription() async {
+    try {
+      final managementUrl = _customerInfo?.managementURL;
+      if (managementUrl == null) {
+        // Fallback for iOS/Android if managementURL is missing
+        final fallbackUrl = Platform.isIOS
+            ? 'https://apps.apple.com/account/subscriptions'
+            : 'https://play.google.com/store/account/subscriptions';
+        return await launchUrl(
+          Uri.parse(fallbackUrl),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      final uri = Uri.parse(managementUrl);
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching subscription management: $e');
+      }
+      return false;
     }
   }
 

@@ -87,7 +87,7 @@ class _CapturePageState extends State<CapturePage> {
       }
     }
 
-    final isPro = subManager.isPro;
+    final isPro = subManager.userHasCorePlan;
     final activeSub = subManager.subscription;
 
     if (activeSub == null) return false;

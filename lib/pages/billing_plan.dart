@@ -4,8 +4,19 @@ import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-class BillingPlanPage extends StatelessWidget {
-  const BillingPlanPage({super.key});
+class BillingPlanPage extends StatefulWidget {
+  @override
+  State<BillingPlanPage> createState() => _BillingPlanPageState();
+}
+
+class _BillingPlanPageState extends State<BillingPlanPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SubscriptionManager>().syncSubscription();
+    });
+  }
 
   String _formatTierName(String tier) {
     switch (tier) {
@@ -115,7 +126,7 @@ class BillingPlanPage extends StatelessWidget {
       body: Consumer<SubscriptionManager>(
         builder: (context, subManager, _) {
           final subscription = subManager.subscription;
-          final isPro = subManager.isPro;
+          final isPro = subManager.userHasCorePlan;
           final tierName = subscription != null
               ? _formatTierName(subscription.tier)
               : 'Free';
@@ -251,9 +262,7 @@ class BillingPlanPage extends StatelessWidget {
                     ),
                     child: Center(
                       child: TextButton(
-                        onPressed: () {
-                          // TODO: Implement cancel subscription flow
-                        },
+                        onPressed: subManager.cancelSubscription,
                         child: const Text(
                           'Cancel Subscription',
                           style: TextStyle(

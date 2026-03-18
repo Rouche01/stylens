@@ -247,9 +247,7 @@ class ProfileMenuPage extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const BillingPlanPage(),
-                          ),
+                          MaterialPageRoute(builder: (_) => BillingPlanPage()),
                         );
                       },
                     ),
