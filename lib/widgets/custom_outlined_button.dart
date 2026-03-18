@@ -6,6 +6,7 @@ class CustomOutlinedButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ButtonStyle? style;
   final double? width;
+  final bool? disabled;
 
   const CustomOutlinedButton({
     super.key,
@@ -14,6 +15,7 @@ class CustomOutlinedButton extends StatelessWidget {
     required this.onPressed,
     this.style,
     this.width,
+    this.disabled = false,
   });
 
   @override
@@ -34,7 +36,7 @@ class CustomOutlinedButton extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-            onPressed: onPressed,
+            onPressed: (disabled ?? false) ? null : onPressed,
           )
         : OutlinedButton(
             style:
@@ -49,7 +51,7 @@ class CustomOutlinedButton extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-            onPressed: onPressed,
+            onPressed: (disabled ?? false) ? null : onPressed,
             child: Text(label),
           );
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
+import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'package:gostylens/models/user_state.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class UserStateManager extends ChangeNotifier {
   final UserApiService _userApiService;
@@ -13,24 +15,33 @@ class UserStateManager extends ChangeNotifier {
   UserStateManager(this._subscriptionManager, {UserApiService? userApiService})
     : _userApiService = userApiService ?? UserApiService();
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  UserOperationState _operationState = const UserOperationState();
+  UserOperationState get operationState => _operationState;
+
+  bool get isBusy => _operationState.isBusy;
 
   User? _currentUser;
   User? get currentUser => _currentUser;
 
-  bool _hasCheckedProfile = false;
-  bool get hasCheckedProfile => _hasCheckedProfile;
-
-  bool _needsOnboarding = false;
-  bool get needsOnboarding => _needsOnboarding;
-
-  String? _lastError;
-  String? get lastError => _lastError;
+  ErrorData? _lastError;
+  ErrorData? get lastError => _lastError;
 
   // Registration Draft State
   User? _registrationDraft;
   User? get registrationDraft => _registrationDraft;
+
+  void _extractMetadataFromSupabase(supabase.User supabaseUser) {
+    final metadata = supabaseUser.userMetadata;
+    if (metadata != null) {
+      final String? name =
+          metadata['displayName'] ?? metadata['name'] ?? metadata['full_name'];
+      final String? email = metadata['email'];
+
+      if (name != null || email != null) {
+        updateRegistrationDraft(name: name, email: email);
+      }
+    }
+  }
 
   void updateRegistrationDraft({String? name, Gender? gender, String? email}) {
     if (_registrationDraft == null) {
@@ -66,49 +77,63 @@ class UserStateManager extends ChangeNotifier {
     void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
-    final supabaseUser = Supabase.instance.client.auth.currentUser;
+    final supabaseUser = supabase.Supabase.instance.client.auth.currentUser;
     if (supabaseUser == null) {
+      _operationState = _operationState.copyWith(
+        fetchStatus: UserFetchStatus.initial,
+      );
+      notifyListeners();
       onError?.call('No authenticated user found.');
       return;
     }
 
-    _isLoading = true;
+    _operationState = _operationState.copyWith(
+      fetchStatus: UserFetchStatus.loading,
+    );
+    _lastError = null;
     notifyListeners();
 
     try {
       final response = await _userApiService.getUserByAuthId(supabaseUser.id);
       final userData = response.data;
 
-      // Regardless of success/failure (except internal error), we've now made the first check
-      _hasCheckedProfile = true;
-
       if (response.isSuccess && userData != null) {
         _currentUser = userData;
-        _needsOnboarding = false;
-        _lastError = null;
-        notifyListeners();
+        _operationState = _operationState.copyWith(
+          fetchStatus: UserFetchStatus.ready,
+        );
         _subscriptionManager.initialize(
           userData.id,
           initialSubscription: userData.subscription,
         );
         onSuccess?.call(userData);
-      } else if (response.statusCode == 404) {
-        _needsOnboarding = true;
-        _lastError = null;
-        notifyListeners();
+      } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
+        print('stylens user not found');
+        _operationState = _operationState.copyWith(
+          fetchStatus: UserFetchStatus.onboarding,
+        );
+        _extractMetadataFromSupabase(supabaseUser);
         onError?.call('Profile not found.');
       } else {
-        _lastError = response.error ?? 'Failed to load user profile.';
-        notifyListeners();
-        onError?.call(_lastError!);
+        _lastError =
+            response.error ??
+            ErrorData(code: 'UNKNOWN', message: 'Failed to load user profile.');
+        _operationState = _operationState.copyWith(
+          fetchStatus: UserFetchStatus.error,
+        );
+        onError?.call(_lastError!.message);
       }
     } catch (e) {
-      _hasCheckedProfile = true;
-      _lastError = 'Error fetching user profile: $e';
-      notifyListeners();
-      onError?.call(_lastError!);
+      _lastError = ErrorData(
+        code: 'UNKNOWN',
+        message: 'Error fetching user profile: $e',
+      );
+      _operationState = _operationState.copyWith(
+        fetchStatus: UserFetchStatus.error,
+      );
+      onError?.call(_lastError!.message);
     } finally {
-      _isLoading = false;
+      print('finally');
       notifyListeners();
     }
   }
@@ -118,7 +143,7 @@ class UserStateManager extends ChangeNotifier {
     void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
-    final supabaseUser = Supabase.instance.client.auth.currentUser;
+    final supabaseUser = supabase.Supabase.instance.client.auth.currentUser;
     if (supabaseUser == null) {
       onError?.call('No authenticated user found to create profile for.');
       return;
@@ -132,7 +157,7 @@ class UserStateManager extends ChangeNotifier {
     // Default to 'Prefer not to say' if gender wasn't explicitly set in the draft
     final genderToSave = _registrationDraft!.gender ?? Gender.unspecified;
 
-    _isLoading = true;
+    _operationState = _operationState.copyWith(isCreating: true);
     notifyListeners();
 
     try {
@@ -151,25 +176,28 @@ class UserStateManager extends ChangeNotifier {
         _registrationDraft =
             null; // Clear the draft state after successful creation
         _currentUser = userData; // Save the newly created profile into memory
-        _needsOnboarding =
-            false; // Successfully created, no longer needs onboarding
+        _operationState = _operationState.copyWith(
+          fetchStatus: UserFetchStatus.ready,
+        );
         _lastError = null;
-        notifyListeners();
+
         _subscriptionManager.initialize(
           userData.id,
           initialSubscription: userData.subscription,
         );
 
         // Refresh the session to ensure the user claim is updated
-        await Supabase.instance.client.auth.refreshSession();
+        await supabase.Supabase.instance.client.auth.refreshSession();
         onSuccess?.call(userData);
       } else {
-        onError?.call(response.error ?? 'Failed to create user profile.');
+        onError?.call(
+          response.error?.message ?? 'Failed to create user profile.',
+        );
       }
     } catch (e) {
       onError?.call('Error creating user profile: $e');
     } finally {
-      _isLoading = false;
+      _operationState = _operationState.copyWith(isCreating: false);
       notifyListeners();
     }
   }
@@ -187,7 +215,7 @@ class UserStateManager extends ChangeNotifier {
       return;
     }
 
-    _isLoading = true;
+    _operationState = _operationState.copyWith(isUpdating: true);
     notifyListeners();
 
     try {
@@ -203,12 +231,12 @@ class UserStateManager extends ChangeNotifier {
         _currentUser = userData;
         onSuccess?.call(userData);
       } else {
-        onError?.call(response.error ?? 'Failed to update profile.');
+        onError?.call(response.error?.message ?? 'Failed to update profile.');
       }
     } catch (e) {
       onError?.call('Error updating profile: $e');
     } finally {
-      _isLoading = false;
+      _operationState = _operationState.copyWith(isUpdating: false);
       notifyListeners();
     }
   }
@@ -223,7 +251,7 @@ class UserStateManager extends ChangeNotifier {
       return;
     }
 
-    _isLoading = true;
+    _operationState = _operationState.copyWith(isDeleting: true);
     notifyListeners();
 
     try {
@@ -231,16 +259,16 @@ class UserStateManager extends ChangeNotifier {
 
       if (response.isSuccess) {
         // Sign out of Supabase - this will trigger AuthGate to redirect the user
-        await Supabase.instance.client.auth.signOut();
+        await supabase.Supabase.instance.client.auth.signOut();
         await resetState();
         onSuccess?.call();
       } else {
-        onError?.call(response.error ?? 'Failed to delete account.');
+        onError?.call(response.error?.message ?? 'Failed to delete account.');
       }
     } catch (e) {
       onError?.call('Error deleting account: $e');
     } finally {
-      _isLoading = false;
+      _operationState = _operationState.copyWith(isDeleting: false);
       notifyListeners();
     }
   }
@@ -249,8 +277,7 @@ class UserStateManager extends ChangeNotifier {
   Future<void> resetState() async {
     _currentUser = null;
     _registrationDraft = null;
-    _hasCheckedProfile = false;
-    _needsOnboarding = false;
+    _operationState = const UserOperationState();
     _lastError = null;
     await _subscriptionManager.reset();
     notifyListeners();

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
@@ -63,8 +65,6 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-
-
   Future<void> _handleGoogleSignIn() async {
     await _authStateManager.signInWithGoogle(
       onSuccess: (isNewUser, {email, name}) {
@@ -79,9 +79,9 @@ class _AuthPageState extends State<AuthPage> {
       },
       onError: (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error)));
         }
       },
     );
@@ -101,9 +101,9 @@ class _AuthPageState extends State<AuthPage> {
       },
       onError: (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error)));
         }
       },
     );
@@ -194,17 +194,19 @@ class _AuthPageState extends State<AuthPage> {
                               : _handleGoogleSignIn,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CustomOutlinedButton(
-                          icon: const Icon(Icons.apple, size: 24),
-                          label: 'Continue with Apple',
-                          onPressed: authStateManager.isLoading
-                              ? null
-                              : _handleAppleSignIn,
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: CustomOutlinedButton(
+                            icon: const Icon(Icons.apple, size: 24),
+                            label: 'Continue with Apple',
+                            onPressed: authStateManager.isLoading
+                                ? null
+                                : _handleAppleSignIn,
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 32),
                     ],
                   ),

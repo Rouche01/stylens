@@ -61,22 +61,16 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(
-        color: cs.primary.withValues(alpha: 0.6),
-      ),
+      labelStyle: TextStyle(color: cs.primary.withValues(alpha: 0.6)),
       filled: true,
       fillColor: cs.primary.withValues(alpha: 0.05),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: cs.primary.withValues(alpha: 0.1),
-        ),
+        borderSide: BorderSide(color: cs.primary.withValues(alpha: 0.1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: cs.primary.withValues(alpha: 0.1),
-        ),
+        borderSide: BorderSide(color: cs.primary.withValues(alpha: 0.1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -97,16 +91,16 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       onSuccess: (_) {
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Profile updated!')));
         }
       },
       onError: (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error)));
         }
       },
     );
@@ -172,7 +166,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
             // Gender dropdown
             DropdownButtonFormField<Gender>(
-              value: _selectedGender,
+              initialValue: _selectedGender,
               decoration: _inputDecoration(context, 'Gender'),
               dropdownColor: cs.tertiary,
               style: TextStyle(color: cs.primary, fontSize: 16),
@@ -198,7 +192,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                 return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: userState.isLoading ? null : _handleUpdate,
+                    onPressed: userState.operationState.isUpdating
+                        ? null
+                        : _handleUpdate,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: cs.primary,
                       foregroundColor: Colors.white,
@@ -211,7 +207,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: userState.isLoading
+                    child: userState.operationState.isUpdating
                         ? const SizedBox(
                             width: 20,
                             height: 20,

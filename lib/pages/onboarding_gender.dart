@@ -173,9 +173,10 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                         flex: 1,
                         child: CustomOutlinedButton(
                           label: 'Skip',
-                          onPressed: userStateManager.isLoading
+                          onPressed: userStateManager.operationState.isCreating
                               ? null
                               : _onSkip,
+                          disabled: userStateManager.operationState.isCreating,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -183,13 +184,13 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                         flex: 2,
                         child: PrimaryButton(
                           label: 'Finish',
-                          onPressed: userStateManager.isLoading
+                          onPressed: userStateManager.operationState.isCreating
                               ? null
                               : _onContinue,
                           disabled:
                               _selectedIndex == null ||
-                              userStateManager.isLoading,
-                          isLoading: userStateManager.isLoading,
+                              userStateManager.operationState.isCreating,
+                          isLoading: userStateManager.operationState.isCreating,
                           icon: const Icon(Icons.arrow_forward, size: 20),
                           iconAlignment: IconAlignment.end,
                         ),

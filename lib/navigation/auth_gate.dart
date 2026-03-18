@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/models/user_state.dart';
 import 'package:gostylens/pages/auth.dart';
 import 'package:gostylens/pages/home.dart';
 import 'package:gostylens/pages/onboarding_name.dart';
+import 'package:gostylens/widgets/auth_error_view.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -83,75 +85,38 @@ class _AuthGateState extends State<AuthGate> {
         return Consumer<UserStateManager>(
           builder: (context, userState, _) {
             // Profile not checked yet? Trigger fetch.
-            if (!userState.hasCheckedProfile && !userState.isLoading) {
+            if (userState.operationState.fetchStatus ==
+                UserFetchStatus.initial) {
               Future.microtask(() => userState.fetchCurrentUser());
             }
 
-            // Still loading profile? Show splash/loading
-            if (!userState.hasCheckedProfile || userState.isLoading) {
+            // Still loading profile? Keep showing splash (by returning a matching background)
+            if (userState.operationState.fetchStatus ==
+                    UserFetchStatus.initial ||
+                userState.operationState.fetchStatus ==
+                    UserFetchStatus.loading) {
               return Scaffold(
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                body: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
               );
             }
 
             Widget rootWidget;
 
             // Profile checked, needs onboarding?
-            if (userState.needsOnboarding) {
+            if (userState.operationState.fetchStatus ==
+                UserFetchStatus.onboarding) {
               rootWidget = const OnboardingNamePage();
             }
             // Profile checked, exists?
-            else if (userState.currentUser != null) {
+            else if (userState.operationState.fetchStatus ==
+                UserFetchStatus.ready) {
               rootWidget = MyHomePage();
             }
             // Fallback: This means fetch failed for a non-onboarding reason (e.g. Server down)
             else {
-              rootWidget = Scaffold(
-                backgroundColor: Theme.of(context).colorScheme.surfaceDim,
-                body: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 64,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Oops! Something went wrong',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        userState.lastError ??
-                            'We were unable to load your profile. Please check your connection and try again.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => userState.resetState(),
-                          child: const Text('Retry'),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed:
-                            () => Supabase.instance.client.auth.signOut(),
-                        child: const Text('Back to Login'),
-                      ),
-                    ],
-                  ),
-                ),
+              rootWidget = AuthErrorView(
+                error: userState.lastError,
+                onRetry: () => userState.resetState(),
               );
             }
 

@@ -62,7 +62,9 @@ class SessionsSlice {
 
       _setState(ActionState.success(sessions));
     } else {
-      _setState(ActionState.error(response.error ?? 'Failed to load sessions'));
+      _setState(
+        ActionState.error(response.error?.message ?? 'Failed to load sessions'),
+      );
     }
     _notifyListeners();
   }
@@ -119,7 +121,7 @@ class SessionsSlice {
     if (!response.isSuccess) {
       _setState(ActionState.success(previousSessions));
       _notifyListeners();
-      onError?.call(response.error ?? 'Failed to delete session');
+      onError?.call(response.error?.message ?? 'Failed to delete session');
       return false;
     }
 
@@ -160,7 +162,9 @@ class SessionsSlice {
     if (!response.isSuccess) {
       _setState(ActionState.success(previousSessions));
       _notifyListeners();
-      onError?.call(response.error ?? 'Failed to update favorite status');
+      onError?.call(
+        response.error?.message ?? 'Failed to update favorite status',
+      );
       return false;
     }
 
@@ -191,7 +195,7 @@ class SessionsSlice {
     if (!response.isSuccess) {
       _setState(ActionState.success(previousSessions));
       _notifyListeners();
-      onError?.call(response.error ?? 'Failed to rename session');
+      onError?.call(response.error?.message ?? 'Failed to rename session');
       return false;
     }
 
