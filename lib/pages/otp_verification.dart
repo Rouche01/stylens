@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/primary_button.dart';
+import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,7 +22,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   late AuthStateManager _authStateManager;
   late UserStateManager _userStateManager;
-  bool get _isOtpEmpty => _otpController.text.trim().isEmpty;
 
   late final TapGestureRecognizer _resendTapRecognizer;
 
@@ -166,16 +165,67 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-                      CustomFormField(
+                      Pinput(
+                        length: 6,
                         controller: _otpController,
-                        fieldType: FieldType.number,
-                        hintText: 'Verification Code',
-                        validator: (value) => value != null && value.isNotEmpty
-                            ? null
-                            : 'Please enter the verification code',
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        defaultPinTheme: PinTheme(
+                          width: 48,
+                          height: 56,
+                          textStyle: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.5),
+                            ),
+                            color: Colors.white,
+                          ),
+                        ),
+                        focusedPinTheme: PinTheme(
+                          width: 48,
+                          height: 56,
+                          textStyle: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            ),
+                            color: Colors.white,
+                          ),
+                        ),
+                        submittedPinTheme: PinTheme(
+                          width: 48,
+                          height: 56,
+                          textStyle: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.05),
+                          ),
+                        ),
                         onChanged: (_) => setState(() {}),
+                        onCompleted: (_) => _verifyOtp(),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
 
                       SizedBox(
                         width: double.infinity,
@@ -184,7 +234,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                           onPressed: authStateManager.isLoading
                               ? null
                               : _verifyOtp,
-                          disabled: _isOtpEmpty || authStateManager.isLoading,
+                          disabled:
+                              _otpController.text.length < 6 ||
+                              authStateManager.isLoading,
                           isLoading: authStateManager.isLoading,
                         ),
                       ),
