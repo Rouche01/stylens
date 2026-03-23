@@ -50,5 +50,6 @@ class Subscription {
   }
 
   bool get isFree => tier == 'free';
-  bool get isCore => tier == 'core';
+  bool get isCore =>
+      tier == 'core' && (status == 'active' || status == 'cancelled');
 }

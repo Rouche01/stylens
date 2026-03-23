@@ -189,6 +189,7 @@ class SubscriptionManager extends ChangeNotifier {
         body['tier'] = 'core';
         body['status'] = 'active';
         body['providerSubscriptionId'] = entitlement.productIdentifier;
+        body['hasReachedLimit'] = 0;
       } else {
         body['tier'] = 'free';
         body['providerSubscriptionId'] = null;
@@ -241,6 +242,11 @@ class SubscriptionManager extends ChangeNotifier {
       notifyListeners();
 
       _customerInfo = await Purchases.restorePurchases();
+
+      // Push restored state to backend and re-fetch subscription
+      await _pushRevenueCatState();
+      await syncSubscription();
+
       return userHasCorePlan;
     } on PlatformException catch (e) {
       if (kDebugMode) {
