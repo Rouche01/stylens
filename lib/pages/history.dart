@@ -3,8 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/pages/style_analysis.dart';
 import 'package:gostylens/widgets/style_analysis_session_card.dart';
+import 'package:gostylens/widgets/start_conversation_fab.dart';
 
 class HistoryPage extends StatefulWidget {
+  final VoidCallback? onStartConversation;
+
+  const HistoryPage({super.key, this.onStartConversation});
+
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
@@ -267,6 +272,10 @@ class _HistoryPageState extends State<HistoryPage> {
           );
         },
       ),
+      floatingActionButton:
+          widget.onStartConversation != null
+              ? StartConversationFab(onPressed: widget.onStartConversation!)
+              : null,
     );
   }
 }

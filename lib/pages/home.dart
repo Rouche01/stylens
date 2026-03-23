@@ -22,7 +22,9 @@ class _MyHomePageState extends State<MyHomePage> {
       case 1:
         page = CapturePage();
       case 2:
-        page = HistoryPage();
+        page = HistoryPage(
+          onStartConversation: () => setState(() => selectedIndex = 1),
+        );
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
