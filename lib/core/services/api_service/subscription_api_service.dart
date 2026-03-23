@@ -15,4 +15,17 @@ class SubscriptionApiService extends BaseApiService {
       defaultErrorMessage: 'Subscription not found or error occurred',
     );
   }
+
+  /// Updates a subscription with RevenueCat provider data.
+  Future<ApiResponse<Subscription>> updateSubscription(
+    String userId, {
+    required Map<String, dynamic> body,
+  }) async {
+    return patch<Subscription>(
+      '/$userId',
+      body: body,
+      fromJson: (data) => Subscription.fromJson(data),
+      defaultErrorMessage: 'Failed to update subscription',
+    );
+  }
 }

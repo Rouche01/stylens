@@ -65,11 +65,39 @@ class SubscriptionManager extends ChangeNotifier {
         RevenueCatConstants.coreAnnualProductIdentifier;
   }
 
+  /// Returns a formatted display name for the current plan,
+  /// e.g. "Free", "Core (Monthly)", or "Pro (Annual)".
+  String get planDisplayName {
+    if (_subscription == null) return 'Free';
+
+    final tier = _subscription!.tier.toLowerCase();
+    final name = switch (tier) {
+      'core' => 'Core',
+      'pro' => 'Pro',
+      'free' => 'Free',
+      _ => tier.isNotEmpty ? tier[0].toUpperCase() + tier.substring(1) : tier,
+    };
+
+    if (isMonthlyPlan) return '$name (Monthly)';
+    if (isAnnualPlan) return '$name (Annual)';
+
+    return name;
+  }
+
   Future<void> initialize(
     String dbId, {
     Subscription? initialSubscription,
   }) async {
-    if (_isInitialized && _currentUserId == dbId) return;
+    // If already initialized for the same user, just refresh state/backend data
+    if (_isInitialized && _currentUserId == dbId) {
+      if (initialSubscription != null) {
+        _subscription = initialSubscription;
+        notifyListeners();
+      }
+      _pushRevenueCatState().then((_) => syncSubscription());
+      return;
+    }
+
     _currentUserId = dbId;
     _subscription = initialSubscription;
 
@@ -91,24 +119,28 @@ class SubscriptionManager extends ChangeNotifier {
       _customerInfo = await Purchases.getCustomerInfo();
       _offerings = await Purchases.getOfferings();
 
+      // 🟢 Push RC state on first init to ensure backend is up-to-date
+      await _pushRevenueCatState();
+      await syncSubscription();
+
       // Listen for changing entitlements (e.g. background renewals)
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
         print('Customer info updated: $customerInfo');
         _customerInfo = customerInfo;
         notifyListeners();
 
-        // 🟢 Robustness: Sync with our backend 1 minute after a RC update
-        // This ensures that our own DB session/subscription state reflects the purchase
-        // after the webhook has likely been processed.
-        Future.delayed(const Duration(minutes: 1), () => syncSubscription());
+        // 🟢 Robustness: Push RC state then sync 1 minute after a RC update.
+        // This ensures our DB reflects the purchase even if the webhook was delayed.
+        Future.delayed(const Duration(minutes: 1), () {
+          _pushRevenueCatState().then((_) => syncSubscription());
+        });
       });
 
       // 🟢 Periodically sync every 5 minutes for additional safety
       _syncTimer?.cancel();
-      _syncTimer = Timer.periodic(
-        const Duration(minutes: 5),
-        (_) => syncSubscription(),
-      );
+      _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+        syncSubscription();
+      });
 
       _isInitialized = true;
       notifyListeners();
@@ -138,6 +170,43 @@ class SubscriptionManager extends ChangeNotifier {
     }
   }
 
+  /// Pushes the current RevenueCat entitlement state to our backend
+  /// so the subscription record stays in sync even if a webhook was missed.
+  Future<void> _pushRevenueCatState() async {
+    if (_currentUserId == null || _customerInfo == null) return;
+
+    try {
+      final entitlement = _customerInfo
+          ?.entitlements
+          .all[RevenueCatConstants.gostylensCoreEntitlement];
+
+      final body = <String, dynamic>{
+        'provider': 'revenuecat',
+        'providerCustomerId': _customerInfo!.originalAppUserId,
+      };
+
+      if (entitlement != null && entitlement.isActive) {
+        body['tier'] = 'core';
+        body['status'] = 'active';
+        body['providerSubscriptionId'] = entitlement.productIdentifier;
+      } else {
+        body['tier'] = 'free';
+        body['providerSubscriptionId'] = null;
+        body['status'] = 'free';
+        body['hasReachedLimit'] = 1;
+      }
+
+      await _subscriptionApiService.updateSubscription(
+        _currentUserId!,
+        body: body,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error pushing RevenueCat state to backend: $e');
+      }
+    }
+  }
+
   Future<bool> purchasePackage(Package package) async {
     try {
       _isLoading = true;
@@ -146,6 +215,11 @@ class SubscriptionManager extends ChangeNotifier {
       // ignore: deprecated_member_use
       final result = await Purchases.purchasePackage(package);
       _customerInfo = result.customerInfo;
+
+      // Push RC state to backend and re-fetch subscription
+      await _pushRevenueCatState();
+      await syncSubscription();
+
       return userHasCorePlan;
     } on PlatformException catch (e) {
       var errorCode = PurchasesErrorHelper.getErrorCode(e);

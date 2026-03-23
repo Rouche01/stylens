@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
@@ -18,19 +19,6 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
     });
   }
 
-  String _formatTierName(String tier) {
-    switch (tier) {
-      case 'core':
-        return 'Core';
-      case 'pro':
-        return 'Pro';
-      case 'free':
-        return 'Free';
-      default:
-        return tier[0].toUpperCase() + tier.substring(1);
-    }
-  }
-
   String _formatDate(int? epochSeconds) {
     if (epochSeconds == null) return '—';
     final date = DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000);
@@ -42,6 +30,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
     required String label,
     required String value,
     Color? valueColor,
+    VoidCallback? onCopy,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
@@ -57,12 +46,28 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
               color: cs.primary,
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              color: valueColor ?? cs.primary.withValues(alpha: 0.6),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: valueColor ?? cs.primary.withValues(alpha: 0.6),
+                ),
+              ),
+              if (onCopy != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onCopy,
+                  child: Icon(
+                    Icons.copy_rounded,
+                    size: 16,
+                    color: cs.primary.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -127,9 +132,6 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
         builder: (context, subManager, _) {
           final subscription = subManager.subscription;
           final isPro = subManager.userHasCorePlan;
-          final tierName = subscription != null
-              ? _formatTierName(subscription.tier)
-              : 'Free';
 
           return Column(
             children: [
@@ -148,8 +150,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                           _buildInfoRow(
                             context,
                             label: 'Account Plan',
-                            value:
-                                '$tierName ${subManager.isMonthlyPlan ? "(Monthly)" : "(Annual)"}',
+                            value: subManager.planDisplayName,
                           ),
                           if (isPro && subscription != null) ...[
                             _buildInfoRow(
@@ -174,6 +175,17 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                               value: subscription.id.length > 12
                                   ? '${subscription.id.substring(0, 12)}...'
                                   : subscription.id,
+                              onCopy: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: subscription.id),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Plan ID copied'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ],

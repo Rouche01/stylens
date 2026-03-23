@@ -19,6 +19,14 @@ class CapturePage extends StatefulWidget {
 class _CapturePageState extends State<CapturePage> {
   final ImagePicker _picker = ImagePicker();
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SubscriptionManager>().syncSubscription();
+    });
+  }
+
   Future<void> _startStyleAnalysisSession(
     File imageFile,
     String filename,
@@ -75,10 +83,9 @@ class _CapturePageState extends State<CapturePage> {
   Future<bool> _checkLimitsAndProceed() async {
     final subManager = context.read<SubscriptionManager>();
 
-    final sub = subManager.subscription;
-    if (sub == null) {
-      // Fallback: If for some reason we don't have subscription state yet
-      // (e.g., fast app launch), fetch it quickly.
+    if (subManager.subscription == null) {
+      // Fallback: subscription state not yet available (e.g. fast app launch).
+      // Push RC state first, then sync from backend.
       GlobalLoaderController.instance.show('Your stylist is getting ready...');
       try {
         await subManager.syncSubscription();
@@ -87,25 +94,31 @@ class _CapturePageState extends State<CapturePage> {
       }
     }
 
-    final isPro = subManager.userHasCorePlan;
     final activeSub = subManager.subscription;
 
-    if (activeSub == null) return false;
+    if (activeSub == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to verify your plan. Please try again.'),
+          ),
+        );
+      }
+      return false;
+    }
 
-    // Entitlement checks
-    if (isPro || !activeSub.isFree || !activeSub.hasReachedLimit) {
+    // Allow if user has a paid plan or hasn't reached the free tier limit
+    if (!activeSub.isFree || !activeSub.hasReachedLimit) {
       return true;
     }
 
-    bool? result;
+    // They've hit the free limit — show the paywall
+    if (!mounted) return false;
 
-    // They've hit the limit. Show the paywall page.
-    if (mounted) {
-      result = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (context) => const PaywallPage()),
-      );
-    }
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const PaywallPage()),
+    );
 
     return result == true;
   }
