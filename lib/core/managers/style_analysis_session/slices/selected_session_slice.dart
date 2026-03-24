@@ -214,21 +214,25 @@ class SelectedSessionSlice {
     return response != null;
   }
 
+  Future<void> processInitialOutfit(File file, RemoteImage remoteImage) async {
+    addMessage(
+      UserRole.user,
+      imageFile: file,
+      remoteImage: remoteImage,
+      text: _initialPrompt,
+    );
+
+    addLoadingMessage();
+    await Future.delayed(const Duration(milliseconds: 1500));
+    removeLoadingMessage();
+
+    addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+  }
+
   // --- Initialize New Session ---
   Future<void> initializeNew(File? imageFile, RemoteImage? remoteImage) async {
     if (imageFile != null || remoteImage != null) {
-      addMessage(
-        UserRole.user,
-        imageFile: imageFile,
-        remoteImage: remoteImage,
-        text: _initialPrompt,
-      );
-
-      addLoadingMessage();
-      await Future.delayed(const Duration(milliseconds: 1500));
-      removeLoadingMessage();
-
-      addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+      await processInitialOutfit(imageFile!, remoteImage!);
     } else {
       addLoadingMessage();
       await Future.delayed(const Duration(milliseconds: 1000));

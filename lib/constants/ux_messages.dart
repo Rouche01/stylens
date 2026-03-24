@@ -24,7 +24,7 @@ abstract class UxMessages {
   static const String initialStylistReplyWithImage =
       "Looking great! 🔥 What's the occasion for this outfit?";
   static const String initialStylistReplyWithoutImage1 =
-      "Hey! I'm your personal stylist. Tell me about your outfit or ask me anything about styling!";
+      "Hey! I'm your stylist. Let's get started on your vibe for today.";
   static const String initialStylistReplyWithoutImage2 =
-      "For example, you can send me a photo of your outfit and ask me what I think of it, or you can ask me for styling tips for a specific occasion.";
+      "Whenever you're ready, share your outfit and I'll jump right in with some tips!";
 }

@@ -210,6 +210,11 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> processInitialOutfit(File file, RemoteImage remoteImage) async {
+    await _selectedSessionSlice.processInitialOutfit(file, remoteImage);
+    notifyListeners();
+  }
+
   Future<void> initializeNewSession(
     File? imageFile,
     RemoteImage? remoteImage,

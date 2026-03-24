@@ -9,6 +9,7 @@ import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +71,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Stylens',
+        builder: (context, child) => GlobalLoaderScope(child: child!),
         theme: ThemeData(
           fontFamily: 'Metropolis',
           colorScheme:

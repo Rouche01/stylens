@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/closet.dart';
 import 'package:gostylens/pages/history.dart';
@@ -27,10 +26,9 @@ class _MyHomePageState extends State<MyHomePage> {
         throw UnimplementedError('no widget for $selectedIndex');
     }
 
-    return GlobalLoaderScope(
-      child: Scaffold(
-        body: page,
-        bottomNavigationBar: BottomNavigationBar(
+    return Scaffold(
+      body: page,
+      bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           items: [
             BottomNavigationBarItem(
@@ -52,7 +50,6 @@ class _MyHomePageState extends State<MyHomePage> {
               selectedIndex = index;
             });
           },
-        ),
       ),
     );
   }

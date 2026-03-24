@@ -272,7 +272,10 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       floatingActionButton: StartConversationFab(
         onPressed: () {
-          context.read<StyleAnalysisSessionManager>().setSelectedSessionId('');
+          context.read<StyleAnalysisSessionManager>().initializeNewSession(
+            null,
+            null,
+          );
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),

@@ -35,7 +35,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
       final RemoteImage? remoteImage = await uploadToR2(imageFile, filename);
 
       if (mounted && remoteImage != null) {
-        await context.read<StyleAnalysisSessionManager>().initializeNewSession(
+        context.read<StyleAnalysisSessionManager>().initializeNewSession(
           imageFile,
           remoteImage,
         );
@@ -44,12 +44,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
 
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => StyleAnalysisPage(
-              outfitImageFile: imageFile,
-              remoteImage: remoteImage,
-            ),
-          ),
+          MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
         );
       }
     } catch (err) {

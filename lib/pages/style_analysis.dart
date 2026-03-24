@@ -5,23 +5,21 @@ import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
-import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/widgets/error_display.dart';
 import 'package:gostylens/widgets/message_bubble.dart';
 import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
 import 'package:gostylens/widgets/attachment_sheet.dart';
+import 'package:gostylens/widgets/action_card.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
+import 'package:gostylens/models/remote_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
-  final File? outfitImageFile;
-  final RemoteImage? remoteImage;
-
-  const StyleAnalysisPage({super.key, this.outfitImageFile, this.remoteImage});
+  const StyleAnalysisPage({super.key});
 
   @override
   State<StyleAnalysisPage> createState() => _StyleAnalysisPageState();
@@ -36,6 +34,19 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   late StyleAnalysisSessionManager _sessionManager;
 
   static const double _loadMoreThreshold = 200.0;
+
+  bool get _isNewSession =>
+      _sessionManager.selectedSessionId == null ||
+      _sessionManager.selectedSessionId!.isEmpty;
+
+  bool get _shouldShowInitialActionCard {
+    final messages = _sessionManager.selectedSessionMessages;
+    final hasUserImage = messages.any(
+      (m) => m.role == UserRole.user && m.remoteImage != null,
+    );
+
+    return _isNewSession && !hasUserImage;
+  }
 
   @override
   void initState() {
@@ -89,20 +100,14 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   Future<void> _initializeSession() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _sessionManager.clearOperationErrors();
-      final selectedSessionId = _sessionManager.selectedSessionId;
 
-      if (selectedSessionId != null && selectedSessionId.isNotEmpty) {
+      if (!_isNewSession) {
         _loadExistingSession();
-      } else if (widget.outfitImageFile != null) {
-        await _sessionManager.initializeNewSession(
-          widget.outfitImageFile,
-          widget.remoteImage,
-        );
-      } else {
-        await _sessionManager.initializeNewSession(null, null);
       }
 
-      _focusInput();
+      if (_isNewSession && !_shouldShowInitialActionCard) {
+        _focusInput(); // only pop keyboard for brand new chats
+      }
     });
   }
 
@@ -167,13 +172,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    final selectedSessionId = _sessionManager.selectedSessionId;
     _messageController.clear();
 
-    if (selectedSessionId == null && widget.outfitImageFile != null) {
-      _sessionManager.addToSelectedSessionMessages(UserRole.user, text: text);
-      await _sessionManager.createSession();
-    } else if (selectedSessionId == '' || selectedSessionId == null) {
+    if (_isNewSession) {
       _sessionManager.addToSelectedSessionMessages(UserRole.user, text: text);
       await _sessionManager.createSession();
     } else {
@@ -188,11 +189,20 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   void _onAttachPressed() {
     AttachmentSheet.show(
       context,
-      onSourceSelected: (source) => _handleImageCapture(source),
+      onSourceSelected: (source) => _handleImageCapture(
+        source,
+        onUploadComplete: (file, remoteImage) {
+          print('file: $file');
+          print('remoteImage: $remoteImage');
+        },
+      ),
     );
   }
 
-  Future<void> _handleImageCapture(ImageSource source) async {
+  Future<void> _handleImageCapture(
+    ImageSource source, {
+    void Function(File, RemoteImage)? onUploadComplete,
+  }) async {
     final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
 
@@ -205,26 +215,13 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       );
 
       if (image != null) {
+        GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
+
         final file = File(image.path);
         final remoteImage = await uploadToR2(file, image.name);
 
         if (remoteImage != null && mounted) {
-          final selectedSessionId = _sessionManager.selectedSessionId;
-          if (selectedSessionId == null ||
-              selectedSessionId.isEmpty ||
-              _sessionManager.selectedSessionMessages.length <= 1) {
-            // New session or just starting
-            _sessionManager.initializeNewSession(file, remoteImage);
-            await _sessionManager.createSession();
-          } else {
-            // Existing session
-            await _sessionManager.addMessageToSelectedSession(
-              UserRole.user,
-              imageFile: file,
-              remoteImage: remoteImage,
-              text: UxMessages.initialOutfitPromptTextAugmentation,
-            );
-          }
+          onUploadComplete?.call(file, remoteImage);
         }
       }
     } catch (e) {
@@ -322,8 +319,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (sessionManager.selectedSessionError != null &&
-            sessionManager.selectedSessionId != null) {
+        if (sessionManager.selectedSessionError != null && !_isNewSession) {
           return ErrorDisplay(
             title: 'Failed to load session',
             message: sessionManager.selectedSessionError!,
@@ -338,10 +334,12 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   Widget _buildChatInterface(StyleAnalysisSessionManager sessionManager) {
     final messages = sessionManager.selectedSessionMessages;
+    final showActionCard = _shouldShowInitialActionCard;
     final isSendDisabled =
         sessionManager.isSelectedSessionAwaitingResponse ||
         sessionManager.isSelectedSessionStreaming ||
-        sessionManager.createSessionError != null;
+        sessionManager.createSessionError != null ||
+        showActionCard;
 
     final isTextFieldDisabled =
         sessionManager.createSessionError != null ||
@@ -357,7 +355,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
           placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
-          onAttachPressed: _onAttachPressed,
+          onAttachPressed: !_isNewSession ? _onAttachPressed : null,
         ),
       ],
     );
@@ -367,8 +365,11 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     StyleAnalysisSessionManager sessionManager,
     List<StyleAnalysisSessionMessage> messages,
   ) {
+    final showActionCard = _shouldShowInitialActionCard;
     final itemCount =
-        messages.length + (sessionManager.isLoadingMoreMessages ? 1 : 0);
+        messages.length +
+        (sessionManager.isLoadingMoreMessages ? 1 : 0) +
+        (showActionCard ? 1 : 0);
 
     if (itemCount == 0) {
       return const Center(child: Text('No messages yet'));
@@ -383,8 +384,26 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
         padding: const EdgeInsets.all(16),
         itemCount: itemCount,
         itemBuilder: (context, index) {
+          // 1. Initial Action Card (at the bottom of chat, index 0 in reversed list)
+          if (showActionCard && index == 0) {
+            return ActionCard(
+              title: 'Ready to style!',
+              subtitle:
+                  'Take a photo of your outfit or upload one from your gallery to get started.',
+              onActionSelected: (source) => _handleImageCapture(
+                source,
+                onUploadComplete: (file, remoteImage) =>
+                    _sessionManager.processInitialOutfit(file, remoteImage),
+              ),
+            );
+          }
+
+          // Adjust index if action card is shown
+          final messageIndex = showActionCard ? index - 1 : index;
+
+          // 2. Loading indicator for pagination (at the top of chat, last index)
           if (sessionManager.isLoadingMoreMessages &&
-              index == messages.length) {
+              messageIndex == messages.length) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
               child: Center(
@@ -397,7 +416,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
             );
           }
 
-          final message = messages[index];
+          if (messageIndex < 0) return const SizedBox.shrink();
+
+          final message = messages[messageIndex];
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
