@@ -9,6 +9,7 @@ import 'package:gostylens/widgets/error_display.dart';
 import 'package:gostylens/widgets/message_bubble.dart';
 import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/widgets/full_screen_image_preview.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
 import 'package:gostylens/widgets/attachment_sheet.dart';
 import 'package:gostylens/widgets/action_card.dart';
@@ -33,6 +34,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   final ImagePicker _picker = ImagePicker();
   late StyleAnalysisSessionManager _sessionManager;
 
+  File? _attachedImageFile;
+  RemoteImage? _attachedRemoteImage;
+
   static const double _loadMoreThreshold = 200.0;
 
   bool get _isNewSession =>
@@ -45,7 +49,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       (m) => m.role == UserRole.user && m.remoteImage != null,
     );
 
-    return _isNewSession && !hasUserImage;
+    return _isNewSession && !hasUserImage && _attachedImageFile == null;
   }
 
   @override
@@ -170,16 +174,46 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _attachedRemoteImage == null) return;
 
     _messageController.clear();
 
+    final imageFile = _attachedImageFile;
+    final remoteImage = _attachedRemoteImage;
+
+    setState(() {
+      _attachedImageFile = null;
+      _attachedRemoteImage = null;
+    });
+
     if (_isNewSession) {
-      _sessionManager.addToSelectedSessionMessages(UserRole.user, text: text);
+      _sessionManager.addToSelectedSessionMessages(
+        UserRole.user,
+        text: text,
+        imageFile: imageFile,
+        remoteImage: remoteImage,
+      );
       await _sessionManager.createSession();
     } else {
-      _sessionManager.addMessageToSelectedSession(UserRole.user, text: text);
+      _sessionManager.addMessageToSelectedSession(
+        UserRole.user,
+        text: text,
+        imageFile: imageFile,
+        remoteImage: remoteImage,
+      );
     }
+  }
+
+  void _removeAttachedImage() {
+    setState(() {
+      _attachedImageFile = null;
+      _attachedRemoteImage = null;
+    });
+  }
+
+  void _previewAttachedImage() {
+    if (_attachedImageFile == null) return;
+    FullScreenImagePreview.show(context, imageFile: _attachedImageFile);
   }
 
   // ============================================================
@@ -191,17 +225,27 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       context,
       onSourceSelected: (source) => _handleImageCapture(
         source,
-        onUploadComplete: (file, remoteImage) {
-          print('file: $file');
-          print('remoteImage: $remoteImage');
+        onImagePicked: (file) {
+          setState(() {
+            _attachedImageFile = file;
+          });
         },
+        onUploadComplete: (file, remoteImage) {
+          setState(() {
+            _attachedImageFile = file;
+            _attachedRemoteImage = remoteImage;
+          });
+        },
+        showLoading: false,
       ),
     );
   }
 
   Future<void> _handleImageCapture(
     ImageSource source, {
+    void Function(File)? onImagePicked,
     void Function(File, RemoteImage)? onUploadComplete,
+    bool? showLoading = true,
   }) async {
     final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
@@ -215,9 +259,14 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       );
 
       if (image != null) {
-        GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
-
         final file = File(image.path);
+        onImagePicked?.call(file);
+
+        if (showLoading == true) {
+          print('show loading');
+          GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
+        }
+
         final remoteImage = await uploadToR2(file, image.name);
 
         if (remoteImage != null && mounted) {
@@ -231,7 +280,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      GlobalLoaderController.instance.hide();
+      if (showLoading == true) {
+        GlobalLoaderController.instance.hide();
+      }
     }
   }
 
@@ -355,7 +406,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
           placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
-          onAttachPressed: !_isNewSession ? _onAttachPressed : null,
+          onAttachPressed: _onAttachPressed,
+          attachedImage: _attachedImageFile,
+          onRemoveImage: _removeAttachedImage,
+          onPreviewImage: _previewAttachedImage,
         ),
       ],
     );
@@ -392,8 +446,12 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
                   'Take a photo of your outfit or upload one from your gallery to get started.',
               onActionSelected: (source) => _handleImageCapture(
                 source,
-                onUploadComplete: (file, remoteImage) =>
-                    _sessionManager.processInitialOutfit(file, remoteImage),
+                onImagePicked: (file) {
+                  // TODO: remove this
+                },
+                onUploadComplete: (file, remoteImage) {
+                  _sessionManager.processInitialOutfit(file, remoteImage);
+                },
               ),
             );
           }

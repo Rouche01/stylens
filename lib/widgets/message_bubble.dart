@@ -3,6 +3,7 @@ import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/formatted_error_text.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
+import 'package:gostylens/widgets/full_screen_image_preview.dart';
 
 class ErrorAction {
   final String label;
@@ -94,13 +95,20 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (hasImage) ...[
-                  ImageWithFallback(
-                    imageFile: message.imageFile,
-                    remoteImage: message.remoteImage,
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    borderRadius: BorderRadius.circular(8),
+                  GestureDetector(
+                    onTap: () => FullScreenImagePreview.show(
+                      context,
+                      imageFile: message.imageFile,
+                      imageUrl: message.remoteImage?.url,
+                    ),
+                    child: ImageWithFallback(
+                      imageFile: message.imageFile,
+                      remoteImage: message.remoteImage,
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ],
                 if (message.displayText case final displayText?) ...[

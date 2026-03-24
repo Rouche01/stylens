@@ -13,6 +13,7 @@ class MessageInput extends StatelessWidget {
   final VoidCallback? onAttachPressed;
   final File? attachedImage;
   final VoidCallback? onRemoveImage;
+  final VoidCallback? onPreviewImage;
 
   const MessageInput({
     super.key,
@@ -25,6 +26,7 @@ class MessageInput extends StatelessWidget {
     this.onAttachPressed,
     this.attachedImage,
     this.onRemoveImage,
+    this.onPreviewImage,
   });
 
   @override
@@ -49,27 +51,35 @@ class MessageInput extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
+                  GestureDetector(
+                    onTap: onPreviewImage,
+                    child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                      child: Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.4),
+                          ),
                         ),
-                      ],
-                      image: DecorationImage(
-                        image: FileImage(attachedImage!),
-                        fit: BoxFit.cover,
-                      ),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outline.withValues(alpha: 0.4),
-                        width: 1,
+                        child: Image.file(
+                          attachedImage!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Icon(
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -106,23 +116,14 @@ class MessageInput extends StatelessWidget {
           Row(
             children: [
               if (onAttachPressed != null) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.8),
-                      width: 1.5,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    onPressed: isTextFieldDisabled ? null : onAttachPressed,
-                    icon: Icon(
-                      Icons.add_a_photo,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    padding: EdgeInsets.zero,
+                IconButton(
+                  onPressed: isTextFieldDisabled ? null : onAttachPressed,
+                  icon: Icon(Icons.add),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.25),
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 8),

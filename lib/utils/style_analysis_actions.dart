@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
@@ -51,7 +50,6 @@ mixin StyleAnalysisActions {
 
   /// Uploads an image to R2 and returns the RemoteImage object.
   Future<RemoteImage?> uploadToR2(File imageFile, String filename) async {
-    GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
     try {
       final assetApiService = AssetApiService();
       final responseData = await assetApiService.getUploadUrl(filename);
@@ -75,8 +73,6 @@ mixin StyleAnalysisActions {
     } catch (e) {
       debugPrint('❌ Upload error: $e');
       return null;
-    } finally {
-      GlobalLoaderController.instance.hide();
     }
   }
 }
