@@ -9,6 +9,7 @@ class MessageInput extends StatelessWidget {
   final shouldAutoFocus = true;
   final FocusNode? focusNode;
   final String? placeholder;
+  final VoidCallback? onAttachPressed;
 
   const MessageInput({
     super.key,
@@ -18,6 +19,7 @@ class MessageInput extends StatelessWidget {
     this.isTextFieldDisabled = false,
     this.focusNode,
     this.placeholder = UxMessages.messagePlaceholderDefault,
+    this.onAttachPressed,
   });
 
   @override
@@ -34,6 +36,28 @@ class MessageInput extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (onAttachPressed != null) ...[
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.8),
+                  width: 1.5,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: isTextFieldDisabled ? null : onAttachPressed,
+                icon: Icon(
+                  Icons.add_a_photo,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: TextField(
               controller: messageController,

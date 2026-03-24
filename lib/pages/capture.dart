@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'profile_menu.dart';
 import 'dart:io';
 import 'style_analysis.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 
 class CapturePage extends StatefulWidget {
   @override
@@ -35,6 +36,13 @@ class _CapturePageState extends State<CapturePage> {
       final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
 
       if (mounted) {
+        await context.read<StyleAnalysisSessionManager>().initializeNewSession(
+          imageFile,
+          remoteImage,
+        );
+
+        if (!mounted) return;
+
         Navigator.push(
           context,
           MaterialPageRoute(

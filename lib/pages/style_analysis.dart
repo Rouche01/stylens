@@ -11,6 +11,10 @@ import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
 import 'package:gostylens/pages/paywall.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/services/api_service/index.dart';
+import 'package:gostylens/core/managers/global_loader/index.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   final File? outfitImageFile;
@@ -26,6 +30,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
+  final ImagePicker _picker = ImagePicker();
   late StyleAnalysisSessionManager _sessionManager;
 
   static const double _loadMoreThreshold = 200.0;
@@ -75,18 +80,20 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   // INITIALIZATION
   // ============================================================
 
-  void _initializeSession() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _initializeSession() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _sessionManager.clearOperationErrors();
       final selectedSessionId = _sessionManager.selectedSessionId;
 
-      if (selectedSessionId != null) {
+      if (selectedSessionId != null && selectedSessionId.isNotEmpty) {
         _loadExistingSession();
       } else if (widget.outfitImageFile != null) {
-        _sessionManager.initializeNewSession(
+        await _sessionManager.initializeNewSession(
           widget.outfitImageFile,
           widget.remoteImage,
         );
+      } else {
+        await _sessionManager.initializeNewSession(null, null);
       }
 
       _focusInput();
@@ -160,8 +167,180 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
     if (selectedSessionId == null && widget.outfitImageFile != null) {
       _sessionManager.addToSelectedSessionMessages(UserRole.user, text: text);
       await _sessionManager.createSession();
+    } else if (selectedSessionId == '' || selectedSessionId == null) {
+      _sessionManager.addToSelectedSessionMessages(UserRole.user, text: text);
+      await _sessionManager.createSession();
     } else {
       _sessionManager.addMessageToSelectedSession(UserRole.user, text: text);
+    }
+  }
+
+  // ============================================================
+  // ATTACHMENT HANDLING
+  // ============================================================
+
+  Future<bool> _checkLimitsAndProceed() async {
+    final subManager = context.read<SubscriptionManager>();
+
+    if (subManager.subscription == null) {
+      GlobalLoaderController.instance.show('Your stylist is getting ready...');
+      try {
+        await subManager.syncSubscription();
+      } finally {
+        GlobalLoaderController.instance.hide();
+      }
+    }
+
+    final activeSub = subManager.subscription;
+
+    if (activeSub == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to verify your plan. Please try again.'),
+          ),
+        );
+      }
+      return false;
+    }
+
+    if (!activeSub.isFree || !activeSub.hasReachedLimit) {
+      return true;
+    }
+
+    if (!mounted) return false;
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const PaywallPage()),
+    );
+
+    return result == true;
+  }
+
+  Future<RemoteImage?> _uploadToR2(File imageFile, String filename) async {
+    GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
+    try {
+      final assetApiService = AssetApiService();
+      final responseData = await assetApiService.getUploadUrl(filename);
+
+      final uploadUrl = responseData.uploadUrl;
+      final downloadUrl = responseData.downloadUrl;
+      final returnedFilename = responseData.filename;
+
+      final imageFileBytes = await imageFile.readAsBytes();
+      final statusCode = await assetApiService.uploadImage(
+        uploadUrl,
+        imageFileBytes,
+      );
+
+      if (statusCode == 200) {
+        return RemoteImage(url: downloadUrl, key: returnedFilename);
+      } else {
+        debugPrint('❌ Upload failed: $statusCode');
+        return null;
+      }
+    } catch (e) {
+      GlobalLoaderController.instance.hide();
+      rethrow;
+    }
+  }
+
+  void _onAttachPressed() {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colorScheme.tertiary,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height / 3,
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Icon(Icons.photo_camera, color: colorScheme.primary),
+              title: Text(
+                'Take Photo',
+                style: TextStyle(color: colorScheme.primary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _handleImageCapture(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library, color: colorScheme.primary),
+              title: Text(
+                'Choose from Gallery',
+                style: TextStyle(color: colorScheme.primary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _handleImageCapture(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleImageCapture(ImageSource source) async {
+    final canProceed = await _checkLimitsAndProceed();
+    if (!canProceed) return;
+
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final file = File(image.path);
+        final remoteImage = await _uploadToR2(file, image.name);
+
+        if (remoteImage != null && mounted) {
+          final selectedSessionId = _sessionManager.selectedSessionId;
+          if (selectedSessionId == null ||
+              selectedSessionId.isEmpty ||
+              _sessionManager.selectedSessionMessages.length <= 1) {
+            // New session or just starting
+            _sessionManager.initializeNewSession(file, remoteImage);
+            await _sessionManager.createSession();
+          } else {
+            // Existing session
+            await _sessionManager.addMessageToSelectedSession(
+              UserRole.user,
+              imageFile: file,
+              remoteImage: remoteImage,
+              text: UxMessages.initialOutfitPromptTextAugmentation,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      GlobalLoaderController.instance.hide();
     }
   }
 
@@ -284,6 +463,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
           isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
           placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
+          onAttachPressed: _onAttachPressed,
         ),
       ],
     );

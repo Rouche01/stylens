@@ -6,9 +6,7 @@ import 'package:gostylens/widgets/style_analysis_session_card.dart';
 import 'package:gostylens/widgets/start_conversation_fab.dart';
 
 class HistoryPage extends StatefulWidget {
-  final VoidCallback? onStartConversation;
-
-  const HistoryPage({super.key, this.onStartConversation});
+  const HistoryPage({super.key});
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -272,10 +270,15 @@ class _HistoryPageState extends State<HistoryPage> {
           );
         },
       ),
-      floatingActionButton:
-          widget.onStartConversation != null
-              ? StartConversationFab(onPressed: widget.onStartConversation!)
-              : null,
+      floatingActionButton: StartConversationFab(
+        onPressed: () {
+          context.read<StyleAnalysisSessionManager>().setSelectedSessionId('');
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),
+          );
+        },
+      ),
     );
   }
 }

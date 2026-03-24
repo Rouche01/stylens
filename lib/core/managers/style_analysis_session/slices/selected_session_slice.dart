@@ -31,7 +31,12 @@ class SelectedSessionSlice {
   }
 
   static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
-  static const _initialBotReply = UxMessages.initialStylistReply;
+  static const _initialBotReplyWithImage =
+      UxMessages.initialStylistReplyWithImage;
+  static const _initialBotReplyWithoutImage1 =
+      UxMessages.initialStylistReplyWithoutImage1;
+  static const _initialBotReplyWithoutImage2 =
+      UxMessages.initialStylistReplyWithoutImage2;
 
   // --- UI State (kept locally in slice) ---
   final Map<String, SessionUIState> _uiStates = {};
@@ -210,15 +215,33 @@ class SelectedSessionSlice {
   }
 
   // --- Initialize New Session ---
-  void initializeNew(File? imageFile, RemoteImage? remoteImage) {
-    addMessage(
-      UserRole.user,
-      imageFile: imageFile,
-      remoteImage: remoteImage,
-      text: _initialPrompt,
-    );
+  Future<void> initializeNew(File? imageFile, RemoteImage? remoteImage) async {
+    if (imageFile != null || remoteImage != null) {
+      addMessage(
+        UserRole.user,
+        imageFile: imageFile,
+        remoteImage: remoteImage,
+        text: _initialPrompt,
+      );
 
-    addMessage(UserRole.assistant, text: _initialBotReply);
+      addLoadingMessage();
+      await Future.delayed(const Duration(milliseconds: 1500));
+      removeLoadingMessage();
+
+      addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+    } else {
+      addLoadingMessage();
+      await Future.delayed(const Duration(milliseconds: 1000));
+      removeLoadingMessage();
+
+      addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
+
+      addLoadingMessage();
+      await Future.delayed(const Duration(milliseconds: 2000));
+      removeLoadingMessage();
+
+      addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
+    }
   }
 
   // --- Message Operations ---

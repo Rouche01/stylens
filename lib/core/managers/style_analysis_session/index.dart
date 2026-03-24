@@ -210,9 +210,12 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void initializeNewSession(File? imageFile, RemoteImage? remoteImage) {
+  Future<void> initializeNewSession(
+    File? imageFile,
+    RemoteImage? remoteImage,
+  ) async {
     clearOperationErrors();
-    _selectedSessionSlice.initializeNew(imageFile, remoteImage);
+    await _selectedSessionSlice.initializeNew(imageFile, remoteImage);
   }
 
   Future<String?> createSession() async {
