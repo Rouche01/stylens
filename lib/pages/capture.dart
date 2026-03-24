@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/constants/ux_messages.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:gostylens/core/managers/global_loader/index.dart';
-import 'package:gostylens/models/remote_image.dart';
-import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/core/services/api_service/index.dart';
-import 'package:gostylens/pages/paywall.dart';
-import 'package:provider/provider.dart';
-import 'profile_menu.dart';
 import 'dart:io';
-import 'style_analysis.dart';
+import 'package:provider/provider.dart';
+import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/utils/style_analysis_actions.dart';
+import 'style_analysis.dart';
+import 'profile_menu.dart';
 
 class CapturePage extends StatefulWidget {
+  const CapturePage({super.key});
+
   @override
   State<CapturePage> createState() => _CapturePageState();
 }
 
-class _CapturePageState extends State<CapturePage> {
+class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -33,9 +32,9 @@ class _CapturePageState extends State<CapturePage> {
     String filename,
   ) async {
     try {
-      final RemoteImage? remoteImage = await _uploadToR2(imageFile, filename);
+      final RemoteImage? remoteImage = await uploadToR2(imageFile, filename);
 
-      if (mounted) {
+      if (mounted && remoteImage != null) {
         await context.read<StyleAnalysisSessionManager>().initializeNewSession(
           imageFile,
           remoteImage,
@@ -54,85 +53,12 @@ class _CapturePageState extends State<CapturePage> {
         );
       }
     } catch (err) {
-      print('$err');
-    } finally {
-      GlobalLoaderController.instance.hide();
+      debugPrint('$err');
     }
-  }
-
-  Future<RemoteImage?> _uploadToR2(File imageFile, String filename) async {
-    GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
-    try {
-      final assetApiService = AssetApiService();
-      final responseData = await assetApiService.getUploadUrl(filename);
-
-      final uploadUrl = responseData.uploadUrl;
-      final downloadUrl = responseData.downloadUrl;
-      final returnedFilename = responseData.filename;
-
-      final imageFileBytes = await imageFile.readAsBytes();
-      final statusCode = await assetApiService.uploadImage(
-        uploadUrl,
-        imageFileBytes,
-      );
-
-      if (statusCode == 200) {
-        return RemoteImage(url: downloadUrl, key: returnedFilename);
-      } else {
-        debugPrint('❌ Upload failed: $statusCode');
-        return null;
-      }
-    } catch (e) {
-      GlobalLoaderController.instance.hide();
-      rethrow;
-    }
-  }
-
-  Future<bool> _checkLimitsAndProceed() async {
-    final subManager = context.read<SubscriptionManager>();
-
-    if (subManager.subscription == null) {
-      // Fallback: subscription state not yet available (e.g. fast app launch).
-      // Push RC state first, then sync from backend.
-      GlobalLoaderController.instance.show('Your stylist is getting ready...');
-      try {
-        await subManager.syncSubscription();
-      } finally {
-        GlobalLoaderController.instance.hide();
-      }
-    }
-
-    final activeSub = subManager.subscription;
-
-    if (activeSub == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to verify your plan. Please try again.'),
-          ),
-        );
-      }
-      return false;
-    }
-
-    // Allow if user has a paid plan or hasn't reached the free tier limit
-    if (!activeSub.isFree || !activeSub.hasReachedLimit) {
-      return true;
-    }
-
-    // They've hit the free limit — show the paywall
-    if (!mounted) return false;
-
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const PaywallPage()),
-    );
-
-    return result == true;
   }
 
   Future<void> _takePhoto() async {
-    final canProceed = await _checkLimitsAndProceed();
+    final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
 
     try {
@@ -156,7 +82,7 @@ class _CapturePageState extends State<CapturePage> {
   }
 
   Future<void> _chooseFromGallery() async {
-    final canProceed = await _checkLimitsAndProceed();
+    final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
 
     try {
@@ -181,23 +107,22 @@ class _CapturePageState extends State<CapturePage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 0,
-        backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+        backgroundColor: cs.surfaceDim,
         elevation: 0,
       ),
-      backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+      backgroundColor: cs.surfaceDim,
       body: Stack(
         children: [
           Column(
             children: [
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    // vertical: 8.0,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -207,13 +132,13 @@ class _CapturePageState extends State<CapturePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ProfileMenuPage(),
+                              builder: (context) => const ProfileMenuPage(),
                             ),
                           );
                         },
-                        icon: Icon(Icons.account_circle),
+                        icon: const Icon(Icons.account_circle),
                         iconSize: 39,
-                        color: Theme.of(context).colorScheme.primary,
+                        color: cs.primary,
                       ),
                     ],
                   ),
@@ -231,69 +156,59 @@ class _CapturePageState extends State<CapturePage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outline.withValues(alpha: 0.5),
+                        color: cs.outline.withValues(alpha: 0.5),
                         width: 1,
                       ),
-                      color: Theme.of(context).colorScheme.surfaceDim,
+                      color: cs.surfaceDim,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('📸', style: TextStyle(fontSize: 80)),
-                          SizedBox(height: 24),
+                          const Text('📸', style: TextStyle(fontSize: 80)),
+                          const SizedBox(height: 24),
                           Text(
                             'Strike a Pose!',
                             style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  // fontWeight: FontWeight.bold,
+                                  color: cs.onSurface,
                                   fontFamily: 'ClashDisplay',
                                   fontWeight: FontWeight.w500,
                                 ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
                             "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.9),
+                                  color: cs.onSurface.withValues(alpha: 0.9),
                                   height: 1.5,
                                 ),
                             textAlign: TextAlign.center,
                           ),
-                          SizedBox(height: 32),
+                          const SizedBox(height: 32),
                           ElevatedButton.icon(
                             onPressed: _takePhoto,
-                            icon: Icon(Icons.photo_camera),
-                            label: Text('Take Photo'),
+                            icon: const Icon(Icons.photo_camera),
+                            label: const Text('Take Photo'),
                             style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                                 vertical: 12,
                               ),
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary,
+                              backgroundColor: cs.primary,
+                              foregroundColor: cs.onPrimary,
                             ),
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           OutlinedButton.icon(
                             onPressed: _chooseFromGallery,
-                            icon: Icon(Icons.photo_library),
-                            label: Text('Choose from Gallery'),
+                            icon: const Icon(Icons.photo_library),
+                            label: const Text('Choose from Gallery'),
                             style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                                 vertical: 12,
                               ),

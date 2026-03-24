@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
+import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
@@ -10,10 +11,10 @@ import 'package:gostylens/widgets/message_bubble.dart';
 import 'package:gostylens/widgets/message_input.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
+import 'package:gostylens/widgets/attachment_sheet.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
@@ -26,7 +27,8 @@ class StyleAnalysisPage extends StatefulWidget {
   State<StyleAnalysisPage> createState() => _StyleAnalysisPageState();
 }
 
-class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
+class _StyleAnalysisPageState extends State<StyleAnalysisPage>
+    with StyleAnalysisActions {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -44,6 +46,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
 
     _scrollController.addListener(_onScroll);
     _initializeSession();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SubscriptionManager>().syncSubscription();
+    });
   }
 
   @override
@@ -179,127 +185,15 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
   // ATTACHMENT HANDLING
   // ============================================================
 
-  Future<bool> _checkLimitsAndProceed() async {
-    final subManager = context.read<SubscriptionManager>();
-
-    if (subManager.subscription == null) {
-      GlobalLoaderController.instance.show('Your stylist is getting ready...');
-      try {
-        await subManager.syncSubscription();
-      } finally {
-        GlobalLoaderController.instance.hide();
-      }
-    }
-
-    final activeSub = subManager.subscription;
-
-    if (activeSub == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to verify your plan. Please try again.'),
-          ),
-        );
-      }
-      return false;
-    }
-
-    if (!activeSub.isFree || !activeSub.hasReachedLimit) {
-      return true;
-    }
-
-    if (!mounted) return false;
-
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const PaywallPage()),
-    );
-
-    return result == true;
-  }
-
-  Future<RemoteImage?> _uploadToR2(File imageFile, String filename) async {
-    GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
-    try {
-      final assetApiService = AssetApiService();
-      final responseData = await assetApiService.getUploadUrl(filename);
-
-      final uploadUrl = responseData.uploadUrl;
-      final downloadUrl = responseData.downloadUrl;
-      final returnedFilename = responseData.filename;
-
-      final imageFileBytes = await imageFile.readAsBytes();
-      final statusCode = await assetApiService.uploadImage(
-        uploadUrl,
-        imageFileBytes,
-      );
-
-      if (statusCode == 200) {
-        return RemoteImage(url: downloadUrl, key: returnedFilename);
-      } else {
-        debugPrint('❌ Upload failed: $statusCode');
-        return null;
-      }
-    } catch (e) {
-      GlobalLoaderController.instance.hide();
-      rethrow;
-    }
-  }
-
   void _onAttachPressed() {
-    final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colorScheme.tertiary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height / 3,
-        padding: const EdgeInsets.only(top: 12),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: Icon(Icons.photo_camera, color: colorScheme.primary),
-              title: Text(
-                'Take Photo',
-                style: TextStyle(color: colorScheme.primary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _handleImageCapture(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.photo_library, color: colorScheme.primary),
-              title: Text(
-                'Choose from Gallery',
-                style: TextStyle(color: colorScheme.primary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _handleImageCapture(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
+    AttachmentSheet.show(
+      context,
+      onSourceSelected: (source) => _handleImageCapture(source),
     );
   }
 
   Future<void> _handleImageCapture(ImageSource source) async {
-    final canProceed = await _checkLimitsAndProceed();
+    final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
 
     try {
@@ -312,7 +206,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage> {
 
       if (image != null) {
         final file = File(image.path);
-        final remoteImage = await _uploadToR2(file, image.name);
+        final remoteImage = await uploadToR2(file, image.name);
 
         if (remoteImage != null && mounted) {
           final selectedSessionId = _sessionManager.selectedSessionId;
