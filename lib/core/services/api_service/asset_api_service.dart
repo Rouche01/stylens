@@ -31,20 +31,16 @@ class AssetApiService extends BaseApiService {
 
   /// Refetches a non-expired download URL for an asset
   Future<String> getDownloadUrl(String filename) async {
-    try {
-      final reqHeaders = await headers;
-      final presignedUrlRes = await http.get(
-        Uri.parse(buildUrl('download-url?filename=$filename')),
-        headers: reqHeaders,
-      );
+    final response = await get<String>(
+      'download-url?filename=$filename',
+      fromJson: (data) => data.toString(),
+      defaultErrorMessage: 'Failed to get download URL',
+    );
 
-      if (presignedUrlRes.statusCode != 200) {
-        throw Exception('Failed to get download URL: ${presignedUrlRes.body}');
-      }
-
-      return presignedUrlRes.body;
-    } catch (e) {
-      print('Error getting download URL: $e');
+    if (response.isSuccess && response.data != null) {
+      return response.data!;
+    } else {
+      print('Error getting download URL: ${response.error?.message}');
       return '';
     }
   }

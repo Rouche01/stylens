@@ -1,9 +1,8 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio;
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/utils/api_utils.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import 'package:gostylens/core/services/api_service/auth_interceptor.dart';
 
 abstract class BaseApiService {
   final String resourcePath;
@@ -11,20 +10,30 @@ abstract class BaseApiService {
 
   BaseApiService({this.resourcePath = ''});
 
+  /// Shared Dio instance with interceptors initialized.
+  static final dio.Dio _dio = _initDio();
+
+  static dio.Dio _initDio() {
+    final d = dio.Dio(
+      dio.BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    );
+
+    d.interceptors.addAll([
+      SupabaseAuthInterceptor(d),
+      dio.LogInterceptor(requestBody: true, responseBody: true),
+    ]);
+
+    return d;
+  }
+
   String buildUrl(String path) {
     // Safely combine portions, stripping out duplicate slashes but preserving 'http://'
     final rawUrl = '$baseUrl/$resourcePath/$path';
     return rawUrl.replaceAll(RegExp(r'(?<!https?:)//+'), '/');
-  }
-
-  Future<Map<String, String>> get headers async {
-    final session = supabase.Supabase.instance.client.auth.currentSession;
-    final token = session?.accessToken;
-
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
   }
 
   Future<ApiResponse<T>> get<T>(
@@ -32,32 +41,12 @@ abstract class BaseApiService {
     T Function(dynamic)? fromJson,
     String defaultErrorMessage = 'GET request failed',
   }) async {
-    try {
-      final reqHeaders = await headers;
-      final response = await http.get(
-        Uri.parse(buildUrl(path)),
-        headers: reqHeaders,
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (fromJson != null) {
-          return ApiResponse<T>(
-            data: fromJson(json.decode(response.body)),
-            statusCode: response.statusCode,
-          );
-        }
-        return ApiResponse<T>(statusCode: response.statusCode);
-      }
-      return ApiResponse<T>(
-        error: parseApiError(defaultErrorMessage, response: response),
-        statusCode: response.statusCode,
-      );
-    } catch (e) {
-      return ApiResponse<T>(
-        error: parseApiError('Network error', error: e),
-        statusCode: -1,
-      );
-    }
+    return _request<T>(
+      'GET',
+      path,
+      fromJson: fromJson,
+      defaultErrorMessage: defaultErrorMessage,
+    );
   }
 
   Future<ApiResponse<T>> post<T>(
@@ -66,33 +55,13 @@ abstract class BaseApiService {
     T Function(dynamic)? fromJson,
     String defaultErrorMessage = 'POST request failed',
   }) async {
-    try {
-      final reqHeaders = await headers;
-      final response = await http.post(
-        Uri.parse(buildUrl(path)),
-        headers: reqHeaders,
-        body: body != null ? json.encode(body) : null,
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (fromJson != null) {
-          return ApiResponse<T>(
-            data: fromJson(json.decode(response.body)),
-            statusCode: response.statusCode,
-          );
-        }
-        return ApiResponse<T>(statusCode: response.statusCode);
-      }
-      return ApiResponse<T>(
-        error: parseApiError(defaultErrorMessage, response: response),
-        statusCode: response.statusCode,
-      );
-    } catch (e) {
-      return ApiResponse<T>(
-        error: parseApiError('Network error', error: e),
-        statusCode: -1,
-      );
-    }
+    return _request<T>(
+      'POST',
+      path,
+      data: body,
+      fromJson: fromJson,
+      defaultErrorMessage: defaultErrorMessage,
+    );
   }
 
   Future<ApiResponse<T>> patch<T>(
@@ -101,56 +70,69 @@ abstract class BaseApiService {
     T Function(dynamic)? fromJson,
     String defaultErrorMessage = 'PATCH request failed',
   }) async {
-    try {
-      final reqHeaders = await headers;
-      final response = await http.patch(
-        Uri.parse(buildUrl(path)),
-        headers: reqHeaders,
-        body: body != null ? json.encode(body) : null,
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (fromJson != null) {
-          return ApiResponse<T>(
-            data: fromJson(json.decode(response.body)),
-            statusCode: response.statusCode,
-          );
-        }
-        return ApiResponse<T>(statusCode: response.statusCode);
-      }
-      return ApiResponse<T>(
-        error: parseApiError(defaultErrorMessage, response: response),
-        statusCode: response.statusCode,
-      );
-    } catch (e) {
-      return ApiResponse<T>(
-        error: parseApiError('Network error', error: e),
-        statusCode: -1,
-      );
-    }
+    return _request<T>(
+      'PATCH',
+      path,
+      data: body,
+      fromJson: fromJson,
+      defaultErrorMessage: defaultErrorMessage,
+    );
   }
 
   Future<ApiResponse<T>> delete<T>(
     String path, {
     String defaultErrorMessage = 'DELETE request failed',
   }) async {
+    return _request<T>(
+      'DELETE',
+      path,
+      defaultErrorMessage: defaultErrorMessage,
+    );
+  }
+
+  /// Internal helper to perform a Dio request and map it to ApiResponse.
+  Future<ApiResponse<T>> _request<T>(
+    String method,
+    String path, {
+    dynamic data,
+    T Function(dynamic)? fromJson,
+    required String defaultErrorMessage,
+  }) async {
     try {
-      final reqHeaders = await headers;
-      final response = await http.delete(
-        Uri.parse(buildUrl(path)),
-        headers: reqHeaders,
+      final response = await _dio.request(
+        buildUrl(path),
+        data: data,
+        options: dio.Options(method: method),
       );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return ApiResponse<T>(statusCode: response.statusCode);
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        if (fromJson != null) {
+          return ApiResponse<T>(
+            data: fromJson(response.data),
+            statusCode: response.statusCode!,
+          );
+        }
+        return ApiResponse<T>(statusCode: response.statusCode!);
       }
+
       return ApiResponse<T>(
-        error: parseApiError(defaultErrorMessage, response: response),
-        statusCode: response.statusCode,
+        error: parseApiError(defaultErrorMessage, dioResponse: response),
+        statusCode: response.statusCode ?? -1,
+      );
+    } on dio.DioException catch (e) {
+      return ApiResponse<T>(
+        error: parseApiError(
+          defaultErrorMessage,
+          dioResponse: e.response,
+          error: e,
+        ),
+        statusCode: e.response?.statusCode ?? -1,
       );
     } catch (e) {
       return ApiResponse<T>(
-        error: parseApiError('Network error', error: e),
+        error: parseApiError('Unexpected error', error: e),
         statusCode: -1,
       );
     }
