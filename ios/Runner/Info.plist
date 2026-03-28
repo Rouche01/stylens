@@ -107,5 +107,15 @@
 		<string>232045667676-hb8tlk4ipe2vp28jo6mqloe939j9cfl3.apps.googleusercontent.com</string>
 		<key>GIDServerClientID</key>
 		<string>232045667676-d1bbp14qlhl090nej8gldjhde5gfbkgb.apps.googleusercontent.com</string>
+		<key>com.posthog.posthog.API_KEY</key>
+		<string>$(POSTHOG_API_KEY)</string>
+		<key>com.posthog.posthog.POSTHOG_HOST</key>
+		<string>$(POSTHOG_HOST)</string>
+		<key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>
+		<true/>
+		<key>com.posthog.posthog.DEBUG</key>
+		<true/>
+		<key>com.posthog.posthog.AUTO_INIT</key>
+		<false/>
 	</dict>
 </plist>

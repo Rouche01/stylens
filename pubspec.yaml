@@ -28,6 +28,7 @@ dependencies:
   pinput: ^6.0.2
   pretty_dio_logger: ^1.4.0
   get_it: ^9.2.1
+  posthog_flutter: ^5.0.0
 
 dev_dependencies:
   flutter_test:

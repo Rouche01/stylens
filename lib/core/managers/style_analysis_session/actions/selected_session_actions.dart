@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/constants/ux_messages.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/slice_state_manager.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
@@ -15,9 +17,10 @@ mixin SelectedSessionActions {
   StyleAnalysisApiService get apiService;
   AssetApiService get assetApiService;
   SliceStateManager<SelectedStyleAnalysisSession> get sliceStateManager;
-  
+
   String? get sessionId => sliceStateManager.data?.sessionId;
-  List<StyleAnalysisSessionMessage> get messages => sliceStateManager.data?.messages ?? [];
+  List<StyleAnalysisSessionMessage> get messages =>
+      sliceStateManager.data?.messages ?? [];
 
   void addMessage(
     UserRole userRole, {
@@ -103,8 +106,7 @@ mixin SelectedSessionActions {
     sliceStateManager.notify();
 
     final response = await sliceStateManager.execute(
-      action: () =>
-          apiService.fetchSessionMessages(id, page: currentPage + 1),
+      action: () => apiService.fetchSessionMessages(id, page: currentPage + 1),
       setLoadingState: false, // Don't override main loading state
       onSuccess: (response, currentData) {
         if (response.isSuccess && response.data != null) {
@@ -204,18 +206,17 @@ mixin SelectedSessionActions {
   Future<void> sendMessage({
     required String text,
     required List<File> imageFiles,
-    required Future<void> Function(String sessionId, {required ContextMode contextMode})
-        startStreaming,
+    required Future<void> Function(
+      String sessionId, {
+      required ContextMode contextMode,
+    })
+    startStreaming,
   }) async {
     final id = sessionId;
     final isNew = id == null;
 
     // 1. Add to local UI immediately
-    addMessage(
-      UserRole.user,
-      text: text,
-      imageFiles: imageFiles,
-    );
+    addMessage(UserRole.user, text: text, imageFiles: imageFiles);
 
     // 2. Clear draft state
     clearAttachedImages();
@@ -256,6 +257,16 @@ mixin SelectedSessionActions {
         await startStreaming(
           finalSessionId,
           contextMode: isNew ? ContextMode.all : ContextMode.recent,
+        );
+
+        locator<AnalyticsService>().capture(
+          'message_sent',
+          properties: {
+            'session_id': finalSessionId,
+            'user_role': UserRole.user.name,
+            'has_text': text.isNotEmpty,
+            'has_images': imageFiles.isNotEmpty,
+          },
         );
       }
     } catch (e) {
@@ -310,11 +321,7 @@ mixin SelectedSessionActions {
   }
 
   Future<void> processInitialOutfitFlow(List<File> files) async {
-    addMessage(
-      UserRole.user,
-      imageFiles: files,
-      text: _initialPrompt,
-    );
+    addMessage(UserRole.user, imageFiles: files, text: _initialPrompt);
     addLoadingMessage();
     sliceStateManager.notify();
 
@@ -326,7 +333,7 @@ mixin SelectedSessionActions {
           remoteImages.add(remoteImage);
         }
       }
-      
+
       // Complete initial outfit process
       updateLastUserMessage(remoteImages: remoteImages);
       await processInitialOutfit(files, remoteImages);
@@ -361,9 +368,11 @@ mixin SelectedSessionActions {
     final currentState = sliceStateManager.data;
     if (currentState == null || currentState.messages.isEmpty) return;
 
-    final updatedMessages = List<StyleAnalysisSessionMessage>.from(currentState.messages);
+    final updatedMessages = List<StyleAnalysisSessionMessage>.from(
+      currentState.messages,
+    );
     final lastIndex = updatedMessages.lastIndexWhere((m) => m.isUserMessage);
-    
+
     if (lastIndex != -1) {
       final lastMsg = updatedMessages[lastIndex];
       updatedMessages[lastIndex] = StyleAnalysisSessionMessage(

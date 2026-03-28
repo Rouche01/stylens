@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'dart:convert';
@@ -11,6 +12,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthStateManager extends ChangeNotifier {
   final supabase = locator<SupabaseClient>();
   final UserApiService _userApiService = locator<UserApiService>();
+  final AnalyticsService _analyticsService = locator<AnalyticsService>();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -81,9 +83,18 @@ class AuthStateManager extends ChangeNotifier {
 
         if (userResponse.isSuccess) {
           // User exists, they are not new
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': email,
+            'auth_method': 'otp',
+          });
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404) {
           // User explicitly not found, they are a brand new user
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': email,
+            'auth_method': 'otp',
+            'is_new_user': true,
+          });
           onSuccess?.call(true);
         } else {
           // It failed for some other reason (500 Server Error, Network, etc.)
@@ -125,6 +136,7 @@ class AuthStateManager extends ChangeNotifier {
 
     try {
       await supabase.auth.signOut();
+      _analyticsService.reset();
       onSuccess?.call();
     } catch (e) {
       onError?.call(e.toString());
@@ -165,9 +177,20 @@ class AuthStateManager extends ChangeNotifier {
 
         if (userResponse.isSuccess) {
           // User exists, they are not new
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': googleEmail,
+            'name': googleName ?? '',
+            'auth_method': 'google',
+          });
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404) {
           // User explicitly not found, they are a brand new user
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': googleEmail,
+            'name': googleName ?? '',
+            'auth_method': 'google',
+            'is_new_user': true,
+          });
           onSuccess?.call(true, email: googleEmail, name: googleName);
         } else {
           // It failed for some other reason (500 Server Error, Network, etc.)
@@ -225,9 +248,20 @@ class AuthStateManager extends ChangeNotifier {
 
         if (userResponse.isSuccess) {
           // User exists, they are not new
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': appleEmail ?? '',
+            'name': appleName ?? '',
+            'auth_method': 'apple',
+          });
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404) {
           // User explicitly not found, they are a brand new user
+          _analyticsService.identify(response.user!.id, properties: {
+            'email': appleEmail ?? '',
+            'name': appleName ?? '',
+            'auth_method': 'apple',
+            'is_new_user': true,
+          });
           onSuccess?.call(true, email: appleEmail, name: appleName);
         } else {
           // It failed for some other reason (500 Server Error, Network, etc.)

@@ -1,3 +1,35 @@
+import java.util.Properties
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.reader().use { reader ->
+        localProperties.load(reader)
+    }
+}
+
+val dartDefines = if (project.hasProperty("dart-defines")) {
+    (project.property("dart-defines") as String).split(",").associate {
+        val decoded = String(java.util.Base64.getDecoder().decode(it))
+        val split = decoded.split("=")
+        split[0] to (if (split.size > 1) split[1] else "")
+    }
+} else {
+    emptyMap<String, String>()
+}
+
+val environment = dartDefines["ENV"] ?: "development"
+val envFile = rootProject.file("../.env.$environment")
+val envProperties = Properties()
+if (envFile.exists()) {
+    envFile.reader().use { reader ->
+        envProperties.load(reader)
+    }
+}
+
+val posthogApiKey = envProperties.getProperty("POSTHOG_API_KEY")?.replace("\"", "") ?: ""
+val posthogHost = envProperties.getProperty("POSTHOG_HOST")?.replace("\"", "") ?: ""
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -29,6 +61,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["posthogApiKey"] = posthogApiKey
+        manifestPlaceholders["posthogHost"] = posthogHost
     }
 
     buildTypes {

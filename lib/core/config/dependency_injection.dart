@@ -18,6 +18,7 @@ import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 
 // Global locator instance
 final locator = GetIt.instance;
@@ -40,6 +41,11 @@ Future<void> setupLocator() async {
     clientId: googleClientId,
     serverClientId: EnvConfig.googleOAuthWebClientId,
   );
+
+  // Register Analytics Service
+  final analyticsService = AnalyticsService();
+  await analyticsService.init();
+  locator.registerSingleton<AnalyticsService>(analyticsService);
 
   // Register API Services as Lazy Singletons
   // Lazy means they won't be instantiated until the first time they are requested.

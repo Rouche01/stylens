@@ -11,6 +11,7 @@ import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'style_analysis.dart';
 import 'profile_menu.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({super.key});
@@ -37,6 +38,13 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
     try {
       locator<GlobalLoaderController>().show(UxMessages.uploadOutfitLoader);
       final RemoteImage? remoteImage = await uploadToR2(imageFile, filename);
+      
+      if (remoteImage != null) {
+        locator<AnalyticsService>().capture('image_uploaded', properties: {
+          'filename': filename,
+          'source': 'capture_page',
+        });
+      }
 
       if (mounted && remoteImage != null) {
         context.read<StyleAnalysisSessionManager>().initializeNewSession(

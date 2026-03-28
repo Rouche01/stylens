@@ -94,7 +94,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                         color: Colors.white.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(40),
                         border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.3),
+                          color: cs.primary.withValues(alpha: 0.2),
                           width: 1,
                         ),
                         boxShadow: [

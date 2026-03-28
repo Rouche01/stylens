@@ -11,6 +11,8 @@ class EnvConfig {
       _get('GOOGLE_OAUTH_IOS_CLIENT_ID');
   static String get googleOAuthAndroidClientId =>
       _get('GOOGLE_OAUTH_ANDROID_CLIENT_ID');
+  static String get posthogApiKey => _get('POSTHOG_API_KEY');
+  static String get posthogHost => _get('POSTHOG_HOST');
 
   /// Call this on app startup to ensure all required environment variables are present.
   static void init() {
@@ -21,6 +23,8 @@ class EnvConfig {
     googleOAuthWebClientId;
     googleOAuthIosClientId;
     googleOAuthAndroidClientId;
+    posthogApiKey;
+    posthogHost;
   }
 
   static String _get(String key) {
