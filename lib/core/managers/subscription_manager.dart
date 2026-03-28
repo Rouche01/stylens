@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'dart:async';
 
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/config/env_config.dart';
@@ -13,8 +14,8 @@ import 'package:gostylens/core/config/env_config.dart';
 class SubscriptionManager extends ChangeNotifier {
   final SubscriptionApiService _subscriptionApiService;
 
-  SubscriptionManager({SubscriptionApiService? apiService})
-    : _subscriptionApiService = apiService ?? SubscriptionApiService();
+  SubscriptionManager()
+    : _subscriptionApiService = locator<SubscriptionApiService>();
 
   bool _isInitialized = false;
   bool _isLoading = false;

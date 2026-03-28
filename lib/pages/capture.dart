@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/managers/global_loader/global_loader_controller.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
@@ -34,7 +35,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
     String filename,
   ) async {
     try {
-      GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
+      locator<GlobalLoaderController>().show(UxMessages.uploadOutfitLoader);
       final RemoteImage? remoteImage = await uploadToR2(imageFile, filename);
 
       if (mounted && remoteImage != null) {
@@ -53,7 +54,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
     } catch (err) {
       debugPrint('$err');
     } finally {
-      GlobalLoaderController.instance.hide();
+      locator<GlobalLoaderController>().hide();
     }
   }
 

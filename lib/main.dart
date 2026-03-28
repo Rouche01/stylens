@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/navigation/auth_gate.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 
@@ -23,11 +23,9 @@ void main() async {
 
     await dotenv.load(fileName: ".env.$environment");
     EnvConfig.init();
-
-    await Supabase.initialize(
-      url: EnvConfig.supabaseUrl,
-      anonKey: EnvConfig.supabaseAnonKey,
-    );
+    
+    // Set up singleton services
+    await setupLocator();
 
     runApp(const MyApp());
   } catch (e) {
@@ -47,27 +45,10 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MyAppState()),
-        ChangeNotifierProvider(create: (_) => AuthStateManager()),
-        ChangeNotifierProvider(create: (_) => SubscriptionManager()),
-        ChangeNotifierProxyProvider<
-          SubscriptionManager,
-          StyleAnalysisSessionManager
-        >(
-          create: (context) => StyleAnalysisSessionManager(),
-          update: (context, subscriptionManager, previous) {
-            final manager = previous ?? StyleAnalysisSessionManager();
-            manager.onSessionCreated = () {
-              subscriptionManager.syncSubscription();
-            };
-            return manager;
-          },
-        ),
-        ChangeNotifierProxyProvider<SubscriptionManager, UserStateManager>(
-          create: (context) =>
-              UserStateManager(context.read<SubscriptionManager>()),
-          update: (context, subscriptionManager, previous) =>
-              previous ?? UserStateManager(subscriptionManager),
-        ),
+        ChangeNotifierProvider.value(value: locator<AuthStateManager>()),
+        ChangeNotifierProvider.value(value: locator<SubscriptionManager>()),
+        ChangeNotifierProvider.value(value: locator<StyleAnalysisSessionManager>()),
+        ChangeNotifierProvider.value(value: locator<UserStateManager>()),
       ],
       child: MaterialApp(
         title: 'Stylens',

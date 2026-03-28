@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/widgets/primary_button.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,7 +19,7 @@ class OtpVerificationPage extends StatefulWidget {
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
   final _formKey = GlobalKey<FormState>();
   final _otpController = TextEditingController();
-  final supabase = Supabase.instance.client;
+  final supabase = locator<SupabaseClient>();
 
   late AuthStateManager _authStateManager;
   late UserStateManager _userStateManager;

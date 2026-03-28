@@ -1,10 +1,8 @@
 import 'package:dio/dio.dart' as dio;
-import 'package:flutter/foundation.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/utils/api_utils.dart';
-import 'package:gostylens/core/services/api_service/auth_interceptor.dart';
 
 abstract class BaseApiService {
   final String resourcePath;
@@ -12,36 +10,8 @@ abstract class BaseApiService {
 
   BaseApiService({this.resourcePath = ''});
 
-  /// Shared Dio instance with interceptors initialized.
-  static final dio.Dio _dio = _initDio();
-
-  static dio.Dio _initDio() {
-    final d = dio.Dio(
-      dio.BaseOptions(
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        validateStatus: (status) => status != null && status < 500,
-      ),
-    );
-
-    d.interceptors.add(SupabaseAuthInterceptor(d));
-
-    if (kDebugMode) {
-      d.interceptors.add(
-        PrettyDioLogger(
-          requestHeader: true,
-          requestBody: true,
-          responseBody: true,
-          responseHeader: false,
-          error: true,
-          compact: true,
-          maxWidth: 90,
-        ),
-      );
-    }
-
-    return d;
-  }
+  /// Shared Dio instance from GetIt
+  dio.Dio get _dio => locator<dio.Dio>();
 
   String buildUrl(String path) {
     // Safely combine portions, stripping out duplicate slashes but preserving 'http://'

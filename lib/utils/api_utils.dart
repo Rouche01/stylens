@@ -100,16 +100,13 @@ ErrorData parseApiError(
         case dio.DioExceptionType.receiveTimeout:
           message = 'The request timed out. Please try again later.';
           code = 'TIMEOUT_ERROR';
-          break;
         case dio.DioExceptionType.connectionError:
           message =
               'Connection failed. Please check your internet connection and try again.';
           code = 'NETWORK_ERROR';
-          break;
         case dio.DioExceptionType.badResponse:
           // This should usually be handled via dioResponse, but as a fallback:
           message = 'Server returned an error (${dioErr.response?.statusCode})';
-          break;
         default:
           message = 'Network error: ${dioErr.message}';
       }

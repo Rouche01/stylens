@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:gostylens/core/config/dependency_injection.dart';
+
 class AuthErrorView extends StatelessWidget {
   final ErrorData? error;
   final VoidCallback onRetry;
@@ -67,7 +69,7 @@ class AuthErrorView extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () => Supabase.instance.client.auth.signOut(),
+              onPressed: () => locator<SupabaseClient>().auth.signOut(),
               child: Text(
                 'Back to Login',
                 style: TextStyle(

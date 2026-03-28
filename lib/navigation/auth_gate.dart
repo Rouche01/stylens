@@ -8,6 +8,7 @@ import 'package:gostylens/pages/onboarding_name.dart';
 import 'package:gostylens/widgets/auth_error_view.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 class AuthGate extends StatefulWidget {
@@ -35,8 +36,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    // Listen for auth changes to clear the navigation stack
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+    _authSubscription = locator<SupabaseClient>().auth.onAuthStateChange.listen((
       data,
     ) {
       final event = data.event;
@@ -69,7 +69,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+      stream: locator<SupabaseClient>().auth.onAuthStateChange,
       builder: (context, snapshot) {
         final session = snapshot.data?.session;
 

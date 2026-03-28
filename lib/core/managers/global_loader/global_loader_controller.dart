@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class GlobalLoaderController extends ChangeNotifier {
-  static final GlobalLoaderController instance = GlobalLoaderController._();
-  GlobalLoaderController._();
+  GlobalLoaderController();
 
   bool _isLoading = false;
   String? _message;

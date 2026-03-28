@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
@@ -10,10 +11,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class UserStateManager extends ChangeNotifier {
   final UserApiService _userApiService;
-  final SubscriptionManager _subscriptionManager;
+  final SubscriptionManager _subscriptionManager = locator<SubscriptionManager>();
 
-  UserStateManager(this._subscriptionManager, {UserApiService? userApiService})
-    : _userApiService = userApiService ?? UserApiService();
+  UserStateManager()
+    : _userApiService = locator<UserApiService>();
 
   UserOperationState _operationState = const UserOperationState();
   UserOperationState get operationState => _operationState;
@@ -77,7 +78,7 @@ class UserStateManager extends ChangeNotifier {
     void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
-    final supabaseUser = supabase.Supabase.instance.client.auth.currentUser;
+    final supabaseUser = locator<supabase.SupabaseClient>().auth.currentUser;
     if (supabaseUser == null) {
       _operationState = _operationState.copyWith(
         fetchStatus: UserFetchStatus.initial,
@@ -143,7 +144,7 @@ class UserStateManager extends ChangeNotifier {
     void Function(User user)? onSuccess,
     void Function(String error)? onError,
   }) async {
-    final supabaseUser = supabase.Supabase.instance.client.auth.currentUser;
+    final supabaseUser = locator<supabase.SupabaseClient>().auth.currentUser;
     if (supabaseUser == null) {
       onError?.call('No authenticated user found to create profile for.');
       return;
@@ -187,7 +188,7 @@ class UserStateManager extends ChangeNotifier {
         );
 
         // Refresh the session to ensure the user claim is updated
-        await supabase.Supabase.instance.client.auth.refreshSession();
+        await locator<supabase.SupabaseClient>().auth.refreshSession();
         onSuccess?.call(userData);
       } else {
         onError?.call(
@@ -259,7 +260,7 @@ class UserStateManager extends ChangeNotifier {
 
       if (response.isSuccess) {
         // Sign out of Supabase - this will trigger AuthGate to redirect the user
-        await supabase.Supabase.instance.client.auth.signOut();
+        await locator<supabase.SupabaseClient>().auth.signOut();
         await resetState();
         onSuccess?.call();
       } else {

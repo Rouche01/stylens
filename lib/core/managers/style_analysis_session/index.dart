@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
@@ -30,7 +32,6 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   void Function(String message)? onStreamError;
 
   // --- Sync Callbacks ---
-  void Function()? onSessionCreated;
 
   // --- State Slices (unified storage) ---
   final Map<ManagerStateSliceName, ActionState<dynamic>> _stateSlices = {
@@ -48,7 +49,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   late final SessionStreamingSlice _streamingSlice;
 
   StyleAnalysisSessionManager() {
-    _apiService = StyleAnalysisApiService();
+    _apiService = locator<StyleAnalysisApiService>();
 
     _streamingSlice = SessionStreamingSlice(
       apiService: _apiService,
@@ -243,7 +244,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
       // Delay briefly to allow backend to update usage limits, then sync subscription
       Future.delayed(const Duration(seconds: 2), () {
-        onSessionCreated?.call();
+        locator<SubscriptionManager>().syncSubscription();
       });
 
       await _startStreaming(sessionId, contextMode: ContextMode.all);

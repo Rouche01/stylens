@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:lottie/lottie.dart';
 import 'global_loader_controller.dart';
 
@@ -10,7 +11,7 @@ class GlobalLoaderScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = GlobalLoaderController.instance;
+    final controller = locator<GlobalLoaderController>();
 
     return AnimatedBuilder(
       animation: controller,

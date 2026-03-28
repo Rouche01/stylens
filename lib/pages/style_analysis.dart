@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'dart:io';
@@ -264,7 +265,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
         if (showLoading == true) {
           print('show loading');
-          GlobalLoaderController.instance.show(UxMessages.uploadOutfitLoader);
+          locator<GlobalLoaderController>().show(UxMessages.uploadOutfitLoader);
         }
 
         final remoteImage = await uploadToR2(file, image.name);
@@ -281,7 +282,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       }
     } finally {
       if (showLoading == true) {
-        GlobalLoaderController.instance.hide();
+        locator<GlobalLoaderController>().hide();
       }
     }
   }

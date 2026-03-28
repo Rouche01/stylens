@@ -7,6 +7,7 @@ import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import 'package:gostylens/core/config/dependency_injection.dart';
 
 class StyleAnalysisApiService extends BaseApiService {
   StyleAnalysisApiService() : super(resourcePath: 'style-analysis/sessions/');
@@ -117,7 +118,7 @@ class StyleAnalysisApiService extends BaseApiService {
     request.headers['Content-Type'] = 'application/json';
     request.headers['Accept'] = 'text/event-stream';
 
-    final session = supabase.Supabase.instance.client.auth.currentSession;
+    final session = locator<supabase.SupabaseClient>().auth.currentSession;
     if (session?.accessToken != null) {
       request.headers['Authorization'] = 'Bearer ${session!.accessToken}';
     }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/pages/paywall.dart';
@@ -13,11 +14,11 @@ mixin StyleAnalysisActions {
     final subManager = context.read<SubscriptionManager>();
 
     if (subManager.subscription == null) {
-      GlobalLoaderController.instance.show('Your stylist is getting ready...');
+      locator<GlobalLoaderController>().show('Your stylist is getting ready...');
       try {
         await subManager.syncSubscription();
       } finally {
-        GlobalLoaderController.instance.hide();
+        locator<GlobalLoaderController>().hide();
       }
     }
 
@@ -51,7 +52,7 @@ mixin StyleAnalysisActions {
   /// Uploads an image to R2 and returns the RemoteImage object.
   Future<RemoteImage?> uploadToR2(File imageFile, String filename) async {
     try {
-      final assetApiService = AssetApiService();
+      final assetApiService = locator<AssetApiService>();
       final responseData = await assetApiService.getUploadUrl(filename);
 
       final uploadUrl = responseData.uploadUrl;

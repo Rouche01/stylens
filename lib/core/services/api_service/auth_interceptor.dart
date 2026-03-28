@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 
 /// Interceptor that automatically attaches Supabase Auth tokens to requests
 /// and handles token refreshing if a 401 Unauthorized error occurs.
@@ -13,7 +14,7 @@ class SupabaseAuthInterceptor extends QueuedInterceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final session = Supabase.instance.client.auth.currentSession;
+    final session = locator<SupabaseClient>().auth.currentSession;
     final token = session?.accessToken;
 
     if (token != null) {
@@ -31,7 +32,7 @@ class SupabaseAuthInterceptor extends QueuedInterceptor {
     if (err.response?.statusCode == 401 &&
         err.requestOptions.extra[retryKey] != true) {
       try {
-        final response = await Supabase.instance.client.auth.refreshSession();
+        final response = await locator<SupabaseClient>().auth.refreshSession();
 
         if (response.session != null) {
           final newToken = response.session!.accessToken;

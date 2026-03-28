@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 
 Future<String> regenerateImageUrl(String imageKey) async {
-  final assetApiService = AssetApiService();
+  final assetApiService = locator<AssetApiService>();
   return await assetApiService.getDownloadUrl(imageKey);
 }
 

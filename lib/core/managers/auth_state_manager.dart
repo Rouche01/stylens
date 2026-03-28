@@ -1,17 +1,16 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'package:gostylens/core/config/env_config.dart';
+import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthStateManager extends ChangeNotifier {
-  final supabase = Supabase.instance.client;
-  final UserApiService _userApiService = UserApiService();
+  final supabase = locator<SupabaseClient>();
+  final UserApiService _userApiService = locator<UserApiService>();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -24,7 +23,7 @@ class AuthStateManager extends ChangeNotifier {
 
   String? _lastEmailSent;
   Timer? _otpResendTimer;
-  bool _isGoogleSignInInitialized = false;
+
 
   Future<void> initiateLoginWithOtp(
     String email, {
@@ -143,19 +142,7 @@ class AuthStateManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (!_isGoogleSignInInitialized) {
-        final String? clientId = Platform.isIOS
-            ? EnvConfig.googleOAuthIosClientId
-            : null;
-
-        await GoogleSignIn.instance.initialize(
-          clientId: clientId,
-          serverClientId: EnvConfig.googleOAuthWebClientId,
-        );
-        _isGoogleSignInInitialized = true;
-      }
-
-      final googleUser = await GoogleSignIn.instance.authenticate();
+      final googleUser = await locator<GoogleSignIn>().authenticate();
       final idToken = googleUser.authentication.idToken;
 
       if (idToken == null) {
