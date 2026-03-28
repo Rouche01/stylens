@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart' as dio;
+import 'package:flutter/foundation.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/utils/api_utils.dart';
@@ -22,10 +24,21 @@ abstract class BaseApiService {
       ),
     );
 
-    d.interceptors.addAll([
-      SupabaseAuthInterceptor(d),
-      dio.LogInterceptor(requestBody: true, responseBody: true),
-    ]);
+    d.interceptors.add(SupabaseAuthInterceptor(d));
+
+    if (kDebugMode) {
+      d.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: false,
+          error: true,
+          compact: true,
+          maxWidth: 90,
+        ),
+      );
+    }
 
     return d;
   }
