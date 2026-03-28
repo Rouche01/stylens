@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/formatted_error_text.dart';
-import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
-import 'package:gostylens/widgets/full_screen_image_preview.dart';
+import 'package:gostylens/widgets/message_image_gallery.dart';
 
 class ErrorAction {
   final String label;
@@ -36,7 +35,6 @@ class MessageBubble extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final totalImages =
         (message.imageFiles?.length ?? 0) + (message.remoteImages?.length ?? 0);
-    final isSingleImage = totalImages == 1;
     final hasImage = totalImages > 0;
     if (message.isLoading) {
       return Row(
@@ -98,75 +96,16 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (hasImage) ...[
-                  if (isSingleImage)
-                    GestureDetector(
-                      onTap: () => FullScreenImagePreview.show(
-                        context,
-                        imageFile: message.imageFiles?.isNotEmpty ?? false
-                            ? message.imageFiles!.first
-                            : null,
-                        imageUrl: message.remoteImages?.isNotEmpty ?? false
-                            ? message.remoteImages!.first.url
-                            : null,
-                      ),
-                      child: ImageWithFallback(
-                        imageFile: message.imageFiles?.isNotEmpty ?? false
-                            ? message.imageFiles!.first
-                            : null,
-                        remoteImage: message.remoteImages?.isNotEmpty ?? false
-                            ? message.remoteImages!.first
-                            : null,
-                        width: 200,
-                        height: 200,
-                        fit: BoxFit.cover,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (message.imageFiles != null)
-                          ...message.imageFiles!.map(
-                            (file) => GestureDetector(
-                              onTap: () => FullScreenImagePreview.show(
-                                context,
-                                imageFile: file,
-                              ),
-                              child: ImageWithFallback(
-                                imageFile: file,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        if (message.remoteImages != null)
-                          ...message.remoteImages!.map(
-                            (image) => GestureDetector(
-                              onTap: () => FullScreenImagePreview.show(
-                                context,
-                                imageUrl: image.url,
-                              ),
-                              child: ImageWithFallback(
-                                remoteImage: image,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                  MessageImageGallery(
+                    imageFiles: message.imageFiles,
+                    remoteImages: message.remoteImages,
+                  ),
                 ],
                 if (message.displayText case final displayText?) ...[
                   if (hasImage) SizedBox(height: 8),
                   ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxWidth: isSingleImage ? 200 : double.infinity,
+                      maxWidth: totalImages == 1 ? 200 : double.infinity,
                     ),
                     child: FormattedErrorText(
                       text: displayText,
