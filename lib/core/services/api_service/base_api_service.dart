@@ -2,7 +2,6 @@ import 'package:dio/dio.dart' as dio;
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
-import 'package:gostylens/utils/api_utils.dart';
 
 abstract class BaseApiService {
   final String resourcePath;
@@ -92,32 +91,27 @@ abstract class BaseApiService {
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
         if (fromJson != null) {
-          return ApiResponse<T>(
-            data: fromJson(response.data),
+          return ApiResponse.success(
+            fromJson(response.data),
             statusCode: response.statusCode!,
           );
         }
-        return ApiResponse<T>(statusCode: response.statusCode!);
+        return ApiResponse.success(null, statusCode: response.statusCode!);
       }
 
-      return ApiResponse<T>(
-        error: parseApiError(defaultErrorMessage, dioResponse: response),
+      return ApiResponse.error(
+        defaultMessage: defaultErrorMessage,
+        dioResponse: response,
         statusCode: response.statusCode ?? -1,
       );
     } on dio.DioException catch (e) {
-      return ApiResponse<T>(
-        error: parseApiError(
-          defaultErrorMessage,
-          dioResponse: e.response,
-          error: e,
-        ),
-        statusCode: e.response?.statusCode ?? -1,
+      return ApiResponse.error(
+        defaultMessage: defaultErrorMessage,
+        error: e,
+        dioResponse: e.response,
       );
     } catch (e) {
-      return ApiResponse<T>(
-        error: parseApiError('Unexpected error', error: e),
-        statusCode: -1,
-      );
+      return ApiResponse.error(defaultMessage: defaultErrorMessage);
     }
   }
 }

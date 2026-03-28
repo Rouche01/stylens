@@ -6,10 +6,10 @@ class RemoteImage {
 
   factory RemoteImage.fromJson(Map<String, dynamic> json) {
     return RemoteImage(
-      url: json['image_url'] as String,
-      key: json['image_key'] as String,
+      url: json['image_url'] ?? json['url'] as String,
+      key: json['image_key'] ?? json['key'] as String,
     );
   }
 
-  Map<String, dynamic> toJson() => {'image_url': url, 'image_key': key};
+  Map<String, dynamic> toJson() => {'url': url, 'key': key};
 }

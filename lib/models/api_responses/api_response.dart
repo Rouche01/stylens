@@ -1,3 +1,7 @@
+import 'package:gostylens/utils/api_utils.dart';
+import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio;
+
 class ErrorData {
   final String code;
   final String message;
@@ -5,7 +9,6 @@ class ErrorData {
   ErrorData({required this.code, required this.message});
 
   factory ErrorData.fromJson(Map<String, dynamic> json) {
-    print('error data: $json');
     return ErrorData(
       code: json['code'] as String,
       message: json['error'] as String,
@@ -57,5 +60,24 @@ class ApiResponse<T> {
 
   ApiResponse({this.data, this.error, required this.statusCode});
 
+  ApiResponse.success(this.data, {this.statusCode = 200}) : error = null;
+
+  ApiResponse.error({
+    required String defaultMessage,
+    http.Response? response,
+    dio.Response? dioResponse,
+    dynamic error,
+    this.statusCode = -1,
+  }) : data = null,
+       error = parseApiError(
+         ApiErrorInput(
+           defaultMessage: defaultMessage,
+           error: error,
+           dioResponse: dioResponse,
+         ),
+       );
+
   bool get isSuccess => statusCode >= 200 && statusCode < 300;
+
+  String get errorMessage => error?.message ?? 'Unknown error';
 }

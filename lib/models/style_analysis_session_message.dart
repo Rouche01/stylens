@@ -22,8 +22,8 @@ class StyleAnalysisSessionMessage {
   final DateTime timestamp;
   final bool isLoading;
   final StyleAnalysisSessionMessageError? error;
-  final File? imageFile; // Local image file reference
-  final RemoteImage? remoteImage; // Remote image object
+  final List<File>? imageFiles; // Local image file references
+  final List<RemoteImage>? remoteImages; // Remote image objects
 
   bool get isUserMessage => role == UserRole.user;
   bool get isAssistantMessage => role == UserRole.assistant;
@@ -37,12 +37,25 @@ class StyleAnalysisSessionMessage {
     required this.timestamp,
     this.isLoading = false,
     this.error,
-    this.imageFile,
-    this.remoteImage,
+    this.imageFiles,
+    this.remoteImages,
     this.role = UserRole.user,
   });
 
   factory StyleAnalysisSessionMessage.fromJson(Map<String, dynamic> json) {
+    List<RemoteImage>? remoteImages;
+
+    if (json['images'] != null) {
+      remoteImages = (json['images'] as List)
+          .map((i) => RemoteImage.fromJson(i as Map<String, dynamic>))
+          .toList();
+    } else if (json['image_url'] != null) {
+      // Backward compatibility for single image field
+      remoteImages = [
+        RemoteImage(url: json['image_url'] ?? '', key: json['image_key'] ?? ''),
+      ];
+    }
+
     return StyleAnalysisSessionMessage(
       text: json['content'],
       role: json['role'] == 'user'
@@ -51,16 +64,11 @@ class StyleAnalysisSessionMessage {
                 ? UserRole.assistant
                 : UserRole.system),
       timestamp: DateTime.fromMillisecondsSinceEpoch(json['created_at']),
-      imageFile: null, // Don't load local file from JSON
-      remoteImage: json['image_url'] != null
-          ? RemoteImage.fromJson({
-              'image_url': json['image_url'] ?? '',
-              'image_key': json['image_key'] ?? '',
-            })
-          : null,
+      imageFiles: null, // Don't load local files from JSON
+      remoteImages: remoteImages,
       isLoading: false,
       error: json['response_error'] != null
-          ? StyleAnalysisSessionMessageError(message: json['responseError'])
+          ? StyleAnalysisSessionMessageError(message: json['response_error'])
           : null,
     );
   }
@@ -68,10 +76,9 @@ class StyleAnalysisSessionMessage {
   Map<String, dynamic> toJson() {
     return {
       'content': text,
-      'role': role,
+      'role': role.name,
       'created_at': timestamp.millisecondsSinceEpoch,
-      'image_url': remoteImage?.url,
-      'image_key': remoteImage?.key,
+      'images': remoteImages?.map((i) => i.toJson()).toList(),
       'isLoading': isLoading,
       'response_error': error,
     };

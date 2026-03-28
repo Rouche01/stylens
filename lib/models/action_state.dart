@@ -7,9 +7,11 @@ class ActionState<T> {
 
   ActionState.initial() : isLoading = false, data = null, error = null;
 
-  ActionState.loading() : isLoading = true, data = null, error = null;
+  ActionState.loading({this.data}) : isLoading = true, error = null;
 
   ActionState.success(this.data) : isLoading = false, error = null;
+
+  ActionState.data(this.data) : isLoading = false, error = null;
 
   ActionState.error(this.error, {this.data}) : isLoading = false;
 

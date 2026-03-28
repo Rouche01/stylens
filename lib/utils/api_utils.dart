@@ -5,16 +5,25 @@ import 'package:dio/dio.dart' as dio;
 
 import 'package:gostylens/utils/string_extensions.dart';
 
+class ApiErrorInput {
+  final String defaultMessage;
+  final http.Response? response;
+  final dio.Response? dioResponse;
+  final dynamic error;
+
+  ApiErrorInput({
+    required this.defaultMessage,
+    this.response,
+    this.dioResponse,
+    this.error,
+  });
+}
+
 /// Helper to extract error messages from HTTP responses or raw exceptions.
-ErrorData parseApiError(
-  String defaultMessage, {
-  http.Response? response,
-  dio.Response? dioResponse,
-  dynamic error,
-}) {
+ErrorData parseApiError(ApiErrorInput input) {
   // 1. Handle dio.Response first
-  if (dioResponse != null) {
-    final data = dioResponse.data;
+  if (input.dioResponse != null) {
+    final data = input.dioResponse!.data;
 
     if (data is Map<String, dynamic>) {
       if (data['message'] != null) {
@@ -46,11 +55,11 @@ ErrorData parseApiError(
   }
 
   // 2. Handle http.Response (Backward Compat)
-  if (response != null) {
-    final contentType = response.headers['content-type'];
+  if (input.response != null) {
+    final contentType = input.response!.headers['content-type'];
     if (contentType?.contains('application/json') ?? false) {
       try {
-        final data = json.decode(response.body);
+        final data = json.decode(input.response!.body);
 
         if (data is String) {
           return ErrorData(code: 'UNKNOWN', message: data);
@@ -76,7 +85,9 @@ ErrorData parseApiError(
     } else {
       // It's plain text, HTML, etc. (e.g. Ngrok error page)
       // Extract technical error codes if present (e.g. ERR_NGROK_3200)
-      final ngrokMatch = RegExp(r'ERR_NGROK_\d+').firstMatch(response.body);
+      final ngrokMatch = RegExp(
+        r'ERR_NGROK_\d+',
+      ).firstMatch(input.response!.body);
       if (ngrokMatch != null) {
         final code = ngrokMatch.group(0)!;
         return ErrorData(
@@ -84,16 +95,17 @@ ErrorData parseApiError(
           message: 'Server connection error ($code)',
         );
       }
-      return ErrorData(code: 'UNKNOWN', message: response.body);
+      return ErrorData(code: 'UNKNOWN', message: input.response!.body);
     }
   }
 
-  if (error != null) {
-    String message = '$defaultMessage: ${error.toString().cleanException()}';
+  if (input.error != null) {
+    String message =
+        '${input.defaultMessage}: ${input.error.toString().cleanException()}';
     String code = 'UNKNOWN';
 
-    if (error is dio.DioException) {
-      final dioErr = error;
+    if (input.error is dio.DioException) {
+      final dioErr = input.error;
       switch (dioErr.type) {
         case dio.DioExceptionType.connectionTimeout:
         case dio.DioExceptionType.sendTimeout:
@@ -111,7 +123,7 @@ ErrorData parseApiError(
           message = 'Network error: ${dioErr.message}';
       }
     } else {
-      final errorStr = error.toString().toLowerCase();
+      final errorStr = input.error.toString().toLowerCase();
       if (errorStr.contains('socketexception') ||
           errorStr.contains('connection refused')) {
         message =
@@ -129,5 +141,5 @@ ErrorData parseApiError(
     return ErrorData(code: code, message: message);
   }
 
-  return ErrorData(code: 'UNKNOWN', message: defaultMessage);
+  return ErrorData(code: 'UNKNOWN', message: input.defaultMessage);
 }

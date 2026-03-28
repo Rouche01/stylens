@@ -43,6 +43,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     ManagerStateSliceName.deleteSession: ActionState<void>(),
   };
 
+  Map<MessageErrorType, void Function()> get _errorCallbacks => {
+    MessageErrorType.failedFetch: fetchSelectedSessionMessages,
+  };
+
   // --- Slice Managers ---
   late final SessionsSlice _sessionsSlice;
   late final SelectedSessionSlice _selectedSessionSlice;
@@ -211,17 +215,20 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> processInitialOutfit(File file, RemoteImage remoteImage) async {
-    await _selectedSessionSlice.processInitialOutfit(file, remoteImage);
+  Future<void> processInitialOutfit(
+    List<File> files,
+    List<RemoteImage> remoteImages,
+  ) async {
+    await _selectedSessionSlice.processInitialOutfit(files, remoteImages);
     notifyListeners();
   }
 
   Future<void> initializeNewSession(
-    File? imageFile,
-    RemoteImage? remoteImage,
+    List<File>? imageFiles,
+    List<RemoteImage>? remoteImages,
   ) async {
     clearOperationErrors();
-    await _selectedSessionSlice.initializeNew(imageFile, remoteImage);
+    await _selectedSessionSlice.initializeNew(imageFiles, remoteImages);
   }
 
   Future<String?> createSession() async {
@@ -253,6 +260,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
         StyleAnalysisSessionMessageError.fromRawError(
           createSessionError ??
               'Unable to initiate styling session. Please try again.',
+          null,
         ),
       );
       notifyListeners();
@@ -264,15 +272,15 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   Future<void> addMessageToSelectedSession(
     UserRole userRole, {
     String? text,
-    File? imageFile,
-    RemoteImage? remoteImage,
+    List<File>? imageFiles,
+    List<RemoteImage>? remoteImages,
     isLoading = false,
   }) async {
     _selectedSessionSlice.addMessage(
       userRole,
       text: text,
-      imageFile: imageFile,
-      remoteImage: remoteImage,
+      imageFiles: imageFiles,
+      remoteImages: remoteImages,
       isLoading: isLoading,
     );
 
@@ -284,7 +292,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     final success = await _selectedSessionSlice.addMessageRemote(
       userRole,
       text: text,
-      remoteImage: remoteImage,
+      remoteImages: remoteImages,
     );
 
     if (success) {
@@ -313,9 +321,14 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> retryLastFailedAction() async {
+  Future<void> retryLastFailedAction({MessageErrorType? errorType}) async {
     removeErrorMessageFromSelectedSession();
     final id = selectedSessionId;
+
+    if (errorType != null && _errorCallbacks[errorType] != null) {
+      _errorCallbacks[errorType]!.call();
+      return;
+    }
 
     if (id == null) {
       // It was a createSession failure
@@ -335,7 +348,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       final success = await _selectedSessionSlice.addMessageRemote(
         UserRole.user,
         text: lastUserMsg.text,
-        remoteImage: lastUserMsg.remoteImage,
+        remoteImages: lastUserMsg.remoteImages,
       );
 
       if (success) {
@@ -360,15 +373,15 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   void addToSelectedSessionMessages(
     UserRole userRole, {
     String? text,
-    File? imageFile,
-    RemoteImage? remoteImage,
+    List<File>? imageFiles,
+    List<RemoteImage>? remoteImages,
     isLoading = false,
   }) {
     _selectedSessionSlice.addMessage(
       userRole,
       text: text,
-      imageFile: imageFile,
-      remoteImage: remoteImage,
+      imageFiles: imageFiles,
+      remoteImages: remoteImages,
       isLoading: isLoading,
     );
   }

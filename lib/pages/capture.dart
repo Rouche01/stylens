@@ -40,8 +40,8 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
 
       if (mounted && remoteImage != null) {
         context.read<StyleAnalysisSessionManager>().initializeNewSession(
-          imageFile,
-          remoteImage,
+          [imageFile],
+          [remoteImage],
         );
 
         if (!mounted) return;

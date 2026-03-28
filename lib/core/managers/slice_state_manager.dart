@@ -23,6 +23,7 @@ enum ActionType { initial, loading, success, error }
 ///   }
 /// }
 /// ```
+
 class SliceStateManager<T> {
   final ActionState<T> Function() _getState;
   final void Function(ActionState<T>) _setState;
@@ -51,14 +52,20 @@ class SliceStateManager<T> {
   }
 
   /// Sets state to loading
-  void setLoading({bool notify = true}) {
-    _setState(ActionState<T>.loading());
+  void setLoading({T? data, bool notify = true}) {
+    _setState(ActionState<T>.loading(data: data));
     if (notify) _notifyListeners();
   }
 
   /// Sets state to success with data
   void setSuccess(T data, {bool notify = true}) {
     _setState(ActionState<T>.success(data));
+    if (notify) _notifyListeners();
+  }
+
+  /// Sets state to data with data (no loading state)
+  void setData(T data, {bool notify = true}) {
+    _setState(ActionState<T>.data(data));
     if (notify) _notifyListeners();
   }
 
@@ -83,7 +90,7 @@ class SliceStateManager<T> {
       case ActionType.initial:
         _setState(ActionState<T>.initial());
       case ActionType.loading:
-        _setState(ActionState<T>.loading());
+        _setState(ActionState<T>.loading(data: data));
       case ActionType.success:
         if (data != null) {
           _setState(ActionState<T>.success(data));
@@ -109,27 +116,33 @@ class SliceStateManager<T> {
   /// ```
   Future<R?> execute<R>({
     required Future<R> Function() action,
-    T Function(R result)? onSuccess,
+    T Function(R result, T? currentData)? onSuccess,
     String Function(dynamic error)? onError,
     bool setLoadingState = true,
     bool retainDataOnError = false,
+    bool retainDataOnLoading = false,
+    T Function(String error)? setDataOnError,
   }) async {
     try {
       if (setLoadingState) {
-        setLoading();
+        setLoading(data: retainDataOnLoading ? data : null);
       }
 
       final result = await action();
 
       if (onSuccess != null) {
-        setSuccess(onSuccess(result));
+        setSuccess(onSuccess(result, data));
       }
-
       return result;
     } catch (e) {
       String errorMessage = e.toString().cleanException();
       onError?.call(errorMessage);
-      setError(errorMessage, retainData: retainDataOnError);
+
+      if (setDataOnError != null) {
+        setData(setDataOnError(errorMessage));
+      } else {
+        setError(errorMessage, retainData: retainDataOnError);
+      }
       return null;
     }
   }

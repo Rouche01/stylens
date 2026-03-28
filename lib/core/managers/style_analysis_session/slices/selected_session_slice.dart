@@ -85,7 +85,9 @@ class SelectedSessionSlice {
 
     final response = await _sliceStateManager.execute(
       action: () => _apiService.fetchSessionMessages(id),
-      onSuccess: (response) {
+      retainDataOnLoading: true,
+      retainDataOnError: true,
+      onSuccess: (response, currentData) {
         if (response.isSuccess && response.data != null) {
           _paginationInfo = response.data!.pagination;
           return SelectedStyleAnalysisSession(
@@ -93,9 +95,23 @@ class SelectedSessionSlice {
             messages: response.data!.items,
           );
         }
-        throw Exception(response.error ?? 'Failed to load messages');
+        throw Exception(response.error?.message ?? 'Failed to load messages');
       },
-      onError: (e) => 'Failed to load messages: $e',
+      setDataOnError: (errorMessage) {
+        return SelectedStyleAnalysisSession(
+          sessionId: id,
+          messages: [
+            StyleAnalysisSessionMessage(
+              timestamp: DateTime.now(),
+              role: UserRole.system,
+              error: StyleAnalysisSessionMessageError(
+                message: errorMessage,
+                type: MessageErrorType.failedFetch,
+              ),
+            ),
+          ],
+        );
+      },
     );
 
     return response != null;
@@ -103,27 +119,25 @@ class SelectedSessionSlice {
 
   // --- Load More Messages ---
   Future<bool> loadMoreMessages() async {
-    final id = sessionId;
-    if (id == null) return false;
+    if (sessionId == null) return false;
     if (_isLoadingMoreMessages) return false;
     if (!hasMoreMessages) return false;
 
     _isLoadingMoreMessages = true;
     _sliceStateManager.notify();
 
-    final existingMessages = messages;
-
     final response = await _sliceStateManager.execute(
-      action: () => _apiService.fetchSessionMessages(id, page: currentPage + 1),
+      action: () =>
+          _apiService.fetchSessionMessages(sessionId!, page: currentPage + 1),
       setLoadingState: false, // Don't override main loading state
-      onSuccess: (response) {
+      onSuccess: (response, currentData) {
         if (response.isSuccess && response.data != null) {
           _paginationInfo = response.data!.pagination;
           final olderMessages = response.data!.items;
 
           return SelectedStyleAnalysisSession(
-            sessionId: id,
-            messages: [...existingMessages, ...olderMessages],
+            sessionId: currentData?.sessionId,
+            messages: [...(currentData?.messages ?? []), ...olderMessages],
           );
         }
         throw Exception(response.error ?? 'Failed to load more messages');
@@ -137,22 +151,19 @@ class SelectedSessionSlice {
     return response != null;
   }
 
-  // --- Create Session ---
   Future<String?> create(void Function(String message)? onError) async {
-    final currentMessages = messages;
-
-    final sortedMessages = [...currentMessages]
+    final sortedMessages = [...messages]
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     final messageEntries = sortedMessages
-        .where((msg) => msg.text != null || msg.remoteImage != null)
+        .where(
+          (msg) => msg.text != null || (msg.remoteImages?.isNotEmpty ?? false),
+        )
         .map(
           (msg) => {
             'role': msg.role.name,
             'prompt': msg.text,
-            'remoteImage': msg.remoteImage != null
-                ? {'url': msg.remoteImage!.url, 'key': msg.remoteImage!.key}
-                : null,
+            'remoteImages': msg.remoteImages?.map((i) => i.toJson()).toList(),
           },
         )
         .toList();
@@ -161,11 +172,11 @@ class SelectedSessionSlice {
       action: () => _apiService.createSession(messages: messageEntries),
       retainDataOnError: true, // Keep the UI messages array alive!
       setLoadingState: false, // Don't wipe the chat view entirely
-      onSuccess: (response) {
+      onSuccess: (response, currentData) {
         if (response.isSuccess && response.data != null) {
           return SelectedStyleAnalysisSession(
             sessionId: response.data!,
-            messages: currentMessages,
+            messages: currentData?.messages ?? [],
           );
         }
         throw Exception(response.error ?? 'Failed to create session');
@@ -183,7 +194,7 @@ class SelectedSessionSlice {
   Future<bool> addMessageRemote(
     UserRole userRole, {
     String? text,
-    RemoteImage? remoteImage,
+    List<RemoteImage>? remoteImages,
   }) async {
     final id = sessionId;
     if (id == null) return false;
@@ -194,17 +205,15 @@ class SelectedSessionSlice {
         message: {
           'role': userRole.name,
           'prompt': text,
-          'remoteImage': remoteImage != null
-              ? {'url': remoteImage.url, 'key': remoteImage.key}
-              : null,
+          'remoteImages': remoteImages?.map((i) => i.toJson()).toList(),
         },
       ),
       setLoadingState: false, // Don't change main state
       retainDataOnError: true, // Keep the UI messages untouched!
-      onSuccess: (response) {
+      onSuccess: (response, currentData) {
         if (response.isSuccess) {
           // Return current session state unchanged
-          return session!;
+          return currentData!;
         }
         throw Exception(response.error ?? 'Failed to add message');
       },
@@ -214,11 +223,14 @@ class SelectedSessionSlice {
     return response != null;
   }
 
-  Future<void> processInitialOutfit(File file, RemoteImage remoteImage) async {
+  Future<void> processInitialOutfit(
+    List<File> files,
+    List<RemoteImage> remoteImages,
+  ) async {
     addMessage(
       UserRole.user,
-      imageFile: file,
-      remoteImage: remoteImage,
+      imageFiles: files,
+      remoteImages: remoteImages,
       text: _initialPrompt,
     );
 
@@ -230,9 +242,13 @@ class SelectedSessionSlice {
   }
 
   // --- Initialize New Session ---
-  Future<void> initializeNew(File? imageFile, RemoteImage? remoteImage) async {
-    if (imageFile != null || remoteImage != null) {
-      await processInitialOutfit(imageFile!, remoteImage!);
+  Future<void> initializeNew(
+    List<File>? imageFiles,
+    List<RemoteImage>? remoteImages,
+  ) async {
+    if ((imageFiles?.isNotEmpty ?? false) ||
+        (remoteImages?.isNotEmpty ?? false)) {
+      await processInitialOutfit(imageFiles ?? [], remoteImages ?? []);
     } else {
       addLoadingMessage();
       await Future.delayed(const Duration(milliseconds: 1000));
@@ -252,16 +268,16 @@ class SelectedSessionSlice {
   void addMessage(
     UserRole userRole, {
     String? text,
-    File? imageFile,
-    RemoteImage? remoteImage,
+    List<File>? imageFiles,
+    List<RemoteImage>? remoteImages,
     bool isLoading = false,
     StyleAnalysisSessionMessageError? error,
   }) {
     final newMessage = StyleAnalysisSessionMessage(
       role: userRole,
       timestamp: DateTime.now(),
-      imageFile: imageFile,
-      remoteImage: remoteImage,
+      imageFiles: imageFiles,
+      remoteImages: remoteImages,
       text: text,
       isLoading: isLoading,
       error: error,

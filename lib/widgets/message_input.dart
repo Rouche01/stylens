@@ -11,9 +11,9 @@ class MessageInput extends StatelessWidget {
   final FocusNode? focusNode;
   final String? placeholder;
   final VoidCallback? onAttachPressed;
-  final File? attachedImage;
-  final VoidCallback? onRemoveImage;
-  final VoidCallback? onPreviewImage;
+  final List<File>? attachedImages;
+  final void Function(int index)? onRemoveImage;
+  final void Function(int index)? onPreviewImage;
 
   const MessageInput({
     super.key,
@@ -24,7 +24,7 @@ class MessageInput extends StatelessWidget {
     this.focusNode,
     this.placeholder = UxMessages.messagePlaceholderDefault,
     this.onAttachPressed,
-    this.attachedImage,
+    this.attachedImages,
     this.onRemoveImage,
     this.onPreviewImage,
   });
@@ -45,72 +45,85 @@ class MessageInput extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (attachedImage != null)
+          if (attachedImages != null && attachedImages!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  GestureDetector(
-                    onTap: onPreviewImage,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.outline.withValues(alpha: 0.4),
+              child: SizedBox(
+                height: 96,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: attachedImages!.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final file = attachedImages![index];
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        GestureDetector(
+                          onTap: () => onPreviewImage?.call(index),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              width: 84,
+                              height: 84,
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
+                                border: Border.all(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outline.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Image.file(
+                                file,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Center(
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         ),
-                        child: Image.file(
-                          attachedImage!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Icon(
-                                Icons.error_outline,
-                                color: Theme.of(context).colorScheme.error,
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: GestureDetector(
+                            onTap: () => onRemoveImage?.call(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: -6,
-                    right: -6,
-                    child: GestureDetector(
-                      onTap: onRemoveImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           Row(
