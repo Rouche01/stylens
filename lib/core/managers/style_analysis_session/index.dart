@@ -71,6 +71,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
     _selectedSessionSlice = SelectedSessionSlice(
       apiService: _apiService,
+      assetApiService: locator<AssetApiService>(),
       getState: () =>
           _stateSlices[ManagerStateSliceName.selectedSession]
               as ActionState<SelectedStyleAnalysisSession>,
@@ -220,6 +221,11 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     List<RemoteImage> remoteImages,
   ) async {
     await _selectedSessionSlice.processInitialOutfit(files, remoteImages);
+    notifyListeners();
+  }
+
+  Future<void> processInitialOutfitFlow(List<File> files) async {
+    await _selectedSessionSlice.processInitialOutfitFlow(files);
     notifyListeners();
   }
 
@@ -385,6 +391,27 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       isLoading: isLoading,
     );
   }
+
+  Future<void> sendMessage({
+    required String text,
+    required List<File> imageFiles,
+  }) async {
+    await _selectedSessionSlice.sendMessage(
+      text: text,
+      imageFiles: imageFiles,
+      startStreaming: _startStreaming,
+    );
+  }
+
+  List<File> get attachedImageFiles => _selectedSessionSlice.attachedImageFiles;
+
+  void addAttachedImage(File file) =>
+      _selectedSessionSlice.addAttachedImage(file);
+
+  void removeAttachedImage(int index) =>
+      _selectedSessionSlice.removeAttachedImage(index);
+
+  void clearAttachedImages() => _selectedSessionSlice.clearAttachedImages();
 
   void disposeSelectedSession({String? messageInputText}) {
     _selectedSessionSlice.dispose(draftText: messageInputText);

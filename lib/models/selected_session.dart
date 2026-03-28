@@ -25,4 +25,14 @@ class SelectedStyleAnalysisSession {
     'session_id': sessionId,
     'messages': messages.map((e) => e.toJson()).toList(),
   };
+
+  SelectedStyleAnalysisSession copyWith({
+    String? sessionId,
+    List<StyleAnalysisSessionMessage>? messages,
+  }) {
+    return SelectedStyleAnalysisSession(
+      sessionId: sessionId ?? this.sessionId,
+      messages: messages ?? this.messages,
+    );
+  }
 }

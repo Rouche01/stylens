@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
-import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'dart:io';
@@ -17,8 +16,6 @@ import 'package:gostylens/widgets/action_card.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/core/managers/global_loader/index.dart';
-import 'package:gostylens/models/remote_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   const StyleAnalysisPage({super.key});
@@ -35,9 +32,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   final ImagePicker _picker = ImagePicker();
   late StyleAnalysisSessionManager _sessionManager;
 
-  final List<File> _attachedImageFiles = [];
-  final List<RemoteImage> _attachedRemoteImages = [];
-
   static const double _loadMoreThreshold = 200.0;
 
   bool get _isNewSession =>
@@ -50,7 +44,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       (m) => m.role == UserRole.user && (m.remoteImages?.isNotEmpty ?? false),
     );
 
-    return _isNewSession && !hasUserImage && _attachedImageFiles.isEmpty;
+    return _isNewSession &&
+        !hasUserImage &&
+        _sessionManager.attachedImageFiles.isEmpty;
   }
 
   @override
@@ -175,50 +171,24 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty && _attachedRemoteImages.isEmpty) return;
+    if (text.isEmpty && _sessionManager.attachedImageFiles.isEmpty) return;
 
     _messageController.clear();
 
-    final imageFiles = List<File>.from(_attachedImageFiles);
-    final remoteImages = List<RemoteImage>.from(_attachedRemoteImages);
-
-    setState(() {
-      _attachedImageFiles.clear();
-      _attachedRemoteImages.clear();
-    });
-
-    if (_isNewSession) {
-      _sessionManager.addToSelectedSessionMessages(
-        UserRole.user,
-        text: text,
-        imageFiles: imageFiles,
-        remoteImages: remoteImages,
-      );
-      await _sessionManager.createSession();
-    } else {
-      _sessionManager.addMessageToSelectedSession(
-        UserRole.user,
-        text: text,
-        imageFiles: imageFiles,
-        remoteImages: remoteImages,
-      );
-    }
+    await _sessionManager.sendMessage(
+      text: text,
+      imageFiles: _sessionManager.attachedImageFiles,
+    );
   }
 
   void _removeAttachedImage(int index) {
-    setState(() {
-      if (index >= 0 && index < _attachedImageFiles.length) {
-        _attachedImageFiles.removeAt(index);
-      }
-      if (index >= 0 && index < _attachedRemoteImages.length) {
-        _attachedRemoteImages.removeAt(index);
-      }
-    });
+    _sessionManager.removeAttachedImage(index);
   }
 
   void _previewAttachedImage(int index) {
-    if (index < 0 || index >= _attachedImageFiles.length) return;
-    FullScreenImagePreview.show(context, imageFile: _attachedImageFiles[index]);
+    final files = _sessionManager.attachedImageFiles;
+    if (index < 0 || index >= files.length) return;
+    FullScreenImagePreview.show(context, imageFile: files[index]);
   }
 
   // ============================================================
@@ -231,15 +201,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       onSourceSelected: (source) => _handleImageCapture(
         source,
         onImagePicked: (file) {
-          setState(() {
-            _attachedImageFiles.add(file);
-          });
-        },
-        onUploadComplete: (file, remoteImage) {
-          setState(() {
-            // Finding existing file to update remote image or adding if not exists
-            _attachedRemoteImages.add(remoteImage);
-          });
+          _sessionManager.addAttachedImage(file);
         },
         showLoading: false,
       ),
@@ -249,7 +211,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   Future<void> _handleImageCapture(
     ImageSource source, {
     void Function(File)? onImagePicked,
-    void Function(File, RemoteImage)? onUploadComplete,
     bool? showLoading = true,
   }) async {
     final canProceed = await checkLimitsAndProceed(context);
@@ -266,26 +227,12 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       if (image != null) {
         final file = File(image.path);
         onImagePicked?.call(file);
-
-        if (showLoading == true) {
-          locator<GlobalLoaderController>().show(UxMessages.uploadOutfitLoader);
-        }
-
-        final remoteImage = await uploadToR2(file, image.name);
-
-        if (remoteImage != null && mounted) {
-          onUploadComplete?.call(file, remoteImage);
-        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      if (showLoading == true) {
-        locator<GlobalLoaderController>().hide();
       }
     }
   }
@@ -391,11 +338,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   Widget _buildChatInterface(StyleAnalysisSessionManager sessionManager) {
     final messages = sessionManager.selectedSessionMessages;
     final showActionCard = _shouldShowInitialActionCard;
-    final isSendDisabled =
-        sessionManager.isSelectedSessionAwaitingResponse ||
-        sessionManager.isSelectedSessionStreaming ||
-        sessionManager.createSessionError != null ||
-        showActionCard;
 
     final isTextFieldDisabled =
         sessionManager.createSessionError != null ||
@@ -404,17 +346,33 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     return Column(
       children: [
         Expanded(child: _buildMessageList(sessionManager, messages)),
-        MessageInput(
-          messageController: _messageController,
-          onSendMessage: _sendMessage,
-          isSendDisabled: isSendDisabled,
-          isTextFieldDisabled: isTextFieldDisabled,
-          focusNode: _inputFocusNode,
-          placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
-          onAttachPressed: _isNewSession ? null : _onAttachPressed,
-          attachedImages: _attachedImageFiles,
-          onRemoveImage: _removeAttachedImage,
-          onPreviewImage: _previewAttachedImage,
+        ListenableBuilder(
+          listenable: _messageController,
+          builder: (context, _) {
+            final noInput =
+                _messageController.text.isEmpty &&
+                sessionManager.attachedImageFiles.isEmpty;
+
+            final isSendDisabled =
+                sessionManager.isSelectedSessionAwaitingResponse ||
+                sessionManager.isSelectedSessionStreaming ||
+                sessionManager.createSessionError != null ||
+                showActionCard ||
+                noInput;
+
+            return MessageInput(
+              messageController: _messageController,
+              onSendMessage: _sendMessage,
+              isSendDisabled: isSendDisabled,
+              isTextFieldDisabled: isTextFieldDisabled,
+              focusNode: _inputFocusNode,
+              placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
+              onAttachPressed: _isNewSession ? null : _onAttachPressed,
+              attachedImages: sessionManager.attachedImageFiles,
+              onRemoveImage: _removeAttachedImage,
+              onPreviewImage: _previewAttachedImage,
+            );
+          },
         ),
       ],
     );
@@ -452,10 +410,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
               onActionSelected: (source) => _handleImageCapture(
                 source,
                 onImagePicked: (file) {
-                  // TODO: remove this
-                },
-                onUploadComplete: (file, remoteImage) {
-                  _sessionManager.processInitialOutfit([file], [remoteImage]);
+                  _sessionManager.processInitialOutfitFlow([file]);
                 },
               ),
             );
