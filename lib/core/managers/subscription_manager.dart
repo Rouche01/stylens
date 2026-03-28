@@ -63,7 +63,7 @@ class SubscriptionManager extends ChangeNotifier {
         // ignore: invalid_use_of_protected_member
         .all[RevenueCatConstants.gostylensCoreEntitlement];
     return entitlement?.productIdentifier ==
-        RevenueCatConstants.coreAnnualProductIdentifier;
+        RevenueCatConstants.coreYearlyProductIdentifier;
   }
 
   /// Returns a formatted display name for the current plan,
