@@ -406,7 +406,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           isTextFieldDisabled: isTextFieldDisabled,
           focusNode: _inputFocusNode,
           placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
-          onAttachPressed: _onAttachPressed,
+          onAttachPressed: _isNewSession ? null : _onAttachPressed,
           attachedImage: _attachedImageFile,
           onRemoveImage: _removeAttachedImage,
           onPreviewImage: _previewAttachedImage,

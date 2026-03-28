@@ -53,110 +53,109 @@ class _SessionCardState extends State<SessionCard> {
             _popupKey.currentState?.showButtonMenu();
           },
           child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Outfit image
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  ImageWithFallback(
-                    remoteImage: widget.session.remoteImage,
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                    borderRadius: BorderRadius.circular(8),
-                    fallbackWidget: Container(
+            padding: EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Outfit image
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ImageWithFallback(
+                      remoteImage: widget.session.remoteImage,
                       width: 60,
                       height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.grey[200],
-                      ),
-                      child: Icon(Icons.image, color: Colors.grey),
-                    ),
-                  ),
-                  if (widget.isBusy)
-                    Positioned.fill(
-                      child: Container(
+                      fit: BoxFit.cover,
+                      borderRadius: BorderRadius.circular(8),
+                      fallbackWidget: Container(
+                        width: 60,
+                        height: 60,
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey[200],
                         ),
-                        child: Center(
-                          child: AnimatedTypingDots(
-                            size: 6,
-                            color: Colors.white,
+                        child: Icon(Icons.image, color: Colors.grey),
+                      ),
+                    ),
+                    if (widget.isBusy)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: AnimatedTypingDots(
+                              size: 6,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  if (isFav)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 3,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.favorite,
-                          size: 12,
-                          color: primaryColor,
+                    if (isFav)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Container(
+                          padding: EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 3,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.favorite,
+                            size: 12,
+                            color: primaryColor,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              SizedBox(width: 16),
-              // Session details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  ],
+                ),
+                SizedBox(width: 16),
+                // Session details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.session.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        formatTimeAgo(widget.session.updatedAt),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status and actions
+                Column(
                   children: [
-                    Text(
-                      widget.session.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      formatTimeAgo(widget.session.updatedAt),
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    SessionActionsMenu(
+                      popupKey: _popupKey,
+                      session: widget.session,
+                      onDelete: widget.onDelete,
+                      iconSize: 20,
                     ),
                   ],
                 ),
-              ),
-              // Status and actions
-              Column(
-                children: [
-                  SessionActionsMenu(
-                    popupKey: _popupKey,
-                    session: widget.session,
-                    onDelete: widget.onDelete,
-                    iconSize: 20,
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
   }
-
 }
