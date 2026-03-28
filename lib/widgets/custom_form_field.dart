@@ -14,6 +14,8 @@ class CustomFormField extends StatefulWidget {
   final InputBorder? border;
   final Color? fillColor;
   final EdgeInsetsGeometry? contentPadding;
+  final InputBorder? enabledBorder;
+  final InputBorder? focusedBorder;
 
   const CustomFormField({
     super.key,
@@ -27,6 +29,8 @@ class CustomFormField extends StatefulWidget {
     this.border,
     this.fillColor,
     this.contentPadding,
+    this.enabledBorder,
+    this.focusedBorder,
   });
 
   @override
@@ -96,12 +100,14 @@ class _CustomFormFieldState extends State<CustomFormField> {
               )
             : null,
         enabledBorder:
+            widget.enabledBorder ??
             widget.border ??
             OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,
             ),
         focusedBorder:
+            widget.focusedBorder ??
             widget.border ??
             OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
