@@ -12,7 +12,7 @@ class StartConversationFab extends StatelessWidget {
       backgroundColor: Theme.of(context).colorScheme.primary,
       foregroundColor: Theme.of(context).colorScheme.onPrimary,
       shape: const CircleBorder(),
-      child: const Icon(Icons.add_comment_outlined, size: 28),
+      child: const Icon(Icons.add_comment_outlined, size: 24),
     );
   }
 }

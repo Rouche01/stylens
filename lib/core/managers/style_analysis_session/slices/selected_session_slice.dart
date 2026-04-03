@@ -8,7 +8,7 @@ import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/session_ui_state.dart';
-
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/actions/selected_session_actions.dart';
 
 /// Manages operations for the currently selected session
@@ -19,11 +19,14 @@ class SelectedSessionSlice with SelectedSessionActions {
   @override
   final AssetApiService assetApiService;
   @override
+  final AssetUploadManager assetUploadManager;
+  @override
   late final SliceStateManager<SelectedStyleAnalysisSession> sliceStateManager;
 
   SelectedSessionSlice({
     required this.apiService,
     required this.assetApiService,
+    required this.assetUploadManager,
     required ActionState<SelectedStyleAnalysisSession> Function() getState,
     required void Function(ActionState<SelectedStyleAnalysisSession>) setState,
     required void Function() notifyListeners,

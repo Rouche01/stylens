@@ -16,6 +16,7 @@ import 'slices/selected_session_slice.dart';
 import 'slices/session_streaming_slice.dart';
 import 'slices/sessions_slice.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 
 enum ManagerStateSliceName {
   sessions,
@@ -73,6 +74,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     _selectedSessionSlice = SelectedSessionSlice(
       apiService: _apiService,
       assetApiService: locator<AssetApiService>(),
+      assetUploadManager: locator<AssetUploadManager>(),
       getState: () =>
           _stateSlices[ManagerStateSliceName.selectedSession]
               as ActionState<SelectedStyleAnalysisSession>,
@@ -262,10 +264,11 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       });
 
       await _startStreaming(sessionId, contextMode: ContextMode.all);
-      
-      locator<AnalyticsService>().capture('style_analysis_session_created', properties: {
-        'session_id': sessionId,
-      });
+
+      locator<AnalyticsService>().capture(
+        'style_analysis_session_created',
+        properties: {'session_id': sessionId},
+      );
     } else {
       _selectedSessionSlice.replaceLoadingWithError(
         StyleAnalysisSessionMessageError.fromRawError(
@@ -314,12 +317,17 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       final id = selectedSessionId;
       if (id != null) {
         await _startStreaming(id, contextMode: ContextMode.recent);
-        locator<AnalyticsService>().capture('message_sent', properties: {
-          'session_id': id,
-          'user_role': userRole.name,
-          'has_text': text != null && text.isNotEmpty,
-          'has_images': (imageFiles != null && imageFiles.isNotEmpty) || (remoteImages != null && remoteImages.isNotEmpty),
-        });
+        locator<AnalyticsService>().capture(
+          'message_sent',
+          properties: {
+            'session_id': id,
+            'user_role': userRole.name,
+            'has_text': text != null && text.isNotEmpty,
+            'has_images':
+                (imageFiles != null && imageFiles.isNotEmpty) ||
+                (remoteImages != null && remoteImages.isNotEmpty),
+          },
+        );
       }
     } else {
       _stateSlices[ManagerStateSliceName.addMessageToSession] =

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/constants/ux_messages.dart';
-import 'package:gostylens/core/managers/global_loader/global_loader_controller.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
-import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'style_analysis.dart';
 import 'profile_menu.dart';
@@ -36,33 +34,40 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
     String filename,
   ) async {
     try {
-      locator<GlobalLoaderController>().show(UxMessages.uploadOutfitLoader);
-      final RemoteImage? remoteImage = await uploadToR2(imageFile, filename);
-      
-      if (remoteImage != null) {
-        locator<AnalyticsService>().capture('image_uploaded', properties: {
-          'filename': filename,
-          'source': 'capture_page',
-        });
-      }
+      // Step 1: Reserve the key (Fast JSON request)
+      final remoteImage = await context.read<AssetUploadManager>().prepareAsset(
+        imageFile,
+      );
 
-      if (mounted && remoteImage != null) {
+      if (mounted) {
+        // Step 2: Start the binary upload in background (Parallel/Non-awaited)
+        context.read<AssetUploadManager>().uploadAssets([remoteImage.key]);
+
+        // Step 3: Initialize the session with the metadata and local file
         context.read<StyleAnalysisSessionManager>().initializeNewSession(
           [imageFile],
           [remoteImage],
         );
 
-        if (!mounted) return;
-
+        // Step 3: Navigate instantly
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
         );
+
+        // Step 4: Analytics
+        locator<AnalyticsService>().capture(
+          'image_capture_initiated',
+          properties: {'filename': filename, 'source': 'capture_page'},
+        );
       }
     } catch (err) {
-      debugPrint('$err');
-    } finally {
-      locator<GlobalLoaderController>().hide();
+      debugPrint('Error starting session: $err');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to prepare image. Please try again.')),
+        );
+      }
     }
   }
 

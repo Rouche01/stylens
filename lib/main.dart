@@ -11,6 +11,7 @@ import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: locator<SubscriptionManager>()),
         ChangeNotifierProvider.value(value: locator<StyleAnalysisSessionManager>()),
         ChangeNotifierProvider.value(value: locator<UserStateManager>()),
+        ChangeNotifierProvider.value(value: locator<AssetUploadManager>()),
       ],
       child: PostHogWidget(
         child: MaterialApp(

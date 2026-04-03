@@ -11,11 +11,13 @@ import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/core/managers/style_analysis_session/slices/session_streaming_slice.dart';
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 
 mixin SelectedSessionActions {
   // --- Abstract Getters & Methods (Required for Actions) ---
   StyleAnalysisApiService get apiService;
   AssetApiService get assetApiService;
+  AssetUploadManager get assetUploadManager;
   SliceStateManager<SelectedStyleAnalysisSession> get sliceStateManager;
 
   String? get sessionId => sliceStateManager.data?.sessionId;
@@ -225,16 +227,15 @@ mixin SelectedSessionActions {
     sliceStateManager.notify();
 
     try {
-      // 3. Perform R2 Uploads
-      final remoteImages = <RemoteImage>[];
-      for (final file in imageFiles) {
-        final remoteImage = await uploadToR2(file);
-        if (remoteImage != null) {
-          remoteImages.add(remoteImage);
-        } else {
-          throw Exception('Failed to upload image: ${file.path}');
-        }
-      }
+      // 3. Reserve Keys (Parallel Fast Requests) and Queue Background Uploads
+      final remoteImages = await Future.wait<RemoteImage>(
+        imageFiles.map((file) => assetUploadManager.prepareAsset(file)),
+      );
+
+      // 4. Start the binary uploads in the background (Non-awaited)
+      assetUploadManager.uploadAssets(
+        remoteImages.map((ri) => ri.key).toList(),
+      );
 
       // Update local message with remote images
       updateLastUserMessage(remoteImages: remoteImages);
@@ -278,30 +279,6 @@ mixin SelectedSessionActions {
     }
   }
 
-  Future<RemoteImage?> uploadToR2(File imageFile) async {
-    try {
-      final filename =
-          'style_analysis_${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}';
-      final responseData = await assetApiService.getUploadUrl(filename);
-
-      final imageFileBytes = await imageFile.readAsBytes();
-      final statusCode = await assetApiService.uploadImage(
-        responseData.uploadUrl,
-        imageFileBytes,
-      );
-
-      if (statusCode == 200) {
-        return RemoteImage(
-          url: responseData.downloadUrl,
-          key: responseData.filename,
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ Upload error in manager: $e');
-    }
-    return null;
-  }
-
   Future<void> processInitialOutfit(
     List<File> files,
     List<RemoteImage> remoteImages,
@@ -326,13 +303,14 @@ mixin SelectedSessionActions {
     sliceStateManager.notify();
 
     try {
-      final remoteImages = <RemoteImage>[];
-      for (final file in files) {
-        final remoteImage = await uploadToR2(file);
-        if (remoteImage != null) {
-          remoteImages.add(remoteImage);
-        }
-      }
+      final remoteImages = await Future.wait<RemoteImage>(
+        files.map((file) => assetUploadManager.prepareAsset(file)),
+      );
+
+      // Start background uploads
+      assetUploadManager.uploadAssets(
+        remoteImages.map((ri) => ri.key).toList(),
+      );
 
       // Complete initial outfit process
       updateLastUserMessage(remoteImages: remoteImages);

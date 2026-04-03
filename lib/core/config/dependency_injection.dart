@@ -19,6 +19,7 @@ import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/managers/asset_upload_manager.dart';
 
 // Global locator instance
 final locator = GetIt.instance;
@@ -105,4 +106,5 @@ Future<void> setupLocator() async {
     () => StyleAnalysisSessionManager(),
   );
   locator.registerLazySingleton<UserStateManager>(() => UserStateManager());
+  locator.registerLazySingleton<AssetUploadManager>(() => AssetUploadManager());
 }
