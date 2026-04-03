@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/widgets/full_screen_image_preview.dart';
+import 'package:gostylens/widgets/upload_status_indicator.dart';
 
 class MessageImageGallery extends StatelessWidget {
   final List<File>? imageFiles;
@@ -42,7 +43,9 @@ class MessageImageGallery extends StatelessWidget {
       return _buildLargeImage(
         context,
         imageFile: imageFiles!.first,
-        isUploading: true,
+        // For local files without remote counterpart yet, we'd need a way to track them.
+        // But in our current flow, prepareAsset is called BEFORE navigation,
+        // so we should have remoteImages available or arriving soon.
       );
     }
 
@@ -50,10 +53,7 @@ class MessageImageGallery extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: imageFiles!
-          .map(
-            (file) =>
-                _buildThumbnail(context, imageFile: file, isUploading: true),
-          )
+          .map((file) => _buildThumbnail(context, imageFile: file))
           .toList(),
     );
   }
@@ -62,7 +62,6 @@ class MessageImageGallery extends StatelessWidget {
     BuildContext context, {
     File? imageFile,
     RemoteImage? remoteImage,
-    bool isUploading = false,
   }) {
     return GestureDetector(
       onTap: () => FullScreenImagePreview.show(
@@ -80,7 +79,12 @@ class MessageImageGallery extends StatelessWidget {
             fit: BoxFit.cover,
             borderRadius: BorderRadius.circular(8),
           ),
-          if (isUploading) _buildUploadingOverlay(200, 200),
+          if (remoteImage != null)
+            Positioned(
+              bottom: 6,
+              right: 6,
+              child: UploadStatusIndicator(assetKey: remoteImage.key),
+            ),
         ],
       ),
     );
@@ -90,7 +94,6 @@ class MessageImageGallery extends StatelessWidget {
     BuildContext context, {
     File? imageFile,
     RemoteImage? remoteImage,
-    bool isUploading = false,
   }) {
     return GestureDetector(
       onTap: () => FullScreenImagePreview.show(
@@ -108,43 +111,13 @@ class MessageImageGallery extends StatelessWidget {
             fit: BoxFit.cover,
             borderRadius: BorderRadius.circular(8),
           ),
-          if (isUploading) _buildUploadingOverlay(100, 100),
+          if (remoteImage != null)
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: UploadStatusIndicator(assetKey: remoteImage.key),
+            ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildUploadingOverlay(double width, double height) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Uploading...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

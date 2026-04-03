@@ -36,6 +36,8 @@ class AssetUploadManager extends ChangeNotifier {
   AssetUploadStatus getStatus(String key) =>
       _tasks[key]?.status ?? AssetUploadStatus.pending;
 
+  AssetUploadTask? getTask(String key) => _tasks[key];
+
   /// Reserves a RemoteImage object instantly (Fast JSON request).
   /// Doesn't start the binary upload yet.
   Future<RemoteImage> prepareAsset(File file) async {
