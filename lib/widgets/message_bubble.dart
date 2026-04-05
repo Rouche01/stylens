@@ -33,8 +33,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final totalImages =
-        (message.imageFiles?.length ?? 0) + (message.remoteImages?.length ?? 0);
+    final totalImages = message.images?.length ?? 0;
     final hasImage = totalImages > 0;
     if (message.isLoading) {
       return Row(
@@ -96,10 +95,7 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (hasImage) ...[
-                  MessageImageGallery(
-                    imageFiles: message.imageFiles,
-                    remoteImages: message.remoteImages,
-                  ),
+                  MessageImageGallery(images: message.images),
                 ],
                 if (message.displayText case final displayText?) ...[
                   if (hasImage) SizedBox(height: 8),

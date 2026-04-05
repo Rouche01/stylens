@@ -8,6 +8,7 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
+import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/core/managers/style_analysis_session/slices/session_streaming_slice.dart';
@@ -27,8 +28,7 @@ mixin SelectedSessionActions {
   void addMessage(
     UserRole userRole, {
     String? text,
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
+    List<AppImage>? images,
     bool isLoading = false,
     StyleAnalysisSessionMessageError? error,
   });
@@ -138,13 +138,16 @@ mixin SelectedSessionActions {
 
     final messageEntries = sortedMessages
         .where(
-          (msg) => msg.text != null || (msg.remoteImages?.isNotEmpty ?? false),
+          (msg) => msg.text != null || (msg.images?.isNotEmpty ?? false),
         )
         .map(
           (msg) => {
             'role': msg.role.name,
             'prompt': msg.text,
-            'remoteImages': msg.remoteImages?.map((i) => i.toJson()).toList(),
+            'remoteImages': msg.images
+                ?.map((i) => i.remoteImage?.toJson())
+                .whereType<Map<String, dynamic>>()
+                .toList(),
           },
         )
         .toList();
@@ -218,7 +221,11 @@ mixin SelectedSessionActions {
     final isNew = id == null;
 
     // 1. Add to local UI immediately
-    addMessage(UserRole.user, text: text, imageFiles: imageFiles);
+    addMessage(
+      UserRole.user,
+      text: text,
+      images: imageFiles.map((f) => AppImage(localFile: f)).toList(),
+    );
 
     // 2. Clear draft state
     clearAttachedImages();
@@ -285,8 +292,17 @@ mixin SelectedSessionActions {
   ) async {
     addMessage(
       UserRole.user,
-      imageFiles: files,
-      remoteImages: remoteImages,
+      images: files
+          .map(
+            (f) => AppImage(
+              localFile: f,
+              remoteImage: remoteImages.firstWhere(
+                (ri) => ri.key == f.path.split('/').last, // Simple lookup or zip
+                orElse: () => remoteImages.first, // Fallback
+              ),
+            ),
+          )
+          .toList(),
       text: _initialPrompt,
     );
 
@@ -298,7 +314,11 @@ mixin SelectedSessionActions {
   }
 
   Future<void> processInitialOutfitFlow(List<File> files) async {
-    addMessage(UserRole.user, imageFiles: files, text: _initialPrompt);
+    addMessage(
+      UserRole.user,
+      images: files.map((f) => AppImage(localFile: f)).toList(),
+      text: _initialPrompt,
+    );
     addLoadingMessage();
     sliceStateManager.notify();
 
@@ -324,9 +344,22 @@ mixin SelectedSessionActions {
     List<File>? imageFiles,
     List<RemoteImage>? remoteImages,
   ) async {
-    if ((imageFiles?.isNotEmpty ?? false) ||
-        (remoteImages?.isNotEmpty ?? false)) {
-      await processInitialOutfit(imageFiles ?? [], remoteImages ?? []);
+    if (imageFiles?.isNotEmpty ?? false) {
+      await processInitialOutfit(
+        imageFiles!,
+        remoteImages ?? [],
+      );
+    } else if (remoteImages?.isNotEmpty ?? false) {
+      addMessage(
+        UserRole.user,
+        images:
+            remoteImages!.map((ri) => AppImage(remoteImage: ri)).toList(),
+        text: _initialPrompt,
+      );
+      addLoadingMessage();
+      await Future.delayed(const Duration(milliseconds: 1500));
+      removeLoadingMessage();
+      addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
     } else {
       addLoadingMessage();
       await Future.delayed(const Duration(milliseconds: 1000));
@@ -353,12 +386,24 @@ mixin SelectedSessionActions {
 
     if (lastIndex != -1) {
       final lastMsg = updatedMessages[lastIndex];
+      // Merge remote images into existing AppImage objects if they have matching local files
+      // or just create new AppImage objects if no local files were present.
+      final updatedImages = lastMsg.images?.map((img) {
+        // If we have remote images, find the one that corresponds to this local file
+        // For simplicity during transition, if we have a list of remote images of same length, we zip them.
+        final index = lastMsg.images!.indexOf(img);
+        if (remoteImages != null && index < remoteImages.length) {
+          return AppImage(localFile: img.localFile, remoteImage: remoteImages[index]);
+        }
+        return img;
+      }).toList();
+
       updatedMessages[lastIndex] = StyleAnalysisSessionMessage(
         text: lastMsg.text,
         role: lastMsg.role,
         timestamp: lastMsg.timestamp,
-        imageFiles: lastMsg.imageFiles,
-        remoteImages: remoteImages,
+        images: updatedImages ??
+            remoteImages?.map((ri) => AppImage(remoteImage: ri)).toList(),
         isLoading: lastMsg.isLoading,
         error: lastMsg.error,
       );

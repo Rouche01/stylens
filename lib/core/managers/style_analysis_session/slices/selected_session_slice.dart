@@ -5,7 +5,7 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
-import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/session_ui_state.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
@@ -76,16 +76,14 @@ class SelectedSessionSlice with SelectedSessionActions {
   void addMessage(
     UserRole userRole, {
     String? text,
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
+    List<AppImage>? images,
     bool isLoading = false,
     StyleAnalysisSessionMessageError? error,
   }) {
     final newMessage = StyleAnalysisSessionMessage(
       role: userRole,
       timestamp: DateTime.now(),
-      imageFiles: imageFiles,
-      remoteImages: remoteImages,
+      images: images,
       text: text,
       isLoading: isLoading,
       error: error,

@@ -7,6 +7,7 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
+import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/session_streaming_state.dart';
@@ -286,15 +287,13 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   Future<void> addMessageToSelectedSession(
     UserRole userRole, {
     String? text,
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
+    List<AppImage>? images,
     isLoading = false,
   }) async {
     _selectedSessionSlice.addMessage(
       userRole,
       text: text,
-      imageFiles: imageFiles,
-      remoteImages: remoteImages,
+      images: images,
       isLoading: isLoading,
     );
 
@@ -306,7 +305,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     final success = await _selectedSessionSlice.addMessageRemote(
       userRole,
       text: text,
-      remoteImages: remoteImages,
+      remoteImages: images
+          ?.map((i) => i.remoteImage)
+          .whereType<RemoteImage>()
+          .toList(),
     );
 
     if (success) {
@@ -323,9 +325,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
             'session_id': id,
             'user_role': userRole.name,
             'has_text': text != null && text.isNotEmpty,
-            'has_images':
-                (imageFiles != null && imageFiles.isNotEmpty) ||
-                (remoteImages != null && remoteImages.isNotEmpty),
+            'has_images': images != null && images.isNotEmpty,
           },
         );
       }
@@ -373,7 +373,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       final success = await _selectedSessionSlice.addMessageRemote(
         UserRole.user,
         text: lastUserMsg.text,
-        remoteImages: lastUserMsg.remoteImages,
+        remoteImages: lastUserMsg.images
+            ?.map((i) => i.remoteImage)
+            .whereType<RemoteImage>()
+            .toList(),
       );
 
       if (success) {
@@ -398,15 +401,13 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   void addToSelectedSessionMessages(
     UserRole userRole, {
     String? text,
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
+    List<AppImage>? images,
     isLoading = false,
   }) {
     _selectedSessionSlice.addMessage(
       userRole,
       text: text,
-      imageFiles: imageFiles,
-      remoteImages: remoteImages,
+      images: images,
       isLoading: isLoading,
     );
   }

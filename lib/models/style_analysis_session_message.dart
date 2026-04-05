@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 
@@ -22,8 +21,7 @@ class StyleAnalysisSessionMessage {
   final DateTime timestamp;
   final bool isLoading;
   final StyleAnalysisSessionMessageError? error;
-  final List<File>? imageFiles; // Local image file references
-  final List<RemoteImage>? remoteImages; // Remote image objects
+  final List<AppImage>? images;
 
   bool get isUserMessage => role == UserRole.user;
   bool get isAssistantMessage => role == UserRole.assistant;
@@ -37,22 +35,26 @@ class StyleAnalysisSessionMessage {
     required this.timestamp,
     this.isLoading = false,
     this.error,
-    this.imageFiles,
-    this.remoteImages,
+    this.images,
     this.role = UserRole.user,
   });
 
   factory StyleAnalysisSessionMessage.fromJson(Map<String, dynamic> json) {
-    List<RemoteImage>? remoteImages;
+    List<AppImage>? images;
 
     if (json['images'] != null) {
-      remoteImages = (json['images'] as List)
-          .map((i) => RemoteImage.fromJson(i as Map<String, dynamic>))
+      images = (json['images'] as List)
+          .map((i) => AppImage(remoteImage: RemoteImage.fromJson(i as Map<String, dynamic>)))
           .toList();
     } else if (json['image_url'] != null) {
       // Backward compatibility for single image field
-      remoteImages = [
-        RemoteImage(url: json['image_url'] ?? '', key: json['image_key'] ?? ''),
+      images = [
+        AppImage(
+          remoteImage: RemoteImage(
+            url: json['image_url'] ?? '',
+            key: json['image_key'] ?? '',
+          ),
+        ),
       ];
     }
 
@@ -64,8 +66,7 @@ class StyleAnalysisSessionMessage {
                 ? UserRole.assistant
                 : UserRole.system),
       timestamp: DateTime.fromMillisecondsSinceEpoch(json['created_at']),
-      imageFiles: null, // Don't load local files from JSON
-      remoteImages: remoteImages,
+      images: images,
       isLoading: false,
       error: json['response_error'] != null
           ? StyleAnalysisSessionMessageError(message: json['response_error'])
@@ -78,7 +79,7 @@ class StyleAnalysisSessionMessage {
       'content': text,
       'role': role.name,
       'created_at': timestamp.millisecondsSinceEpoch,
-      'images': remoteImages?.map((i) => i.toJson()).toList(),
+      'images': images?.map((i) => i.remoteImage?.toJson()).whereType<Map<String, dynamic>>().toList(),
       'isLoading': isLoading,
       'response_error': error,
     };

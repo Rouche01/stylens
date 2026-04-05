@@ -41,7 +41,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   bool get _shouldShowInitialActionCard {
     final messages = _sessionManager.selectedSessionMessages;
     final hasUserImage = messages.any(
-      (m) => m.role == UserRole.user && (m.remoteImages?.isNotEmpty ?? false),
+      (m) =>
+          m.role == UserRole.user &&
+          (m.images?.any((img) => img.remoteImage != null) ?? false),
     );
 
     return _isNewSession &&
