@@ -80,21 +80,21 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18.0,
-                  vertical: 12,
+                  horizontal: 16.0,
+                  vertical: 16,
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(40),
+                  borderRadius: BorderRadius.circular(20),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                     child: Container(
                       constraints: const BoxConstraints(maxWidth: 450),
                       padding: const EdgeInsets.all(0),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: cs.primary.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(40),
                         border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.2),
+                          color: cs.secondary.withValues(alpha: 0.7),
                           width: 1,
                         ),
                         boxShadow: [
@@ -108,15 +108,15 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
                           // Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 6,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: cs.secondary.withValues(alpha: 0.4),
+                              color: cs.secondary.withValues(alpha: 0.7),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -169,9 +169,9 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                 fontFamily: 'ClashDisplay',
                                 fontSize: 32,
                                 fontWeight: FontWeight.w600,
-                                color: cs.primary,
-                                letterSpacing: -0.1,
-                                height: 1,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                letterSpacing: -0.2,
+                                height: 1.1,
                               ),
                             ),
                           ),
@@ -179,16 +179,14 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
 
                           // Subtitle
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32.0,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Text(
                               'Every outfit you analyse gets saved here — tagged, organised, and ready to mix & match.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontFamily: 'Metropolis',
                                 fontSize: 15,
-                                color: cs.primary.withValues(alpha: 0.9),
+                                color: cs.tertiary.withValues(alpha: 0.9),
                                 height: 1.4,
                               ),
                             ),
@@ -204,20 +202,20 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                               _FeatureChip(
                                 label: 'Auto-extract items',
                                 icon: Icons.auto_awesome,
-                                color: cs.secondary,
-                                textColor: cs.primary,
+                                color: cs.primary,
+                                textColor: cs.secondary.withValues(alpha: 0.9),
                               ),
                               _FeatureChip(
                                 label: 'Mix & match',
                                 icon: Icons.shuffle,
-                                color: cs.secondary,
-                                textColor: cs.primary,
+                                color: cs.primary,
+                                textColor: cs.secondary.withValues(alpha: 0.9),
                               ),
                               _FeatureChip(
                                 label: 'Unlimited storage',
                                 icon: Icons.inventory_2,
-                                color: cs.secondary,
-                                textColor: cs.primary,
+                                color: cs.primary,
+                                textColor: cs.secondary.withValues(alpha: 0.9),
                               ),
                             ],
                           ),
@@ -237,23 +235,25 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                     fieldType: FieldType.email,
                                     hintText: 'your@email.com',
                                     hintStyle: TextStyle(
-                                      color: cs.primary.withValues(alpha: 0.7),
+                                      color: cs.secondary.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontWeight: FontWeight.w500,
                                       fontSize: 15,
                                     ),
                                     textStyle: TextStyle(
-                                      color: cs.primary,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.w500,
                                       fontSize: 15,
                                     ),
-                                    fillColor: cs.surfaceDim.withValues(
-                                      alpha: 0.7,
+                                    fillColor: cs.primary.withValues(
+                                      alpha: 0.5,
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
                                       borderSide: BorderSide(
-                                        color: cs.primary.withValues(
-                                          alpha: 0.4,
+                                        color: cs.secondary.withValues(
+                                          alpha: 0.2,
                                         ),
                                         width: 1,
                                       ),
@@ -261,7 +261,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
                                       borderSide: BorderSide(
-                                        color: cs.primary.withValues(
+                                        color: cs.secondary.withValues(
                                           alpha: 0.8,
                                         ),
                                         width: 1,
@@ -273,7 +273,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: PrimaryButton(
                                     label: 'Notify me',
@@ -282,7 +282,9 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: cs.primary,
-                                      foregroundColor: Colors.white,
+                                      foregroundColor: cs.secondary.withValues(
+                                        alpha: 0.8,
+                                      ),
                                       textStyle: TextStyle(
                                         fontFamily: 'Metropolis',
                                         fontWeight: FontWeight.w600,
@@ -304,7 +306,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -339,7 +341,7 @@ class _FeatureChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
+        border: Border.all(color: color.withValues(alpha: 0.7)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.Base64
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -10,7 +11,7 @@ if (localPropertiesFile.exists()) {
 
 val dartDefines = if (project.hasProperty("dart-defines")) {
     (project.property("dart-defines") as String).split(",").associate {
-        val decoded = String(java.util.Base64.getDecoder().decode(it))
+        val decoded = String(Base64.getDecoder().decode(it))
         val split = decoded.split("=")
         split[0] to (if (split.size > 1) split[1] else "")
     }

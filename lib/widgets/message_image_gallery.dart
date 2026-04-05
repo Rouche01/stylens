@@ -13,48 +13,34 @@ class MessageImageGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasLocal = imageFiles?.isNotEmpty ?? false;
-    final hasRemote = remoteImages?.isNotEmpty ?? false;
+    final remoteCount = remoteImages?.length ?? 0;
+    final localCount = imageFiles?.length ?? 0;
 
-    if (!hasLocal && !hasRemote) return const SizedBox.shrink();
+    if (remoteCount == 0 && localCount == 0) return const SizedBox.shrink();
 
-    // If we have both, we prioritze showing remote images if they are likely the same.
-    // However, for the "Instant Send" flow, we'll have local files first, then remote images added.
-    // To keep it simple: if remoteImages is not empty, we show those.
-    // If only localFiles is not empty, we show those with an "Uploading" overlay.
+    // Use remoteImages as the source of truth if available, 
+    // otherwise fallback to imageFiles (e.g. while preparing).
+    final int count = remoteCount > 0 ? remoteCount : localCount;
+    final bool isSingle = count == 1;
 
-    if (hasRemote) {
-      final isSingle = remoteImages!.length == 1;
-      if (isSingle) {
-        return _buildLargeImage(context, remoteImage: remoteImages!.first);
-      }
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: remoteImages!
-            .map((img) => _buildThumbnail(context, remoteImage: img))
-            .toList(),
-      );
-    }
-
-    // Local only case (Uploading state)
-    final isSingleLocal = imageFiles!.length == 1;
-    if (isSingleLocal) {
+    if (isSingle) {
       return _buildLargeImage(
         context,
-        imageFile: imageFiles!.first,
-        // For local files without remote counterpart yet, we'd need a way to track them.
-        // But in our current flow, prepareAsset is called BEFORE navigation,
-        // so we should have remoteImages available or arriving soon.
+        imageFile: localCount > 0 ? imageFiles!.first : null,
+        remoteImage: remoteCount > 0 ? remoteImages!.first : null,
       );
     }
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: imageFiles!
-          .map((file) => _buildThumbnail(context, imageFile: file))
-          .toList(),
+      children: List.generate(count, (index) {
+        return _buildThumbnail(
+          context,
+          imageFile: index < localCount ? imageFiles![index] : null,
+          remoteImage: index < remoteCount ? remoteImages![index] : null,
+        );
+      }),
     );
   }
 

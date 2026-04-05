@@ -202,11 +202,11 @@ class ProfileMenuPage extends StatelessWidget {
                 // Profile Avatar
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor: cs.secondary.withValues(alpha: 0.4),
                   child: Icon(
                     Icons.person,
                     size: 56,
-                    color: Colors.grey.shade500,
+                    color: cs.primary.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 16),

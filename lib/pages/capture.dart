@@ -150,7 +150,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.account_circle),
+                        icon: const Icon(Icons.account_circle_rounded),
                         iconSize: 39,
                         color: cs.primary,
                       ),
