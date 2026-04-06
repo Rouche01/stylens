@@ -417,7 +417,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
               onActionSelected: (source) => _handleImageCapture(
                 source,
                 onImagePicked: (file) {
-                  _sessionManager.processInitialOutfitFlow([
+                  _sessionManager.submitInitialOutfit([
                     AppImage(localFile: file),
                   ]);
                 },

@@ -220,19 +220,20 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> processInitialOutfit(List<AppImage> images) async {
-    await _selectedSessionSlice.processInitialOutfit(images);
+  Future<void> startSessionWithOutfit(List<AppImage> images) async {
+    await _selectedSessionSlice.startSessionWithOutfit(images);
     notifyListeners();
   }
 
-  Future<void> processInitialOutfitFlow(List<AppImage> images) async {
-    await _selectedSessionSlice.processInitialOutfitFlow(images);
-    notifyListeners();
-  }
-
-  Future<void> initializeNewSession(List<AppImage>? images) async {
+  Future<void> startEmptySession() async {
     clearOperationErrors();
-    await _selectedSessionSlice.initializeNew(images);
+    await _selectedSessionSlice.startEmptySession();
+    notifyListeners();
+  }
+
+  Future<void> submitInitialOutfit(List<AppImage> images) async {
+    await _selectedSessionSlice.submitInitialOutfit(images);
+    notifyListeners();
   }
 
   Future<String?> createSession() async {

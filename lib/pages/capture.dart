@@ -45,7 +45,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
         context.read<AssetUploadManager>().uploadAssets([remoteImage.key]);
 
         // Step 3: Initialize the session with the metadata and local file
-        context.read<StyleAnalysisSessionManager>().initializeNewSession([
+        context.read<StyleAnalysisSessionManager>().startSessionWithOutfit([
           AppImage(localFile: imageFile, remoteImage: remoteImage),
         ]);
 

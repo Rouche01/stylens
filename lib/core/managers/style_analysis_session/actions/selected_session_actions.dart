@@ -278,17 +278,18 @@ mixin SelectedSessionActions {
     }
   }
 
-  Future<void> processInitialOutfit(List<AppImage> images) async {
-    addMessage(UserRole.user, images: images, text: _initialPrompt);
+  Future<void> startSessionWithOutfit(List<AppImage> images) async {
+    await submitInitialOutfit(images);
+  }
 
+  Future<void> _addInitialStylistResponse() async {
     addLoadingMessage();
     await Future.delayed(const Duration(milliseconds: 1500));
     removeLoadingMessage();
-
     addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
   }
 
-  Future<void> processInitialOutfitFlow(List<AppImage> images) async {
+  Future<void> submitInitialOutfit(List<AppImage> images) async {
     addMessage(UserRole.user, images: images, text: _initialPrompt);
     addLoadingMessage();
     sliceStateManager.notify();
@@ -306,35 +307,25 @@ mixin SelectedSessionActions {
           .toList();
       updateLastUserMessage(remoteImages: allRemoteImages);
 
-      // 3. Finish the initial outfit process
-      await processInitialOutfit(updatedImages);
+      // 3. Finalize with the stylist's reply
+      await _addInitialStylistResponse();
     } catch (e) {
-      debugPrint('Error in processInitialOutfitFlow: $e');
+      debugPrint('Error in submitInitialOutfit: $e');
     }
   }
 
-  Future<void> initializeNew(List<AppImage>? images) async {
-    if (images?.any((img) => img.localFile != null) ?? false) {
-      await processInitialOutfitFlow(images!);
-    } else if (images?.isNotEmpty ?? false) {
-      addMessage(UserRole.user, images: images, text: _initialPrompt);
-      addLoadingMessage();
-      await Future.delayed(const Duration(milliseconds: 1500));
-      removeLoadingMessage();
-      addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
-    } else {
-      addLoadingMessage();
-      await Future.delayed(const Duration(milliseconds: 1000));
-      removeLoadingMessage();
+  Future<void> startEmptySession() async {
+    addLoadingMessage();
+    await Future.delayed(const Duration(milliseconds: 1000));
+    removeLoadingMessage();
 
-      addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
+    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
 
-      addLoadingMessage();
-      await Future.delayed(const Duration(milliseconds: 2000));
-      removeLoadingMessage();
+    addLoadingMessage();
+    await Future.delayed(const Duration(milliseconds: 2000));
+    removeLoadingMessage();
 
-      addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
-    }
+    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
   }
 
   void updateLastUserMessage({List<RemoteImage>? remoteImages}) {
