@@ -171,8 +171,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // ============================================================
   // SESSIONS OPERATIONS
   // ============================================================
-  Future<void> fetchSessions({bool refresh = false, bool? isFavourite}) =>
-      _sessionsSlice.fetch(refresh: refresh, isFavourite: isFavourite);
+  Future<void> fetchSessions({bool forceRefresh = false, bool? isFavourite}) =>
+      _sessionsSlice.fetch(forceRefresh: forceRefresh, isFavourite: isFavourite);
 
   Future<void> loadMoreSessions() => _sessionsSlice.loadMore();
 
@@ -267,7 +267,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
           ActionState<void>.success(null);
       notifyListeners();
 
-      _sessionsSlice.fetch();
+      _sessionsSlice.fetch(forceRefresh: true);
 
       // Delay briefly to allow backend to update usage limits, then sync subscription
       Future.delayed(const Duration(seconds: 2), () {

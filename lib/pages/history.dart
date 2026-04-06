@@ -52,7 +52,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
     );
 
     if (mounted) {
-      sessionManager.fetchSessions(refresh: true);
+      sessionManager.fetchSessions(forceRefresh: true);
     }
   }
 
@@ -114,7 +114,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
             icon: Icon(Icons.refresh, size: 24),
             onPressed: () {
               context.read<StyleAnalysisSessionManager>().fetchSessions(
-                refresh: true,
+                forceRefresh: true,
                 isFavourite: _selectedFilter == 'Favorites' ? true : null,
               );
             },
@@ -146,7 +146,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
                   ElevatedButton(
                     onPressed: () {
                       sessionManager.fetchSessions(
-                        refresh: true,
+                        forceRefresh: true,
                         isFavourite: _selectedFilter == 'Favorites'
                             ? true
                             : null,
@@ -218,7 +218,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
                         onNotification: _handleScrollNotification,
                         child: RefreshIndicator(
                           onRefresh: () => sessionManager.fetchSessions(
-                            refresh: true,
+                            forceRefresh: true,
                             isFavourite: _selectedFilter == 'Favorites'
                                 ? true
                                 : null,

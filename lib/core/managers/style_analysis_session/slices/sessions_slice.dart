@@ -36,13 +36,13 @@ class SessionsSlice {
   String? get error => _getState().error;
 
   // --- Operations ---
-  Future<void> fetch({bool refresh = false, bool? isFavourite}) async {
-    // Only fetch fresh data if refresh is explicitly requested, or if the filter changed.
+  Future<void> fetch({bool forceRefresh = false, bool? isFavourite}) async {
+    // Only fetch fresh data if forceRefresh is explicitly requested, or if the filter changed.
     final filterChanged = isFavourite != _isFavouriteFilter;
 
-    if (refresh || filterChanged) {
+    if (forceRefresh || filterChanged) {
       _paginationInfo = null;
-      if (!refresh) {
+      if (!forceRefresh) {
         _setState(ActionState.success([]));
       }
     }
@@ -52,7 +52,10 @@ class SessionsSlice {
     _setState(ActionState.loading(data: _getState().data));
     _notifyListeners();
 
-    final response = await _apiService.fetchSessions(isFavourite: isFavourite);
+    final response = await _apiService.fetchSessions(
+      isFavourite: isFavourite,
+      forceRefresh: forceRefresh,
+    );
 
     if (response.isSuccess && response.data != null) {
       final paginatedResponse = response.data!;
@@ -147,12 +150,10 @@ class SessionsSlice {
   }) async {
     final previousSessions = List<StyleAnalysisSession>.from(sessions);
 
-    final updated = sessions.map((s) {
-      if (s.id == sessionId) {
-        return s.copyWith(isFavorite: isFavorite);
-      }
-      return s;
-    }).toList();
+    final updated = sessions
+        .map((s) => s.id == sessionId ? s.copyWith(isFavorite: isFavorite) : s)
+        .where((s) => _isFavouriteFilter != true || s.isFavorite)
+        .toList();
 
     _setState(ActionState.success(updated));
     _notifyListeners();

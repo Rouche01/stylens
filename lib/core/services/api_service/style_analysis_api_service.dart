@@ -18,12 +18,19 @@ class StyleAnalysisApiService extends BaseApiService {
     int page = 1,
     int pageSize = 10,
     bool? isFavourite,
+    bool forceRefresh = false,
   }) async {
     String path = 'sessions?page=$page&pageSize=$pageSize';
     if (isFavourite != null) path += '&is_favourite=$isFavourite';
 
     return get<PaginatedResponse<StyleAnalysisSession>>(
       path,
+      options: forceRefresh
+          ? CacheOptions(
+              store: MemCacheStore(), // Temporary store for override
+              policy: CachePolicy.refreshForceCache,
+            ).toOptions()
+          : null,
       fromJson: (data) {
         final sessionsResponse = StyleAnalysisSessionsResponse.fromJson(data);
         return PaginatedResponse(
