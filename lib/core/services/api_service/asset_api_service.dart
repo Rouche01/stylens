@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'package:gostylens/core/services/api_service/base_api_service.dart';
 import 'package:gostylens/models/api_responses/upload_url_response.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 
 class AssetApiService extends BaseApiService {
   AssetApiService() : super(resourcePath: 'assets');
@@ -9,6 +10,10 @@ class AssetApiService extends BaseApiService {
   Future<UploadUrlResponse> getUploadUrl(String filename) async {
     final response = await get<UploadUrlResponse>(
       'upload-url?filename=$filename',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
       fromJson: (json) => UploadUrlResponse.fromJson(json),
       defaultErrorMessage: 'Failed to get upload URL',
     );
@@ -33,6 +38,10 @@ class AssetApiService extends BaseApiService {
   Future<String> getDownloadUrl(String filename) async {
     final response = await get<String>(
       'download-url?filename=$filename',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
       fromJson: (data) => data.toString(),
       defaultErrorMessage: 'Failed to get download URL',
     );

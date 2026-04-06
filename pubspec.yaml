@@ -29,6 +29,9 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   get_it: ^9.2.1
   posthog_flutter: ^5.0.0
+  dio_cache_interceptor: ^3.5.1
+  dio_cache_interceptor_hive_store: ^4.0.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_store.dart';
+
 import 'package:gostylens/core/managers/global_loader/global_loader_controller.dart';
 import 'package:gostylens/core/services/api_service/auth_interceptor.dart';
 import 'package:gostylens/core/services/api_service/user_api_service.dart';
@@ -48,8 +52,32 @@ Future<void> setupLocator() async {
   await analyticsService.init();
   locator.registerSingleton<AnalyticsService>(analyticsService);
 
+  // Initialize Hybrid Cache Store for Dio (Memory + Hive)
+  final cacheDir = await getApplicationDocumentsDirectory();
+  final diskStore = HiveCacheStore(
+    cacheDir.path,
+    hiveBoxName: 'stylens_api_cache',
+  );
+  final memStore = MemCacheStore();
+
+  final cacheStore = BackupCacheStore(primary: memStore, secondary: diskStore);
+
+  final cacheOptions = CacheOptions(
+    store: cacheStore,
+    policy:
+        CachePolicy.request, // strictly adhere to HTTP Cache-Control headers
+    hitCacheOnErrorExcept: [
+      401,
+      403,
+    ], // fallback to cache on network errors Except Auth errors
+    maxStale: const Duration(days: 7),
+    priority: CachePriority.normal,
+    cipher: null,
+    keyBuilder: CacheOptions.defaultCacheKeyBuilder,
+    allowPostMethod: false,
+  );
+
   // Register API Services as Lazy Singletons
-  // Lazy means they won't be instantiated until the first time they are requested.
   locator.registerLazySingleton<UserApiService>(() => UserApiService());
   locator.registerLazySingleton<AssetApiService>(() => AssetApiService());
   locator.registerLazySingleton<SubscriptionApiService>(
@@ -76,13 +104,14 @@ Future<void> setupLocator() async {
     );
 
     d.interceptors.add(SupabaseAuthInterceptor(d));
+    d.interceptors.add(DioCacheInterceptor(options: cacheOptions));
 
     if (kDebugMode) {
       d.interceptors.add(
         PrettyDioLogger(
           requestHeader: true,
           requestBody: true,
-          responseBody: true,
+          responseBody: false, // Disable global body logging for performance
           responseHeader: false,
           error: true,
           compact: true,

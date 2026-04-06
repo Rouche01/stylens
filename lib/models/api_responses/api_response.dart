@@ -77,7 +77,8 @@ class ApiResponse<T> {
          ),
        );
 
-  bool get isSuccess => statusCode >= 200 && statusCode < 300;
+  bool get isSuccess =>
+      (statusCode >= 200 && statusCode < 300) || statusCode == 304;
 
   String get errorMessage => error?.message ?? 'Unknown error';
 }

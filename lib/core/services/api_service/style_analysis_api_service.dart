@@ -8,9 +8,10 @@ import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 
 class StyleAnalysisApiService extends BaseApiService {
-  StyleAnalysisApiService() : super(resourcePath: 'style-analysis/sessions/');
+  StyleAnalysisApiService() : super(resourcePath: 'style-analysis');
 
   // --- Sessions ---
   Future<ApiResponse<PaginatedResponse<StyleAnalysisSession>>> fetchSessions({
@@ -18,7 +19,7 @@ class StyleAnalysisApiService extends BaseApiService {
     int pageSize = 10,
     bool? isFavourite,
   }) async {
-    String path = '?page=$page&pageSize=$pageSize';
+    String path = 'sessions?page=$page&pageSize=$pageSize';
     if (isFavourite != null) path += '&is_favourite=$isFavourite';
 
     return get<PaginatedResponse<StyleAnalysisSession>>(
@@ -38,7 +39,7 @@ class StyleAnalysisApiService extends BaseApiService {
     required List<Map<String, dynamic>> messages,
   }) async {
     return post<String>(
-      '',
+      'sessions',
       body: {'messages': messages},
       fromJson: (data) => data['sessionId'] ?? data['id'],
       defaultErrorMessage: 'Failed to create session',
@@ -47,7 +48,7 @@ class StyleAnalysisApiService extends BaseApiService {
 
   Future<ApiResponse<void>> deleteSession(String sessionId) async {
     return delete<void>(
-      sessionId,
+      'sessions/$sessionId',
       defaultErrorMessage: 'Failed to delete session',
     );
   }
@@ -60,7 +61,11 @@ class StyleAnalysisApiService extends BaseApiService {
     int pageSize = 10,
   }) async {
     return get<PaginatedResponse<StyleAnalysisSessionMessage>>(
-      '$sessionId/messages?page=$page&pageSize=$pageSize',
+      'sessions/$sessionId/messages?page=$page&pageSize=$pageSize',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
       fromJson: (data) {
         final sessionMessagesResponse = SessionMessagesResponse.fromJson(data);
         return PaginatedResponse(
@@ -77,7 +82,7 @@ class StyleAnalysisApiService extends BaseApiService {
     required Map<String, dynamic> message,
   }) async {
     return post<void>(
-      '$sessionId/messages',
+      'sessions/$sessionId/messages',
       body: {'message': message},
       defaultErrorMessage: 'Failed to add message',
     );
@@ -88,7 +93,7 @@ class StyleAnalysisApiService extends BaseApiService {
     bool isFavorite,
   ) async {
     return patch<void>(
-      '$sessionId/favourite',
+      'sessions/$sessionId/favourite',
       body: {'isFavourite': isFavorite},
       defaultErrorMessage: 'Failed to update favorite status',
     );
@@ -99,7 +104,7 @@ class StyleAnalysisApiService extends BaseApiService {
     Map<String, dynamic> properties,
   ) async {
     return patch<void>(
-      sessionId,
+      'sessions/$sessionId',
       body: properties,
       defaultErrorMessage: 'Failed to update session',
     );
@@ -112,7 +117,9 @@ class StyleAnalysisApiService extends BaseApiService {
   }) async {
     final request = http.Request(
       'GET',
-      Uri.parse(buildUrl('$sessionId/stream?contextMode=$contextMode')),
+      Uri.parse(
+        buildUrl('sessions/$sessionId/stream?contextMode=$contextMode'),
+      ),
     );
 
     request.headers['Content-Type'] = 'application/json';

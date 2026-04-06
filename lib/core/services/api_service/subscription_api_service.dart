@@ -1,6 +1,7 @@
 import './base_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 
 class SubscriptionApiService extends BaseApiService {
   SubscriptionApiService() : super(resourcePath: 'subscriptions');
@@ -11,6 +12,10 @@ class SubscriptionApiService extends BaseApiService {
   ) async {
     return get<Subscription>(
       '/$userId',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
       fromJson: (data) => Subscription.fromJson(data),
       defaultErrorMessage: 'Subscription not found or error occurred',
     );

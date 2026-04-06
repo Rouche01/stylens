@@ -1,6 +1,7 @@
 import './base_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 
 class UserApiService extends BaseApiService {
   UserApiService() : super(resourcePath: 'users');
@@ -9,6 +10,10 @@ class UserApiService extends BaseApiService {
   Future<ApiResponse<User>> getUserByAuthId(String authId) async {
     return get<User>(
       '/auth/$authId',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
       fromJson: (data) => User.fromJson(data),
       defaultErrorMessage: 'User not found or error occurred',
     );
