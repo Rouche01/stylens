@@ -57,6 +57,17 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
   }
 
   @override
+  void didUpdateWidget(ImageWithFallback oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.remoteImage != oldWidget.remoteImage) {
+      setState(() {
+        _currentRemoteImage = widget.remoteImage;
+        _hasRetried = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // If no image source provided, show fallback immediately
     if (widget.imageFile == null && _currentRemoteImage == null) {

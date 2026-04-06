@@ -253,6 +253,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                   .isSessionBusy(session.id);
 
                               return SessionCard(
+                                key: ValueKey(session.id),
                                 session: session,
                                 isBusy: isSessionBusy,
                                 showFavoriteIndicator:
@@ -272,7 +273,9 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       floatingActionButton: StartConversationFab(
         onPressed: () {
-          context.read<StyleAnalysisSessionManager>().initializeNewSession(null);
+          context.read<StyleAnalysisSessionManager>().initializeNewSession(
+            null,
+          );
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),
