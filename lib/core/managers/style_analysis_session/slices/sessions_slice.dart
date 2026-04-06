@@ -49,7 +49,7 @@ class SessionsSlice {
 
     _isFavouriteFilter = isFavourite;
 
-    _setState(ActionState.loading());
+    _setState(ActionState.loading(data: _getState().data));
     _notifyListeners();
 
     final response = await _apiService.fetchSessions(isFavourite: isFavourite);

@@ -58,6 +58,12 @@ class SelectedSessionSlice with SelectedSessionActions {
 
   // --- Selection ---
   void select(String sessionId) {
+    // If selecting the same session, keep the existing messages cached!
+    // This allows smooth background refreshing without wiping the screen.
+    if (this.sessionId == sessionId) {
+      return;
+    }
+
     paginationInfo = null;
     isLoadingMoreMessages = false;
     sliceStateManager.setSuccess(
