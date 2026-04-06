@@ -49,7 +49,6 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   Map<MessageErrorType, void Function()> get _errorCallbacks => {
     MessageErrorType.failedFetch: fetchSelectedSessionMessages,
     MessageErrorType.streaming: () {
-      print('Streaming error');
       final id = selectedSessionId;
       if (id != null) {
         _selectedSessionSlice.addLoadingMessage();

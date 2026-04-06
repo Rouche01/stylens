@@ -271,9 +271,7 @@ mixin SelectedSessionActions {
       }
     } catch (e) {
       replaceLoadingWithError(
-        StyleAnalysisSessionMessageError(
-          message: 'Error: $e. Your message could not be sent.',
-        ),
+        StyleAnalysisSessionMessageError.fromRawError('Error: $e'),
       );
     }
   }
