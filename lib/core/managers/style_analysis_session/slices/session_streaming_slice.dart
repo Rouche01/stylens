@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/session_streaming_state.dart';
 import 'package:gostylens/utils/streaming_utils.dart';
@@ -109,12 +110,12 @@ class SessionStreamingSlice {
         print(
           'Streaming failed with status: ${response.statusCode} ${response.reasonPhrase}',
         );
-        final error = 'Failed: ${response.statusCode}';
+        final error = UxMessages.streamingFailed;
         _updateStatus(sessionId, SessionStreamingStatus.error, error: error);
         onError(sessionId, error);
       }
     } catch (e) {
-      final error = 'Stream error: $e';
+      final error = UxMessages.streamingFailed;
       _updateStatus(sessionId, SessionStreamingStatus.error, error: error);
       onError(sessionId, error);
     }

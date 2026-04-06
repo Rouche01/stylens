@@ -57,8 +57,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     super.initState();
     _sessionManager = context.read<StyleAnalysisSessionManager>();
 
-    _sessionManager.onStreamError = _showErrorSnackBar;
-
     _scrollController.addListener(_onScroll);
     _initializeSession();
 
@@ -75,28 +73,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     _saveStateAndDispose();
     _messageController.dispose();
     super.dispose();
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 10),
-        action: SnackBarAction(
-          label: 'Dismiss',
-          textColor: Colors.white,
-          onPressed: () {
-            if (mounted) {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            }
-          },
-        ),
-      ),
-    );
   }
 
   // ============================================================
@@ -256,7 +232,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   ErrorAction _buildMessageErrorAction(MessageErrorType messageErrorType) {
     if (messageErrorType == MessageErrorType.freeLimitReached) {
       return ErrorAction(
-        label: 'Upgrade plan',
+        label: _sessionManager.getErrorActionLabel(messageErrorType),
         labelStyle: TextStyle(
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.w600,
@@ -287,7 +263,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     }
 
     return ErrorAction(
-      label: 'Retry',
+      label: _sessionManager.getErrorActionLabel(messageErrorType),
       handleAction: () =>
           _sessionManager.retryLastFailedAction(errorType: messageErrorType),
     );

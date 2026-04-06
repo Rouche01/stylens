@@ -14,6 +14,8 @@ abstract class UxMessages {
   static const String uploadFailed =
       'Failed to upload image. Please try again.';
   static const String userNotFound = 'User not found or error occurred';
+  static const String streamingFailed =
+      'Unable to get response from stylist. Please try again.';
 
   // --- Snackbar ---
   static const String dismiss = 'Dismiss';

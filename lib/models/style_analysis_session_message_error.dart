@@ -3,6 +3,8 @@ enum MessageErrorType {
   failedFetch('FAILED_FETCH'),
   network('NETWORK'),
   generic('GENERIC'),
+  streaming('STREAMING'),
+  timeout('TIMEOUT'),
   unknown('UNKNOWN');
 
   final String value;
@@ -29,9 +31,9 @@ class StyleAnalysisSessionMessageError {
 
   /// Detects the error type from a raw error string
   factory StyleAnalysisSessionMessageError.fromRawError(
-    String errorMessage,
+    String errorMessage, [
     String? errorCode,
-  ) {
+  ]) {
     MessageErrorType type = MessageErrorType.generic;
 
     if (errorCode != null) {

@@ -48,7 +48,23 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   Map<MessageErrorType, void Function()> get _errorCallbacks => {
     MessageErrorType.failedFetch: fetchSelectedSessionMessages,
+    MessageErrorType.streaming: () {
+      print('Streaming error');
+      final id = selectedSessionId;
+      if (id != null) {
+        _selectedSessionSlice.addLoadingMessage();
+        _startStreaming(id, contextMode: ContextMode.recent);
+      }
+    },
   };
+
+  String getErrorActionLabel(MessageErrorType type) {
+    return switch (type) {
+      MessageErrorType.streaming => 'Try again',
+      MessageErrorType.freeLimitReached => 'Upgrade',
+      _ => 'Retry',
+    };
+  }
 
   // --- Slice Managers ---
   late final SessionsSlice _sessionsSlice;
@@ -465,7 +481,12 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       },
       onError: (id, error) {
         if (_selectedSessionSlice.sessionId == id) {
-          _selectedSessionSlice.removeLoadingMessage();
+          _selectedSessionSlice.replaceLoadingWithError(
+            StyleAnalysisSessionMessageError(
+              message: error,
+              type: MessageErrorType.streaming,
+            ),
+          );
           onStreamError?.call(error);
         }
       },
