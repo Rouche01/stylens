@@ -7,6 +7,8 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:provider/provider.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/pages/style_analysis.dart';
 
 mixin StyleAnalysisActions {
   /// Checks if the user has reached their free tier limit and shows paywall if needed.
@@ -14,7 +16,9 @@ mixin StyleAnalysisActions {
     final subManager = context.read<SubscriptionManager>();
 
     if (subManager.subscription == null) {
-      locator<GlobalLoaderController>().show('Your stylist is getting ready...');
+      locator<GlobalLoaderController>().show(
+        'Your stylist is getting ready...',
+      );
       try {
         await subManager.syncSubscription();
       } finally {
@@ -47,6 +51,20 @@ mixin StyleAnalysisActions {
     );
 
     return result == true;
+  }
+
+  /// Initiates a new chat session after validating limits and navigates to the session page
+  Future<void> startNewSessionAndNavigate(BuildContext context) async {
+    final canProceed = await checkLimitsAndProceed(context);
+    if (!canProceed) return;
+
+    if (!context.mounted) return;
+
+    context.read<StyleAnalysisSessionManager>().startEmptySession();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),
+    );
   }
 
   /// Uploads an image to R2 and returns the RemoteImage object.

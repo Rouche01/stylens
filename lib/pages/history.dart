@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/pages/style_analysis.dart';
@@ -12,7 +13,7 @@ class HistoryPage extends StatefulWidget {
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
+class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
   String _selectedFilter = 'All';
 
   @override
@@ -272,13 +273,7 @@ class _HistoryPageState extends State<HistoryPage> {
         },
       ),
       floatingActionButton: StartConversationFab(
-        onPressed: () {
-          context.read<StyleAnalysisSessionManager>().startEmptySession();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),
-          );
-        },
+        onPressed: () => startNewSessionAndNavigate(context),
       ),
     );
   }
