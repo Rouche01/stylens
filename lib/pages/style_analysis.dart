@@ -110,7 +110,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
     try {
       await _sessionManager.fetchSelectedSessionMessages();
-      _focusInput();
     } catch (e) {
       debugPrint('Error loading session: $e');
     }

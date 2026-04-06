@@ -53,7 +53,8 @@ class MessageInput extends StatelessWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: attachedImages!.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final file = attachedImages![index];
                     return Stack(
@@ -83,8 +84,9 @@ class MessageInput extends StatelessWidget {
                                   return Center(
                                     child: Icon(
                                       Icons.error_outline,
-                                      color:
-                                          Theme.of(context).colorScheme.error,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
                                     ),
                                   );
                                 },
@@ -102,8 +104,10 @@ class MessageInput extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.7),
                                 shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 1.5),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.2),
@@ -127,6 +131,7 @@ class MessageInput extends StatelessWidget {
               ),
             ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (onAttachPressed != null) ...[
                 IconButton(
@@ -147,6 +152,10 @@ class MessageInput extends StatelessWidget {
                   focusNode: focusNode,
                   autofocus: shouldAutoFocus,
                   enabled: !isTextFieldDisabled,
+                  minLines: 1,
+                  maxLines: 4,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
                   decoration: InputDecoration(
                     hintText: placeholder,
                     border: OutlineInputBorder(
