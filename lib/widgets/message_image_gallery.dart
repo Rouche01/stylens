@@ -61,7 +61,8 @@ class MessageImageGallery extends StatelessWidget {
             fit: BoxFit.cover,
             borderRadius: BorderRadius.circular(8),
           ),
-          if (remoteImage != null)
+          // Only show upload status for fresh uploads (active session)
+          if (remoteImage != null && imageFile != null)
             Positioned(
               bottom: 6,
               right: 6,
@@ -93,7 +94,8 @@ class MessageImageGallery extends StatelessWidget {
             fit: BoxFit.cover,
             borderRadius: BorderRadius.circular(8),
           ),
-          if (remoteImage != null)
+          // Only show upload status for fresh uploads (active session)
+          if (remoteImage != null && imageFile != null)
             Positioned(
               bottom: 4,
               right: 4,

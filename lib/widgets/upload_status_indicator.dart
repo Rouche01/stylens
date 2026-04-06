@@ -44,12 +44,14 @@ class _UploadStatusIndicatorState extends State<UploadStatusIndicator>
       builder: (context, manager, child) {
         final status = manager.getStatus(widget.assetKey);
 
+        if (status == null) return const SizedBox.shrink();
+
         if (status == AssetUploadStatus.success) {
           // Trigger the fade out after a brief checkmark display
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted && _isVisible) {
               _fadeController.forward().then((_) {
-                 setState(() => _isVisible = false);
+                setState(() => _isVisible = false);
               });
             }
           });
@@ -83,11 +85,7 @@ class _UploadStatusIndicatorState extends State<UploadStatusIndicator>
           ),
         );
       case AssetUploadStatus.success:
-        return const Icon(
-          Icons.check,
-          size: 12,
-          color: Colors.white,
-        );
+        return const Icon(Icons.check, size: 12, color: Colors.white);
       case AssetUploadStatus.failure:
         return const Icon(
           Icons.priority_high,

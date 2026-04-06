@@ -33,8 +33,8 @@ class AssetUploadManager extends ChangeNotifier {
 
   List<AssetUploadTask> get tasks => _tasks.values.toList();
 
-  AssetUploadStatus getStatus(String key) =>
-      _tasks[key]?.status ?? AssetUploadStatus.pending;
+  AssetUploadStatus? getStatus(String key) =>
+      _tasks[key]?.status;
 
   AssetUploadTask? getTask(String key) => _tasks[key];
 
