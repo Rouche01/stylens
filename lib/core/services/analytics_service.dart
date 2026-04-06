@@ -7,8 +7,12 @@ class AnalyticsService {
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
 
+  /// Set this to false to temporarily disable all PostHog events
+  static const bool _enabled = false;
+
   /// Initialize PostHog with configuration
   Future<void> init() async {
+    if (!_enabled) return;
     try {
       final config = PostHogConfig(EnvConfig.posthogApiKey);
       config.host = EnvConfig.posthogHost;
@@ -40,6 +44,7 @@ class AnalyticsService {
     String userId, {
     Map<String, Object>? properties,
   }) async {
+    if (!_enabled) return;
     await Posthog().identify(userId: userId, userProperties: properties);
   }
 
@@ -48,6 +53,7 @@ class AnalyticsService {
     String eventName, {
     Map<String, Object>? properties,
   }) async {
+    if (!_enabled) return;
     await Posthog().capture(eventName: eventName, properties: properties);
   }
 
@@ -56,6 +62,7 @@ class AnalyticsService {
     String screenName, {
     Map<String, Object>? properties,
   }) async {
+    if (!_enabled) return;
     await Posthog().screen(screenName: screenName, properties: properties);
   }
 
@@ -65,6 +72,7 @@ class AnalyticsService {
     StackTrace? stackTrace,
     Map<String, Object>? properties,
   }) async {
+    if (!_enabled) return;
     await Posthog().captureException(
       error: error,
       stackTrace: stackTrace,
@@ -74,6 +82,7 @@ class AnalyticsService {
 
   /// Reset the user (on logout)
   Future<void> reset() async {
+    if (!_enabled) return;
     await Posthog().reset();
   }
 }

@@ -16,6 +16,7 @@ import 'package:gostylens/widgets/action_card.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/models/app_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   const StyleAnalysisPage({super.key});
@@ -181,7 +182,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
     await _sessionManager.sendMessage(
       text: text,
-      imageFiles: _sessionManager.attachedImageFiles,
+      images: _sessionManager.attachedImageFiles
+          .map((f) => AppImage(localFile: f))
+          .toList(),
     );
   }
 
@@ -414,7 +417,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
               onActionSelected: (source) => _handleImageCapture(
                 source,
                 onImagePicked: (file) {
-                  _sessionManager.processInitialOutfitFlow([file]);
+                  _sessionManager.processInitialOutfitFlow([
+                    AppImage(localFile: file),
+                  ]);
                 },
               ),
             );

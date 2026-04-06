@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
@@ -137,9 +136,7 @@ mixin SelectedSessionActions {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     final messageEntries = sortedMessages
-        .where(
-          (msg) => msg.text != null || (msg.images?.isNotEmpty ?? false),
-        )
+        .where((msg) => msg.text != null || (msg.images?.isNotEmpty ?? false))
         .map(
           (msg) => {
             'role': msg.role.name,
@@ -210,7 +207,7 @@ mixin SelectedSessionActions {
   // --- Sending Flow ---
   Future<void> sendMessage({
     required String text,
-    required List<File> imageFiles,
+    required List<AppImage> images,
     required Future<void> Function(
       String sessionId, {
       required ContextMode contextMode,
@@ -221,11 +218,7 @@ mixin SelectedSessionActions {
     final isNew = id == null;
 
     // 1. Add to local UI immediately
-    addMessage(
-      UserRole.user,
-      text: text,
-      images: imageFiles.map((f) => AppImage(localFile: f)).toList(),
-    );
+    addMessage(UserRole.user, text: text, images: images);
 
     // 2. Clear draft state
     clearAttachedImages();
@@ -234,15 +227,14 @@ mixin SelectedSessionActions {
     sliceStateManager.notify();
 
     try {
-      // 3. Reserve Keys (Parallel Fast Requests) and Queue Background Uploads
-      final remoteImages = await Future.wait<RemoteImage>(
-        imageFiles.map((file) => assetUploadManager.prepareAsset(file)),
+      // 3. Ensure all assets are prepared and uploads started
+      final updatedImages = await assetUploadManager.ensureAssetsPrepared(
+        images,
       );
-
-      // 4. Start the binary uploads in the background (Non-awaited)
-      assetUploadManager.uploadAssets(
-        remoteImages.map((ri) => ri.key).toList(),
-      );
+      final remoteImages = updatedImages
+          .map((i) => i.remoteImage)
+          .whereType<RemoteImage>()
+          .toList();
 
       // Update local message with remote images
       updateLastUserMessage(remoteImages: remoteImages);
@@ -273,7 +265,7 @@ mixin SelectedSessionActions {
             'session_id': finalSessionId,
             'user_role': UserRole.user.name,
             'has_text': text.isNotEmpty,
-            'has_images': imageFiles.isNotEmpty,
+            'has_images': images.isNotEmpty,
           },
         );
       }
@@ -286,25 +278,8 @@ mixin SelectedSessionActions {
     }
   }
 
-  Future<void> processInitialOutfit(
-    List<File> files,
-    List<RemoteImage> remoteImages,
-  ) async {
-    addMessage(
-      UserRole.user,
-      images: files
-          .map(
-            (f) => AppImage(
-              localFile: f,
-              remoteImage: remoteImages.firstWhere(
-                (ri) => ri.key == f.path.split('/').last, // Simple lookup or zip
-                orElse: () => remoteImages.first, // Fallback
-              ),
-            ),
-          )
-          .toList(),
-      text: _initialPrompt,
-    );
+  Future<void> processInitialOutfit(List<AppImage> images) async {
+    addMessage(UserRole.user, images: images, text: _initialPrompt);
 
     addLoadingMessage();
     await Future.delayed(const Duration(milliseconds: 1500));
@@ -313,49 +288,36 @@ mixin SelectedSessionActions {
     addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
   }
 
-  Future<void> processInitialOutfitFlow(List<File> files) async {
-    addMessage(
-      UserRole.user,
-      images: files.map((f) => AppImage(localFile: f)).toList(),
-      text: _initialPrompt,
-    );
+  Future<void> processInitialOutfitFlow(List<AppImage> images) async {
+    addMessage(UserRole.user, images: images, text: _initialPrompt);
     addLoadingMessage();
     sliceStateManager.notify();
 
     try {
-      final remoteImages = await Future.wait<RemoteImage>(
-        files.map((file) => assetUploadManager.prepareAsset(file)),
+      // 1. Ensure all assets are prepared and uploads started
+      final updatedImages = await assetUploadManager.ensureAssetsPrepared(
+        images,
       );
 
-      // Start background uploads
-      assetUploadManager.uploadAssets(
-        remoteImages.map((ri) => ri.key).toList(),
-      );
+      // 2. Update the UI with the final remote metadata (for status indicators)
+      final allRemoteImages = updatedImages
+          .map((i) => i.remoteImage)
+          .whereType<RemoteImage>()
+          .toList();
+      updateLastUserMessage(remoteImages: allRemoteImages);
 
-      // Complete initial outfit process
-      updateLastUserMessage(remoteImages: remoteImages);
-      await processInitialOutfit(files, remoteImages);
+      // 3. Finish the initial outfit process
+      await processInitialOutfit(updatedImages);
     } catch (e) {
       debugPrint('Error in processInitialOutfitFlow: $e');
     }
   }
 
-  Future<void> initializeNew(
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
-  ) async {
-    if (imageFiles?.isNotEmpty ?? false) {
-      await processInitialOutfit(
-        imageFiles!,
-        remoteImages ?? [],
-      );
-    } else if (remoteImages?.isNotEmpty ?? false) {
-      addMessage(
-        UserRole.user,
-        images:
-            remoteImages!.map((ri) => AppImage(remoteImage: ri)).toList(),
-        text: _initialPrompt,
-      );
+  Future<void> initializeNew(List<AppImage>? images) async {
+    if (images?.any((img) => img.localFile != null) ?? false) {
+      await processInitialOutfitFlow(images!);
+    } else if (images?.isNotEmpty ?? false) {
+      addMessage(UserRole.user, images: images, text: _initialPrompt);
       addLoadingMessage();
       await Future.delayed(const Duration(milliseconds: 1500));
       removeLoadingMessage();
@@ -393,7 +355,10 @@ mixin SelectedSessionActions {
         // For simplicity during transition, if we have a list of remote images of same length, we zip them.
         final index = lastMsg.images!.indexOf(img);
         if (remoteImages != null && index < remoteImages.length) {
-          return AppImage(localFile: img.localFile, remoteImage: remoteImages[index]);
+          return AppImage(
+            localFile: img.localFile,
+            remoteImage: remoteImages[index],
+          );
         }
         return img;
       }).toList();
@@ -402,7 +367,8 @@ mixin SelectedSessionActions {
         text: lastMsg.text,
         role: lastMsg.role,
         timestamp: lastMsg.timestamp,
-        images: updatedImages ??
+        images:
+            updatedImages ??
             remoteImages?.map((ri) => AppImage(remoteImage: ri)).toList(),
         isLoading: lastMsg.isLoading,
         error: lastMsg.error,

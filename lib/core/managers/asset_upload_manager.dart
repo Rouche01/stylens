@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/models/app_image.dart';
 
 enum AssetUploadStatus { pending, uploading, success, failure }
 
@@ -37,6 +38,38 @@ class AssetUploadManager extends ChangeNotifier {
       _tasks[key]?.status;
 
   AssetUploadTask? getTask(String key) => _tasks[key];
+
+  /// Ensures all images in the list have remote target metadata (RemoteImage).
+  /// Prepares assets and starts background uploads for any missing metadata.
+  Future<List<AppImage>> ensureAssetsPrepared(List<AppImage> images) async {
+    final imagesToPrepare =
+        images.where((img) => img.remoteImage == null).toList();
+    final filesToPrepare =
+        imagesToPrepare.map((i) => i.localFile).whereType<File>().toList();
+
+    List<RemoteImage> newlyPrepared = [];
+    if (filesToPrepare.isNotEmpty) {
+      newlyPrepared = await Future.wait<RemoteImage>(
+        filesToPrepare.map((file) => prepareAsset(file)),
+      );
+
+      // Start background uploads for ONLY the newly prepared assets
+      uploadAssets(newlyPrepared.map((ri) => ri.key).toList());
+    }
+
+    // Map all images to their complete AppImage versions
+    return images.map((img) {
+      if (img.remoteImage != null) return img; // Already prepared
+      final file = img.localFile;
+      if (file == null) return img;
+
+      final index = filesToPrepare.indexOf(file);
+      if (index != -1 && index < newlyPrepared.length) {
+        return AppImage(localFile: file, remoteImage: newlyPrepared[index]);
+      }
+      return img;
+    }).toList();
+  }
 
   /// Reserves a RemoteImage object instantly (Fast JSON request).
   /// Doesn't start the binary upload yet.

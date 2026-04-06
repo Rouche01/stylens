@@ -220,25 +220,19 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> processInitialOutfit(
-    List<File> files,
-    List<RemoteImage> remoteImages,
-  ) async {
-    await _selectedSessionSlice.processInitialOutfit(files, remoteImages);
+  Future<void> processInitialOutfit(List<AppImage> images) async {
+    await _selectedSessionSlice.processInitialOutfit(images);
     notifyListeners();
   }
 
-  Future<void> processInitialOutfitFlow(List<File> files) async {
-    await _selectedSessionSlice.processInitialOutfitFlow(files);
+  Future<void> processInitialOutfitFlow(List<AppImage> images) async {
+    await _selectedSessionSlice.processInitialOutfitFlow(images);
     notifyListeners();
   }
 
-  Future<void> initializeNewSession(
-    List<File>? imageFiles,
-    List<RemoteImage>? remoteImages,
-  ) async {
+  Future<void> initializeNewSession(List<AppImage>? images) async {
     clearOperationErrors();
-    await _selectedSessionSlice.initializeNew(imageFiles, remoteImages);
+    await _selectedSessionSlice.initializeNew(images);
   }
 
   Future<String?> createSession() async {
@@ -414,11 +408,11 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   Future<void> sendMessage({
     required String text,
-    required List<File> imageFiles,
+    required List<AppImage> images,
   }) async {
     await _selectedSessionSlice.sendMessage(
       text: text,
-      imageFiles: imageFiles,
+      images: images,
       startStreaming: _startStreaming,
     );
   }

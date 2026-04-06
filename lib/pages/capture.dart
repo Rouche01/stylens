@@ -10,6 +10,7 @@ import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'style_analysis.dart';
 import 'profile_menu.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/models/app_image.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({super.key});
@@ -44,10 +45,9 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
         context.read<AssetUploadManager>().uploadAssets([remoteImage.key]);
 
         // Step 3: Initialize the session with the metadata and local file
-        context.read<StyleAnalysisSessionManager>().initializeNewSession(
-          [imageFile],
-          [remoteImage],
-        );
+        context.read<StyleAnalysisSessionManager>().initializeNewSession([
+          AppImage(localFile: imageFile, remoteImage: remoteImage),
+        ]);
 
         // Step 3: Navigate instantly
         Navigator.push(
