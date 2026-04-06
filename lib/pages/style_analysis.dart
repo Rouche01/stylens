@@ -89,7 +89,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           label: 'Dismiss',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            if (mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            }
           },
         ),
       ),

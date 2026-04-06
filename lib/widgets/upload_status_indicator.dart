@@ -51,7 +51,9 @@ class _UploadStatusIndicatorState extends State<UploadStatusIndicator>
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted && _isVisible) {
               _fadeController.forward().then((_) {
-                setState(() => _isVisible = false);
+                if (mounted) {
+                  setState(() => _isVisible = false);
+                }
               });
             }
           });
