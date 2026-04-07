@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/closet.dart';
 import 'package:gostylens/pages/history.dart';
+import 'package:gostylens/widgets/start_conversation_fab.dart';
+import 'package:gostylens/utils/style_analysis_actions.dart';
 
 class MyHomePage extends StatefulWidget {
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with StyleAnalysisActions {
   var selectedIndex = 1;
 
   @override
@@ -68,6 +70,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
+      floatingActionButton: selectedIndex == 2
+          ? StartConversationFab(
+              onPressed: () => startNewSessionAndNavigate(context),
+            )
+          : null,
     );
   }
 }
