@@ -347,6 +347,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
               onSendMessage: _sendMessage,
               isSendDisabled: isSendDisabled,
               isTextFieldDisabled: isTextFieldDisabled,
+              autofocus: _isNewSession && !showActionCard,
               focusNode: _inputFocusNode,
               placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
               onAttachPressed: _isNewSession ? null : _onAttachPressed,

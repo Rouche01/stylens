@@ -42,8 +42,18 @@ class SessionsSlice {
 
     if (forceRefresh || filterChanged) {
       _paginationInfo = null;
-      if (!forceRefresh) {
-        _setState(ActionState.success([]));
+      // If the filter changed, we can optimistically filter the current list
+      // to avoid a jarring transition while the new data loads.
+      if (filterChanged && !forceRefresh) {
+        final currentData = _getState().data ?? [];
+        if (isFavourite == true) {
+          final optimisticData = currentData
+              .where((s) => s.isFavorite)
+              .toList();
+          _setState(ActionState.success(optimisticData));
+        }
+        // If switching to 'All', we keep the current favorites list
+        // as a starting point while the full list loads.
       }
     }
 

@@ -7,7 +7,7 @@ class MessageInput extends StatelessWidget {
   final VoidCallback onSendMessage;
   final bool isSendDisabled;
   final bool isTextFieldDisabled;
-  final shouldAutoFocus = true;
+  final bool autofocus;
   final FocusNode? focusNode;
   final String? placeholder;
   final VoidCallback? onAttachPressed;
@@ -21,6 +21,7 @@ class MessageInput extends StatelessWidget {
     required this.onSendMessage,
     this.isSendDisabled = false,
     this.isTextFieldDisabled = false,
+    this.autofocus = false,
     this.focusNode,
     this.placeholder = UxMessages.messagePlaceholderDefault,
     this.onAttachPressed,
@@ -150,7 +151,7 @@ class MessageInput extends StatelessWidget {
                 child: TextField(
                   controller: messageController,
                   focusNode: focusNode,
-                  autofocus: shouldAutoFocus,
+                  autofocus: autofocus,
                   enabled: !isTextFieldDisabled,
                   minLines: 1,
                   maxLines: 4,
