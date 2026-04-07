@@ -25,7 +25,7 @@ void main() async {
 
     await dotenv.load(fileName: ".env.$environment");
     EnvConfig.init();
-    
+
     // Set up singleton services
     await setupLocator();
 
@@ -49,7 +49,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MyAppState()),
         ChangeNotifierProvider.value(value: locator<AuthStateManager>()),
         ChangeNotifierProvider.value(value: locator<SubscriptionManager>()),
-        ChangeNotifierProvider.value(value: locator<StyleAnalysisSessionManager>()),
+        ChangeNotifierProvider.value(
+          value: locator<StyleAnalysisSessionManager>(),
+        ),
         ChangeNotifierProvider.value(value: locator<UserStateManager>()),
         ChangeNotifierProvider.value(value: locator<AssetUploadManager>()),
       ],
@@ -57,59 +59,80 @@ class MyApp extends StatelessWidget {
         child: MaterialApp(
           title: 'Stylens',
           navigatorObservers: [PosthogObserver()],
-        builder: (context, child) => GlobalLoaderScope(child: child!),
-        theme: ThemeData(
-          fontFamily: 'Metropolis',
-          colorScheme:
-              ColorScheme.fromSeed(
-                seedColor: darkGreen,
-                primary: darkGreen,
-                secondary: limeGreen,
-                tertiary: lightGreen,
-                contrastLevel: 0.5,
-              ).copyWith(
-                surfaceDim: lightGreen,
-                outline: darkGreen.withValues(alpha: 0.3),
+          builder: (context, child) => GlobalLoaderScope(child: child!),
+          theme: ThemeData(
+            fontFamily: 'Metropolis',
+            colorScheme:
+                ColorScheme.fromSeed(
+                  seedColor: darkGreen,
+                  primary: darkGreen,
+                  secondary: limeGreen,
+                  tertiary: lightGreen,
+                  contrastLevel: 0.5,
+                ).copyWith(
+                  surfaceDim: lightGreen,
+                  outline: darkGreen.withValues(alpha: 0.3),
+                ),
+            appBarTheme: AppBarTheme(
+              backgroundColor: darkGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              centerTitle: true,
+            ),
+            navigationBarTheme: NavigationBarThemeData(
+              backgroundColor: darkGreen,
+              indicatorColor: limeGreen.withValues(alpha: 0.2),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const IconThemeData(color: limeGreen, size: 26);
+                }
+                return IconThemeData(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 24,
+                );
+              }),
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const TextStyle(
+                    color: limeGreen,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  );
+                }
+                return TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                );
+              }),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: limeGreen,
+                foregroundColor: darkGreen,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               ),
-          appBarTheme: AppBarTheme(
-            backgroundColor: darkGreen,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-          ),
-          bottomNavigationBarTheme: BottomNavigationBarThemeData(
-            backgroundColor: darkGreen,
-            selectedItemColor: limeGreen,
-            unselectedItemColor: Colors.white70,
-            type: BottomNavigationBarType.fixed,
-            elevation: 8,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: limeGreen,
-              foregroundColor: darkGreen,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: darkGreen,
+                side: BorderSide(color: darkGreen),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             ),
           ),
-          outlinedButtonTheme: OutlinedButtonThemeData(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: darkGreen,
-              side: BorderSide(color: darkGreen),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            ),
-          ),
+          home: const AuthGate(),
         ),
-        home: const AuthGate(),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class MyAppState extends ChangeNotifier {}
