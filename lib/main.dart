@@ -80,7 +80,9 @@ class MyApp extends StatelessWidget {
               centerTitle: true,
             ),
             navigationBarTheme: NavigationBarThemeData(
-              backgroundColor: darkGreen,
+              backgroundColor: darkGreen.withValues(alpha: 0.9),
+              elevation: 0,
+              surfaceTintColor: Colors.transparent,
               indicatorColor: limeGreen.withValues(alpha: 0.2),
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               iconTheme: WidgetStateProperty.resolveWith((states) {
