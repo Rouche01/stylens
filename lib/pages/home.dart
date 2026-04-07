@@ -30,7 +30,7 @@ class _MyHomePageState extends State<MyHomePage> with StyleAnalysisActions {
     }
 
     return Scaffold(
-      extendBody: selectedIndex == 2,
+      // extendBody: selectedIndex == 2,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         switchInCurve: Curves.easeInOut,

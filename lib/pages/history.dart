@@ -227,7 +227,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
                               left: 16,
                               right: 16,
                               top: 8,
-                              bottom: 100,
+                              bottom: 16,
                             ),
                             itemCount:
                                 allSessions.length +
