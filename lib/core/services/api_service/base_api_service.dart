@@ -99,23 +99,29 @@ abstract class BaseApiService {
         options: requestOptions,
       );
 
-      if (response.statusCode != null &&
+      final isSuccess =
+          response.statusCode != null &&
           ((response.statusCode! >= 200 && response.statusCode! < 300) ||
-              response.statusCode == 304)) {
-        if (fromJson != null) {
-          return ApiResponse.success(
-            fromJson(response.data),
-            statusCode: response.statusCode!,
-          );
-        }
-        return ApiResponse.success(null, statusCode: response.statusCode!);
+              response.statusCode == 304);
+
+      if (!isSuccess) {
+        // This should normally be caught by DioException if validateStatus is working,
+        // but we throw here as a safety measure to ensure it's handled consistently.
+        throw dio.DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: dio.DioExceptionType.badResponse,
+        );
       }
 
-      return ApiResponse.error(
-        defaultMessage: defaultErrorMessage,
-        dioResponse: response,
-        statusCode: response.statusCode ?? -1,
-      );
+      if (fromJson != null) {
+        return ApiResponse.success(
+          fromJson(response.data),
+          statusCode: response.statusCode!,
+        );
+      }
+
+      return ApiResponse.success(null, statusCode: response.statusCode!);
     } on dio.DioException catch (e) {
       return ApiResponse.error(
         defaultMessage: defaultErrorMessage,

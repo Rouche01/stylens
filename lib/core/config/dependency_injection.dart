@@ -99,7 +99,9 @@ Future<void> setupLocator() async {
       dio.BaseOptions(
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
-        validateStatus: (status) => status != null && status < 500,
+        validateStatus: (status) =>
+            status != null &&
+            ((status >= 200 && status < 300) || status == 304),
       ),
     );
 
