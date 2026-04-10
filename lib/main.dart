@@ -80,6 +80,7 @@ class MyApp extends StatelessWidget {
               centerTitle: true,
             ),
             navigationBarTheme: NavigationBarThemeData(
+              height: 60,
               backgroundColor: darkGreen.withValues(alpha: 0.9),
               elevation: 0,
               surfaceTintColor: Colors.transparent,
@@ -87,7 +88,7 @@ class MyApp extends StatelessWidget {
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               iconTheme: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
-                  return const IconThemeData(color: limeGreen, size: 26);
+                  return const IconThemeData(color: limeGreen, size: 24);
                 }
                 return IconThemeData(
                   color: Colors.white.withValues(alpha: 0.7),
@@ -99,13 +100,15 @@ class MyApp extends StatelessWidget {
                   return const TextStyle(
                     color: limeGreen,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontSize: 11,
+                    height: 1.0,
                   );
                 }
                 return TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
-                  fontSize: 12,
+                  fontSize: 11,
+                  height: 1.0,
                 );
               }),
             ),
