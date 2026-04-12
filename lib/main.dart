@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
               centerTitle: true,
             ),
             navigationBarTheme: NavigationBarThemeData(
-              height: 60,
+              height: 56,
               backgroundColor: darkGreen.withValues(alpha: 0.9),
               elevation: 0,
               surfaceTintColor: Colors.transparent,
