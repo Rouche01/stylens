@@ -262,9 +262,8 @@ class ProfileMenuPage extends StatelessWidget {
                     _MenuItem(
                       icon: Icons.help_outline,
                       label: 'Support & FAQs',
-                      // TODO: Replace with actual FAQ link
                       onTap: () => launchUrl(
-                        Uri.parse(Links.faq),
+                        Uri.parse(Links.support),
                         mode: LaunchMode.inAppBrowserView,
                       ),
                     ),
