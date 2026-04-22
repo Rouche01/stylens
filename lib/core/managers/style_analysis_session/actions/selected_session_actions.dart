@@ -284,7 +284,7 @@ mixin SelectedSessionActions {
     addLoadingMessage();
     await Future.delayed(const Duration(milliseconds: 1500));
     removeLoadingMessage();
-    addMessage(UserRole.system, text: _initialBotReplyWithImage);
+    addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
   }
 
   Future<void> submitInitialOutfit(List<AppImage> images) async {
