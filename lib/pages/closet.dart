@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gostylens/widgets/primary_button.dart';
-import 'package:gostylens/widgets/custom_form_field.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -15,7 +18,10 @@ class ClosetPage extends StatefulWidget {
 class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
   late AnimationController _controller;
   late AnimationController _pulseController;
-  final TextEditingController _emailController = TextEditingController();
+  bool _hasNotified = false;
+  bool _justNotified = false;
+
+  static const _prefKey = 'closet_notified';
 
   final List<IconData> _clothingIcons = [
     FontAwesomeIcons.shirt,
@@ -31,6 +37,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _loadNotifiedState();
     _controller = AnimationController(
       duration: const Duration(seconds: 10),
       vsync: this,
@@ -42,11 +49,19 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
     )..repeat(reverse: true);
   }
 
+  Future<void> _loadNotifiedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _hasNotified = prefs.getBool(_prefKey) ?? false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     _pulseController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -221,64 +236,82 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 32),
 
-                          // Email Capture
+                          // Notify Me / Confirmation
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24.0,
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: CustomFormField(
-                                    controller: _emailController,
-                                    fieldType: FieldType.email,
-                                    hintText: 'your@email.com',
-                                    hintStyle: TextStyle(
-                                      color: cs.secondary.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 15,
-                                    ),
-                                    textStyle: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 15,
-                                    ),
-                                    fillColor: cs.primary.withValues(
-                                      alpha: 0.5,
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide(
-                                        color: cs.secondary.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide(
-                                        color: cs.secondary.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 16,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: PrimaryButton(
-                                    label: 'Notify me',
-                                    onPressed: () {
-                                      // Logic for notification
+                            child: _hasNotified
+                                ? (_justNotified
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: cs.secondary.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: cs.secondary.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.check_circle_rounded,
+                                                size: 18,
+                                                color: cs.secondary.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                "You're on the list!",
+                                                style: TextStyle(
+                                                  fontFamily: 'Metropolis',
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: cs.secondary
+                                                      .withValues(alpha: 0.8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : const SizedBox.shrink())
+                                : PrimaryButton(
+                                    label: 'Claim my spot',
+                                    onPressed: () async {
+                                      final email = context
+                                          .read<UserStateManager>()
+                                          .currentUser
+                                          ?.email;
+
+                                      AnalyticsService().capture(
+                                        'closet_notify_me',
+                                        properties: {
+                                          if (email != null) 'email': email,
+                                        },
+                                      );
+
+                                      final prefs =
+                                          await SharedPreferences.getInstance();
+                                      await prefs.setBool(_prefKey, true);
+
+                                      if (mounted) {
+                                        setState(() {
+                                          _hasNotified = true;
+                                          _justNotified = true;
+                                        });
+                                      }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: cs.primary,
@@ -300,13 +333,15 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 16,
                                       ),
+                                      minimumSize: const Size(
+                                        double.infinity,
+                                        48,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
-                          const SizedBox(height: 24),
+                          if (!_hasNotified || _justNotified)
+                            const SizedBox(height: 24),
                         ],
                       ),
                     ),
