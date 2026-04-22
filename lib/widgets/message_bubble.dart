@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
-import 'package:gostylens/widgets/formatted_error_text.dart';
+import 'package:gostylens/widgets/message_content.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/widgets/message_image_gallery.dart';
 
@@ -103,7 +103,7 @@ class MessageBubble extends StatelessWidget {
                     constraints: BoxConstraints(
                       maxWidth: totalImages == 1 ? 200 : double.infinity,
                     ),
-                    child: FormattedErrorText(
+                    child: MessageContent(
                       text: displayText,
                       baseStyle: TextStyle(
                         color: message.isError
