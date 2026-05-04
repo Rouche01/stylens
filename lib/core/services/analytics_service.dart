@@ -44,7 +44,11 @@ class AnalyticsService {
     String userId, {
     Map<String, Object>? properties,
   }) async {
-    if (!_enabled) return;
+    if (kDebugMode) {
+      debugPrint('👤 [PostHog] Identify: $userId');
+      if (properties != null) debugPrint('   Properties: $properties');
+    }
+    if (!_enabled || kDebugMode) return;
     await Posthog().identify(userId: userId, userProperties: properties);
   }
 
@@ -53,7 +57,11 @@ class AnalyticsService {
     String eventName, {
     Map<String, Object>? properties,
   }) async {
-    if (!_enabled) return;
+    if (kDebugMode) {
+      debugPrint('📊 [PostHog] Event: $eventName');
+      if (properties != null) debugPrint('   Properties: $properties');
+    }
+    if (!_enabled || kDebugMode) return;
     await Posthog().capture(eventName: eventName, properties: properties);
   }
 
@@ -62,7 +70,11 @@ class AnalyticsService {
     String screenName, {
     Map<String, Object>? properties,
   }) async {
-    if (!_enabled) return;
+    if (kDebugMode) {
+      debugPrint('📱 [PostHog] Screen: $screenName');
+      if (properties != null) debugPrint('   Properties: $properties');
+    }
+    if (!_enabled || kDebugMode) return;
     await Posthog().screen(screenName: screenName, properties: properties);
   }
 
@@ -72,7 +84,11 @@ class AnalyticsService {
     StackTrace? stackTrace,
     Map<String, Object>? properties,
   }) async {
-    if (!_enabled) return;
+    if (kDebugMode) {
+      debugPrint('🚨 [PostHog] Exception: $error');
+      if (properties != null) debugPrint('   Properties: $properties');
+    }
+    if (!_enabled || kDebugMode) return;
     await Posthog().captureException(
       error: error,
       stackTrace: stackTrace,
@@ -82,7 +98,10 @@ class AnalyticsService {
 
   /// Reset the user (on logout)
   Future<void> reset() async {
-    if (!_enabled) return;
+    if (kDebugMode) {
+      debugPrint('🔄 [PostHog] Reset');
+    }
+    if (!_enabled || kDebugMode) return;
     await Posthog().reset();
   }
 }
