@@ -1,6 +1,8 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart';
+import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Extension to handle Google Sign-In exceptions gracefully.
 extension GoogleSignInExceptionX on GoogleSignInException {
@@ -88,6 +90,26 @@ extension SignInWithAppleExceptionX on SignInWithAppleException {
   }
 }
 
+extension AuthApiExceptionX on AuthApiException {
+  String? get friendlyMessage {
+    return message;
+  }
+
+  String? get technicalCode {
+    return code;
+  }
+}
+
+extension ErrorDataX on ErrorData {
+  String? get friendlyMessage {
+    return message;
+  }
+
+  String? get technicalCode {
+    return code;
+  }
+}
+
 /// Utility class to parse various authentication errors.
 class AuthUtils {
   /// Parses authentication errors into friendly messages.
@@ -98,6 +120,14 @@ class AuthUtils {
     }
 
     if (error is SignInWithAppleException) {
+      return error.friendlyMessage;
+    }
+
+    if (error is AuthApiException) {
+      return error.friendlyMessage;
+    }
+
+    if (error is ErrorData) {
       return error.friendlyMessage;
     }
 
@@ -120,5 +150,29 @@ class AuthUtils {
     }
 
     return error.toString();
+  }
+
+  static String getAuthErrorCode(dynamic error) {
+    if (error is GoogleSignInException) {
+      return error.technicalCode;
+    }
+
+    if (error is ErrorData) {
+      return error.technicalCode ?? "UNKNOWN";
+    }
+
+    if (error is AuthApiException) {
+      return error.technicalCode ?? "UNKNOWN";
+    }
+
+    if (error is SignInWithAppleException) {
+      return error.technicalCode ?? "UNKNOWN";
+    }
+
+    if (error is PlatformException) {
+      return error.code;
+    }
+
+    return "UNKNOWN";
   }
 }

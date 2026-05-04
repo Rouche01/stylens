@@ -50,8 +50,22 @@ class AuthStateManager extends ChangeNotifier {
       _lastEmailSent = email;
       _startResendOTPTimer();
       onSuccess?.call();
-    } catch (e) {
-      onError?.call(e.toString());
+    } catch (e, stackTrace) {
+      _analyticsService.captureException(e, stackTrace: stackTrace);
+
+      _analyticsService.capture(
+        'auth_error',
+        properties: {
+          'method': 'otp',
+          'error_code': AuthUtils.getAuthErrorCode(e),
+        },
+      );
+
+      final friendlyError = AuthUtils.parseAuthError(e);
+
+      onError?.call(
+        friendlyError ?? 'Error trying to log in. Please try again.',
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -100,12 +114,24 @@ class AuthStateManager extends ChangeNotifier {
           );
           onSuccess?.call(true);
         } else {
-          // It failed for some other reason (500 Server Error, Network, etc.)
-          onError?.call('Failed to verify user profile: ${userResponse.error}');
+          throw userResponse.error!.message;
         }
       }
-    } catch (e) {
-      onError?.call(e.toString());
+    } catch (e, stackTrace) {
+      _analyticsService.captureException(e, stackTrace: stackTrace);
+
+      _analyticsService.capture(
+        'auth_error',
+        properties: {
+          'method': 'otp_verify',
+          'error_code': AuthUtils.getAuthErrorCode(e),
+        },
+      );
+
+      final friendlyError = AuthUtils.parseAuthError(e);
+      onError?.call(
+        friendlyError ?? 'Error trying to verify OTP. Please try again.',
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
