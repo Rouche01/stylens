@@ -46,6 +46,14 @@ class _AuthGateState extends State<AuthGate> {
           event == AuthChangeEvent.passwordRecovery ||
           event == AuthChangeEvent.initialSession) {
         if (mounted) {
+          // Reset state on sign out, deletion, or if we start with no session
+          if (event == AuthChangeEvent.signedOut ||
+              event == AuthChangeEvent.userDeleted ||
+              (event == AuthChangeEvent.initialSession &&
+                  data.session == null)) {
+            context.read<UserStateManager>().resetState();
+          }
+
           // Pop everything back to the AuthGate root
           Navigator.of(context).popUntil((route) => route.isFirst);
         }

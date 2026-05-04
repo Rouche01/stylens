@@ -102,7 +102,9 @@ class AuthStateManager extends ChangeNotifier {
             properties: {'email': email, 'auth_method': 'otp'},
           );
           onSuccess?.call(false);
-        } else if (userResponse.statusCode == 404) {
+        } else if (userResponse.statusCode == 404 ||
+            userResponse.error?.code == 'NOT_FOUND' ||
+            userResponse.error?.code == "STYLENS_USER_NOT_FOUND") {
           // User explicitly not found, they are a brand new user
           _analyticsService.identify(
             response.user!.id,
@@ -114,7 +116,7 @@ class AuthStateManager extends ChangeNotifier {
           );
           onSuccess?.call(true);
         } else {
-          throw userResponse.error!.message;
+          throw userResponse.error!;
         }
       }
     } catch (e, stackTrace) {

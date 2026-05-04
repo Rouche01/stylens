@@ -100,6 +100,19 @@ extension AuthApiExceptionX on AuthApiException {
   }
 }
 
+extension AuthRetryableFetchExceptionX on AuthRetryableFetchException {
+  String? get friendlyMessage {
+    if (code == "invalid_credentials") {
+      return "Invalid email or password. Please try again.";
+    }
+    return "An error occurred during authentication. Please try again.";
+  }
+
+  String get technicalCode {
+    return code ?? "unknown";
+  }
+}
+
 extension ErrorDataX on ErrorData {
   String? get friendlyMessage {
     return message;
@@ -124,6 +137,10 @@ class AuthUtils {
     }
 
     if (error is AuthApiException) {
+      return error.friendlyMessage;
+    }
+
+    if (error is AuthRetryableFetchException) {
       return error.friendlyMessage;
     }
 
@@ -157,22 +174,26 @@ class AuthUtils {
       return error.technicalCode;
     }
 
+    if (error is AuthRetryableFetchException) {
+      return error.technicalCode;
+    }
+
     if (error is ErrorData) {
-      return error.technicalCode ?? "UNKNOWN";
+      return error.technicalCode ?? "unknown";
     }
 
     if (error is AuthApiException) {
-      return error.technicalCode ?? "UNKNOWN";
+      return error.technicalCode ?? "unknown";
     }
 
     if (error is SignInWithAppleException) {
-      return error.technicalCode ?? "UNKNOWN";
+      return error.technicalCode ?? "unknown";
     }
 
     if (error is PlatformException) {
       return error.code;
     }
 
-    return "UNKNOWN";
+    return "unknown";
   }
 }

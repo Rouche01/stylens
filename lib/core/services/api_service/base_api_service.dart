@@ -127,6 +127,7 @@ abstract class BaseApiService {
         defaultMessage: defaultErrorMessage,
         error: e,
         dioResponse: e.response,
+        statusCode: e.response?.statusCode ?? -1,
       );
     } catch (e) {
       return ApiResponse.error(defaultMessage: defaultErrorMessage);

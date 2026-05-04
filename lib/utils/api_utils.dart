@@ -26,8 +26,12 @@ ErrorData parseApiError(ApiErrorInput input) {
     final data = input.dioResponse!.data;
 
     if (input.dioResponse?.statusCode == 404) {
+      String code = 'NOT_FOUND';
+      if (data is Map<String, dynamic>) {
+        code = data['code']?.toString() ?? 'NOT_FOUND';
+      }
       return ErrorData(
-        code: 'NOT_FOUND',
+        code: code,
         message: "We couldn't find what you're looking for. Please try again.",
       );
     }
