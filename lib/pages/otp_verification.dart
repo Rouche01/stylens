@@ -1,9 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/widgets/auth_header.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -96,19 +98,13 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         final resendSeconds = authStateManager.resendOTPSeconds;
 
         return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.surfaceDim,
           appBar: AppBar(
-            title: Text(
-              'Login / Sign up',
-              style: TextStyle(
-                fontFamily: 'ClashDisplay',
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
             backgroundColor: Theme.of(context).colorScheme.surfaceDim,
             elevation: 0,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back),
+              iconSize: 28,
               onPressed: () => Navigator.pop(context),
               style: IconButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.primary,
@@ -116,163 +112,158 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
             ),
           ),
           body: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 10,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        'assets/icon/icon.png',
-                        width: 55,
-                        height: 55,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Check Your Inbox',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontFamily: 'ClashDisplay',
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text:
-                                  'Your one-time verification code was sent to ',
-                              style: TextStyle(fontWeight: FontWeight.normal),
-                            ),
-                            TextSpan(
-                              text: widget.email,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AuthHeader(
+                            topPadding: 24,
+                            title: 'Check Your Inbox',
+                            subtitle: Text.rich(
+                              TextSpan(
+                                text:
+                                    'Your one-time verification code was sent to ',
+                                children: [
+                                  TextSpan(
+                                    text: widget.email,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: '. Enter code to continue.',
+                                  ),
+                                ],
                               ),
                             ),
-                            const TextSpan(
-                              text: '. Enter the code below to continue.',
-                              style: TextStyle(fontWeight: FontWeight.normal),
-                            ),
-                          ],
-                        ),
-                        style: TextStyle(color: Colors.grey[700]),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Pinput(
-                        length: 6,
-                        controller: _otpController,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        defaultPinTheme: PinTheme(
-                          width: 48,
-                          height: 56,
-                          textStyle: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
                           ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outline.withValues(alpha: 0.5),
-                            ),
-                            color: Colors.white,
-                          ),
-                        ),
-                        focusedPinTheme: PinTheme(
-                          width: 48,
-                          height: 56,
-                          textStyle: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
-                            color: Colors.white,
-                          ),
-                        ),
-                        submittedPinTheme: PinTheme(
-                          width: 48,
-                          height: 56,
-                          textStyle: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.05),
-                          ),
-                        ),
-                        onChanged: (_) => setState(() {}),
-                        onCompleted: (_) => _verifyOtp(),
-                      ),
-                      const SizedBox(height: 32),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: PrimaryButton(
-                          label: 'Verify Code',
-                          onPressed: authStateManager.isLoading
-                              ? null
-                              : _verifyOtp,
-                          disabled:
-                              _otpController.text.length < 6 ||
-                              authStateManager.isLoading,
-                          isLoading: authStateManager.isLoading,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text.rich(
-                        TextSpan(
-                          text: "Didn't receive the code? ",
-                          style: TextStyle(color: Colors.grey[700]),
-                          children: [
-                            TextSpan(
-                              text: canResend
-                                  ? 'Resend OTP'
-                                  : 'Resend OTP in ${resendSeconds}s...',
-                              style: TextStyle(
+                          Pinput(
+                            length: 6,
+                            controller: _otpController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            separatorBuilder: (index) =>
+                                const SizedBox(width: 6),
+                            defaultPinTheme: PinTheme(
+                              height: 60,
+                              textStyle: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
                                 color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                                decoration: canResend
-                                    ? TextDecoration.underline
-                                    : TextDecoration.none,
                               ),
-                              recognizer: _resendTapRecognizer
-                                ..onTap = canResend ? _onResend : null,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outline.withValues(alpha: 0.5),
+                                ),
+                                color: Colors.white,
+                              ),
                             ),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
+                            focusedPinTheme: PinTheme(
+                              height: 60,
+                              textStyle: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 2,
+                                ),
+                                color: Colors.white,
+                              ),
+                            ),
+                            submittedPinTheme: PinTheme(
+                              height: 60,
+                              textStyle: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.05),
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            onCompleted: (_) => _verifyOtp(),
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            child: PrimaryButton(
+                              label: 'Verify Code',
+                              onPressed: authStateManager.isLoading
+                                  ? null
+                                  : _verifyOtp,
+                              disabled:
+                                  _otpController.text.length < 6 ||
+                                  authStateManager.isLoading,
+                              isLoading: authStateManager.isLoading,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text.rich(
+                            TextSpan(
+                              text: "Didn't receive the code? ",
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                                fontSize: 14,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: canResend
+                                      ? 'Resend OTP'
+                                      : 'Resend OTP in ${resendSeconds}s...',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: canResend
+                                        ? TextDecoration.underline
+                                        : TextDecoration.none,
+                                  ),
+                                  recognizer: _resendTapRecognizer
+                                    ..onTap = canResend ? _onResend : null,
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                          const SizedBox(height: 32),
+                        ],
                       ),
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
-          backgroundColor: Theme.of(context).colorScheme.surfaceDim,
         );
       },
     );
