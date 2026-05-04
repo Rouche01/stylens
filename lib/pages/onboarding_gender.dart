@@ -18,8 +18,8 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
   int? _selectedIndex = 0;
 
   final List<_GenderOption> _options = [
-    _GenderOption('Men', Gender.male, Icons.male),
-    _GenderOption('Women', Gender.female, Icons.female),
+    _GenderOption('Man', Gender.male, Icons.male),
+    _GenderOption('Woman', Gender.female, Icons.female),
     _GenderOption('Non-binary', Gender.nonBinary, Icons.transgender),
     _GenderOption(
       'Prefer not to say',
@@ -92,13 +92,14 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
               ),
               const SizedBox(height: 32),
               Text(
-                'Which best describes you?',
+                'Tell us a bit about yourself',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context).colorScheme.primary,
                   fontFamily: 'ClashDisplay',
                   height: 1.2,
+                  letterSpacing: -0.5,
                 ),
                 textAlign: TextAlign.left,
               ),

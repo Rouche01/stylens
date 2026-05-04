@@ -74,6 +74,7 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
                   color: Theme.of(context).colorScheme.primary,
                   fontFamily: 'ClashDisplay',
                   height: 1.2,
+                  letterSpacing: -0.5,
                 ),
                 textAlign: TextAlign.left,
               ),
