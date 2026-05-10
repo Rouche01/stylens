@@ -190,12 +190,10 @@ class SubscriptionManager extends ChangeNotifier {
         body['tier'] = 'core';
         body['status'] = 'active';
         body['providerSubscriptionId'] = entitlement.productIdentifier;
-        body['hasReachedLimit'] = 0;
       } else {
         body['tier'] = 'free';
         body['providerSubscriptionId'] = null;
         body['status'] = 'free';
-        body['hasReachedLimit'] = 1;
       }
 
       await _subscriptionApiService.updateSubscription(

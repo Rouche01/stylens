@@ -48,6 +48,7 @@ app.*.map.json
 .env
 .env.development
 .env.production
+.env.staging
 
 # Firebase Google Services configuration
 android/app/google-services.json
