@@ -21,6 +21,31 @@ class Subscription {
     required this.hasReachedLimit,
   });
 
+  Subscription copyWith({
+    String? id,
+    String? userId,
+    String? tier,
+    String? provider,
+    String? providerCustomerId,
+    String? providerSubscriptionId,
+    String? status,
+    int? currentPeriodEnd,
+    bool? hasReachedLimit,
+  }) {
+    return Subscription(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      tier: tier ?? this.tier,
+      provider: provider ?? this.provider,
+      providerCustomerId: providerCustomerId ?? this.providerCustomerId,
+      providerSubscriptionId:
+          providerSubscriptionId ?? this.providerSubscriptionId,
+      status: status ?? this.status,
+      currentPeriodEnd: currentPeriodEnd ?? this.currentPeriodEnd,
+      hasReachedLimit: hasReachedLimit ?? this.hasReachedLimit,
+    );
+  }
+
   factory Subscription.fromJson(Map<String, dynamic> json) {
     return Subscription(
       id: json['id'] as String,

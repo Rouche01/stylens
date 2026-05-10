@@ -10,12 +10,18 @@ import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/core/services/realtime_service.dart';
+import 'package:flutter/material.dart';
 
-class SubscriptionManager extends ChangeNotifier {
+class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
   final SubscriptionApiService _subscriptionApiService;
+  final RealtimeService _realtimeService;
 
   SubscriptionManager()
-    : _subscriptionApiService = locator<SubscriptionApiService>();
+    : _subscriptionApiService = locator<SubscriptionApiService>(),
+      _realtimeService = locator<RealtimeService>() {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   bool _isInitialized = false;
   bool _isLoading = false;
@@ -23,7 +29,7 @@ class SubscriptionManager extends ChangeNotifier {
   Offerings? _offerings;
   Subscription? _subscription;
   String? _currentUserId;
-  Timer? _syncTimer;
+  StreamSubscription? _realtimeSubscription;
 
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
@@ -102,6 +108,20 @@ class SubscriptionManager extends ChangeNotifier {
     _currentUserId = dbId;
     _subscription = initialSubscription;
 
+    // Listen for subscription updates in realtime
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = _realtimeService
+        .onBroadcast(channel: 'user-limits:$dbId', event: 'limit_updated')
+        .listen((payload) {
+          final newLimit = payload['hasReachedLimit'] as bool?;
+          if (newLimit != null && _subscription != null) {
+            _subscription = _subscription!.copyWith(hasReachedLimit: newLimit);
+            notifyListeners();
+          }
+
+          syncSubscription();
+        });
+
     try {
       if (kDebugMode) {
         await Purchases.setLogLevel(LogLevel.debug);
@@ -135,12 +155,6 @@ class SubscriptionManager extends ChangeNotifier {
         Future.delayed(const Duration(minutes: 1), () {
           _pushRevenueCatState().then((_) => syncSubscription());
         });
-      });
-
-      // 🟢 Periodically sync every 5 minutes for additional safety
-      _syncTimer?.cancel();
-      _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
-        syncSubscription();
       });
 
       _isInitialized = true;
@@ -299,8 +313,26 @@ class SubscriptionManager extends ChangeNotifier {
     _offerings = null;
     _subscription = null;
     _currentUserId = null;
-    _syncTimer?.cancel();
-    _syncTimer = null;
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = null;
+    _realtimeService.reset();
     notifyListeners();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isInitialized) {
+      if (kDebugMode) {
+        print('🔄 [SubscriptionManager] App resumed, syncing subscription...');
+      }
+      syncSubscription();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _realtimeSubscription?.cancel();
+    super.dispose();
   }
 }
