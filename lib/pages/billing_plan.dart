@@ -190,6 +190,42 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                           ],
                         ],
                       ),
+                      if (subscription?.limits != null) ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          'PLAN ENTITLEMENTS',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: cs.primary.withValues(alpha: 0.4),
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoCard(
+                          context,
+                          children: [
+                            _buildInfoRow(
+                              context,
+                              label: 'Analysis Sessions',
+                              value:
+                                  '${subscription!.limits!.sessionCountLimit}',
+                            ),
+                            _buildInfoRow(
+                              context,
+                              label: 'Messages / Session',
+                              value:
+                                  '${subscription.limits!.messagePerSessionLimit}',
+                            ),
+                            _buildInfoRow(
+                              context,
+                              label: 'Images / Session',
+                              value:
+                                  '${subscription.limits!.imagePerSessionLimit}',
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
                       // Upgrade section (only for free users)
