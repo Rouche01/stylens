@@ -8,8 +8,8 @@
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>com.google.GIDSignIn</string>
-		<string>com.stylenslab.gostylens</string>
+		<string>$(AppIdentifierPrefix)com.google.GIDSignIn</string>
+		<string>$(AppIdentifierPrefix)com.stylenslab.gostylens</string>
 	</array>
 </dict>
 </plist>
