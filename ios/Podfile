@@ -4,6 +4,9 @@ platform :ios, '13.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Explicitly tell CocoaPods which workspace to use
+workspace 'Runner.xcworkspace'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -31,12 +34,14 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
 end
 
 post_install do |installer|
+  # Determine environment from DART_DEFINES (ENV=...)
   generated_xcconfig_path = File.join(__dir__, 'Flutter', 'Generated.xcconfig')
   environment = 'development'
   if File.exist?(generated_xcconfig_path)
@@ -54,6 +59,7 @@ post_install do |installer|
     end
   end
 
+  # Read PostHog vars from .env.<environment>
   env_path = File.join(__dir__, '..', ".env.#{environment}")
   posthog_api_key = ''
   posthog_host = ''
@@ -64,24 +70,28 @@ post_install do |installer|
     end
   end
 
+  # Keep Flutter defaults for pods (no signing overrides)
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
-      config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
-      config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
+      config.build_settings['CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]'] = 'NO'
+      config.build_settings['CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]'] = 'NO'
     end
   end
 
+  # Only inject PostHog-related build settings into the Runner project.
+  # Do NOT touch CODE_SIGNING_* here so Xcode can sign for your team.
   project_path = File.join(File.dirname(__FILE__), 'Runner.xcodeproj')
   project = Xcodeproj::Project.open(project_path)
   project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
-      config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
-      config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
       config.build_settings['POSTHOG_API_KEY'] = posthog_api_key unless posthog_api_key.empty?
       config.build_settings['POSTHOG_HOST'] = posthog_host unless posthog_host.empty?
+
+      if config.name == 'Debug'
+        config.build_settings['CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]'] = 'NO'
+        config.build_settings['CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]'] = 'NO'
+      end
     end
   end
   project.save
