@@ -50,6 +50,11 @@ jobs:
 
             - name: Get packages
               run: flutter pub get
+
+            - name: Install CocoaPods
+              run: |
+                cd ios
+                pod install
               
             - name: Setup Fastlane
               uses: ruby/setup-ruby@v1
