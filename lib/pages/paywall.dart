@@ -319,7 +319,7 @@ class PaywallFooter extends StatelessWidget {
     final price = selectedPackage?.storeProduct.price;
     final priceString = price != null
         ? NumberFormat.simpleCurrency(name: currencyCode).format(price)
-        : (isAnnual ? '\$5.99' : '\$79.99');
+        : (isAnnual ? '\$79.99' : '\$9.99');
 
     return Padding(
       padding: const EdgeInsets.symmetric(

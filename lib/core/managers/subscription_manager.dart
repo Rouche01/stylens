@@ -127,12 +127,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
         await Purchases.setLogLevel(LogLevel.debug);
       }
 
-      late PurchasesConfiguration configuration;
-      if (Platform.isAndroid) {
-        configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
-      } else if (Platform.isIOS) {
-        configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
-      }
+      final configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
 
       configuration.appUserID = dbId;
       await Purchases.configure(configuration);

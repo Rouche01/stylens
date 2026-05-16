@@ -8,7 +8,7 @@ class AnalyticsService {
   AnalyticsService._internal();
 
   /// Set this to false to temporarily disable all PostHog events
-  static const bool _enabled = false;
+  static const bool _enabled = true;
 
   /// Initialize PostHog with configuration
   Future<void> init() async {

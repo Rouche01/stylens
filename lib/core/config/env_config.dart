@@ -1,10 +1,26 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EnvConfig {
   static String get supabaseUrl => _get('SUPABASE_URL');
   static String get supabaseAnonKey => _get('SUPABASE_ANON_KEY');
   static String get apiBaseUrl => _get('API_BASE_URL');
-  static String get revenueCatApiKey => _get('REVENUE_CAT_API_KEY');
+
+  static String get revenueCatApiKey {
+    if (kIsWeb) return '';
+    if (Platform.isIOS) return _get('IOS_REVENUE_CAT_API_KEY');
+    if (Platform.isAndroid) return _get('ANDROID_REVENUE_CAT_API_KEY');
+    return '';
+  }
+
+  static String get googleOAuthClientId {
+    if (kIsWeb) return googleOAuthWebClientId;
+    if (Platform.isIOS) return googleOAuthIosClientId;
+    if (Platform.isAndroid) return googleOAuthAndroidClientId;
+    return googleOAuthWebClientId;
+  }
+
   static String get googleOAuthWebClientId =>
       _get('GOOGLE_OAUTH_WEB_CLIENT_ID');
   static String get googleOAuthIosClientId =>
@@ -19,7 +35,13 @@ class EnvConfig {
     supabaseUrl;
     supabaseAnonKey;
     apiBaseUrl;
-    revenueCatApiKey;
+
+    // Validate platform-specific RevenueCat keys
+    if (!kIsWeb) {
+      _get('IOS_REVENUE_CAT_API_KEY');
+      _get('ANDROID_REVENUE_CAT_API_KEY');
+    }
+
     googleOAuthWebClientId;
     googleOAuthIosClientId;
     googleOAuthAndroidClientId;
