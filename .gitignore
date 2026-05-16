@@ -53,3 +53,10 @@ app.*.map.json
 # Firebase Google Services configuration
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+
+# Fastlane
+ios/fastlane/*.json
+ios/fastlane/report.xml
+ios/fastlane/test_output
+ios/*.ipa
+ios/*.app.dSYM.zip

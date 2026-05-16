@@ -1,0 +1,152 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+platform :ios do
+  desc "Push a new iOS development build"
+  lane :development do |options|
+    # Setup the keychain and match to work with CI
+    setup_ci()
+    
+    # Increase build timeout to reduce failures on CI
+    ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
+    ENV["FASTLANE_XCODEBUILD_SETTINGS_RETRIES"] = "6"
+    
+    # Get required certificates and profiles
+    match(app_identifier: "com.stylenslab.gostylens", type: "adhoc")
+    
+    # Handle input parameters
+    version = options[:version] || "1.0.0" 
+    build_number = options[:build_number] || 1
+    release_notes = options[:release_notes] || "Lots of amazing new features to test out!"
+    groups = options[:groups] || "gostylens-vanguards"
+    testers = options[:testers] || ""
+    env = options[:env] || "development"
+    
+    # Update version and build number
+    increment_version_number(version_number: version)
+    increment_build_number(build_number: build_number)
+    
+    # Update Flutter environment in Generated.xcconfig
+    update_flutter_env(env)
+    
+    # Build iOS app (packaging/signing)
+    
+    # Build iOS app (packaging/signing)
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "development",
+      export_method: "ad-hoc",
+    )
+    
+    # Upload to Firebase Distribution
+    firebase_app_distribution(
+      app: "1:727398816020:ios:dc476ad795fb38f1950a01",
+      service_credentials_file: "fastlane/service-account.json",
+      testers: testers.to_s.empty? ? nil : testers,
+      groups: groups.to_s.empty? ? nil : groups,
+      release_notes: release_notes,
+      debug: true
+    )
+  end
+
+  desc "Push a new iOS production build"
+  lane :production do |options|
+    # Setup the keychain and match to work with CI
+    setup_ci()
+    
+    # Handle input parameters
+    release_notes = options[:release_notes] || "Lots of amazing new features to test out!"
+    groups = options[:groups]
+    env = options[:env] || "production"
+    
+    # Increase build timeout to reduce failures on CI
+    ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
+    ENV["FASTLANE_XCODEBUILD_SETTINGS_RETRIES"] = "6"
+    
+    # Get required certificates and profiles
+    match(app_identifier: "com.stylenslab.gostylens", type: "appstore")
+    
+    # Auto-increment build number based on TestFlight
+    updated_version_number = bump_build_number()
+    increment_build_number(build_number: updated_version_number)
+    
+    # Update Flutter environment in Generated.xcconfig
+    update_flutter_env(env)
+    
+    # Build iOS app (packaging/signing)
+    
+    # Build iOS app (packaging/signing)
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "production",
+      export_method: "app-store",
+    )
+    
+    # Upload to TestFlight
+    pilot(
+      api_key_path: "fastlane/store.json", 
+      skip_waiting_for_build_processing: true, 
+      changelog: release_notes,
+      groups: groups,
+    )
+  end
+
+  # Helper function to get the next build number
+  def bump_build_number()
+    latest_build_number = latest_testflight_build_number(initial_build_number: 0)
+    return (latest_build_number + 1)
+  end
+
+  # Lightweight helper to set the environment for Flutter
+  def update_flutter_env(env)
+    require 'base64'
+    config_path = "Flutter/Generated.xcconfig"
+    unless File.exist?(config_path)
+      UI.important("Generated.xcconfig not found at #{config_path}. Falling back to default.")
+      return
+    end
+
+    UI.message("Updating #{config_path} with ENV=#{env}...")
+    content = File.read(config_path)
+    new_define_kv = "ENV=#{env}"
+    new_define_b64 = Base64.strict_encode64(new_define_kv)
+
+    if content =~ /^DART_DEFINES=(.*)$/
+      existing_defines_str = $1
+      defines = existing_defines_str.split(',')
+      
+      # Filter out any existing ENV=... defines
+      filtered_defines = defines.reject do |d|
+        begin
+          decoded = Base64.decode64(d)
+          decoded.start_with?("ENV=")
+        rescue
+          false
+        end
+      end
+      
+      # Prepend our new one
+      new_defines_list = [new_define_b64] + filtered_defines
+      new_line = "DART_DEFINES=#{new_defines_list.join(',')}"
+      content.gsub!(/^DART_DEFINES=.*$/, new_line)
+    else
+      content << "\nDART_DEFINES=#{new_define_b64}\n"
+    end
+
+    File.write(config_path, content)
+    UI.success("Successfully updated Flutter environment to: #{env}")
+  end
+end
