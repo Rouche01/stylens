@@ -35,6 +35,12 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
         steps:
+            - name: Select Xcode 16.2
+              run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
+            - name: List Xcode installations
+              run: ls -1 /Applications | grep Xcode
+
             - name: Checkout repository
               uses: actions/checkout@v4
 
