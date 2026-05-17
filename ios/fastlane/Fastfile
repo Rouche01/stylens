@@ -113,9 +113,24 @@ platform :ios do
   # Lightweight helper to set the environment for Flutter
   def update_flutter_env(env)
     require 'base64'
-    config_path = "Flutter/Generated.xcconfig"
-    unless File.exist?(config_path)
-      UI.important("Generated.xcconfig not found at #{config_path}. Falling back to default.")
+    
+    # Try all possible relative paths depending on where Fastlane is executed from
+    paths_to_try = [
+      "Flutter/Generated.xcconfig",
+      "../Flutter/Generated.xcconfig",
+      "ios/Flutter/Generated.xcconfig"
+    ]
+    
+    config_path = nil
+    paths_to_try.each do |path|
+      if File.exist?(path)
+        config_path = path
+        break
+      end
+    end
+
+    if config_path.nil?
+      UI.important("Generated.xcconfig not found at any of the tried paths: #{paths_to_try.join(', ')}. Falling back to default.")
       return
     end
 
