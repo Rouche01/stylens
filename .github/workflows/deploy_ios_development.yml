@@ -13,7 +13,7 @@ on:
             groups:
                 description: "Firebase Tester Groups"
                 required: true
-                default: "GoStylens Vanguards"
+                default: "gostylens-vanguards"
             release_notes:
                 description: "Release Notes"
                 required: true
@@ -95,14 +95,3 @@ jobs:
                   groups:"${{ github.event.inputs.groups }}" \
                   testers:"${{ github.event.inputs.testers }}" \
                   env:${{ github.event.inputs.env }}
-
-            - name: Print Fastlane Build Logs
-              if: failure()
-              run: cat ~/Library/Logs/gym/Runner-Runner.log || true
-
-            - name: Upload Fastlane Build Logs
-              if: failure()
-              uses: actions/upload-artifact@v4
-              with:
-                name: fastlane-build-logs
-                path: ~/Library/Logs/gym/*.log
