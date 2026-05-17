@@ -31,6 +31,7 @@ void main() async {
 
     runApp(const MyApp());
   } catch (e) {
+    FlutterNativeSplash.remove();
     runApp(ErrorApp(errorMessage: e.toString()));
   }
 }
