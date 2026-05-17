@@ -52,6 +52,7 @@ jobs:
             - name: Setup Environment Files
               run: |
                 echo "${{ secrets.ENV_STAGING_FILE }}" > .env.staging
+                echo "${{ secrets.STG_IOS_GOOGLE_SERVICE_INFO }}" > ios/Runner/GoogleService-Info.plist
                 touch .env.development
                 touch .env.production
 
