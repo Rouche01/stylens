@@ -49,6 +49,12 @@ jobs:
             - name: Accept Xcode License
               run: sudo xcodebuild -license accept
 
+            - name: Setup Environment Files
+              run: |
+                echo "${{ secrets.ENV_STAGING_FILE }}" > .env.staging
+                touch .env.development
+                touch .env.production
+
             - name: Get packages
               run: flutter pub get
             - name: Cache Pods
