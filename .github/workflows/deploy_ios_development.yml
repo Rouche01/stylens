@@ -70,9 +70,9 @@ jobs:
             - name: Generate Xcode Config
               run: flutter build ios --config-only
               
-            # v4.0.2
+            # v4.2.0
             - name: Cache Pods
-              uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
+              uses: actions/cache@d4323d4df104b026c6a166049fb557cb5d0bedfc
               with:
                 path: ios/Pods
                 key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
@@ -84,9 +84,9 @@ jobs:
                 cd ios
                 pod install
               
-            # v1.180.0
+            # v1.176.0
             - name: Setup Fastlane
-              uses: ruby/setup-ruby@26543b599723220f18833989c9e88d669a08e562
+              uses: ruby/setup-ruby@cacc9f1c0b3f4eb8a16a6bb0ed10897b43b9de49
               with:
                 ruby-version: "3.3"
                 bundler-cache: true
