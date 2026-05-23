@@ -27,6 +27,9 @@ on:
                 required: true
                 default: "staging"
 
+permissions:
+  contents: read
+
 jobs:
     deployIOSDevelopment:
         runs-on: macos-latest
@@ -37,10 +40,10 @@ jobs:
         steps:
 
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@11bd71901bbe5b16309077ee82733a9c2f6fc311 # v4.2.2
 
             - name: Flutter setup
-              uses: subosito/flutter-action@v2
+              uses: subosito/flutter-action@f2c65cce69ca25d10201aa868ed3b30275062a49 # v2.18.0
               with:
                 channel: "stable"
                 cache: true
@@ -50,9 +53,12 @@ jobs:
               run: sudo xcodebuild -license accept
 
             - name: Setup Environment Files
+              env:
+                ENV_STAGING_FILE: ${{ secrets.ENV_STAGING_FILE }}
+                STG_IOS_GOOGLE_SERVICE_INFO: ${{ secrets.STG_IOS_GOOGLE_SERVICE_INFO }}
               run: |
-                echo "${{ secrets.ENV_STAGING_FILE }}" > .env.staging
-                echo "${{ secrets.STG_IOS_GOOGLE_SERVICE_INFO }}" > ios/Runner/GoogleService-Info.plist
+                echo "$ENV_STAGING_FILE" > .env.staging
+                echo "$STG_IOS_GOOGLE_SERVICE_INFO" > ios/Runner/GoogleService-Info.plist
                 touch .env.development
                 touch .env.production
 
@@ -63,7 +69,7 @@ jobs:
               run: flutter build ios --config-only
               
             - name: Cache Pods
-              uses: actions/cache@v4
+              uses: actions/cache@d4373f267a02782043c9c4a6f7b74f85f63b88b5 # v4.0.2
               with:
                 path: ios/Pods
                 key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
@@ -76,7 +82,7 @@ jobs:
                 pod install
               
             - name: Setup Fastlane
-              uses: ruby/setup-ruby@v1
+              uses: ruby/setup-ruby@ec02537da5712d61d4d141027399716af2b152d6 # v1.176.0
               with:
                 ruby-version: "3.3"
                 bundler-cache: true
@@ -89,12 +95,18 @@ jobs:
               env:
                 MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
                 MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+                VERSION: ${{ github.event.inputs.version }}
+                BUILD_NUMBER: ${{ github.event.inputs.build }}
+                RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+                GROUPS: ${{ github.event.inputs.groups }}
+                TESTERS: ${{ github.event.inputs.testers }}
+                ENV: ${{ github.event.inputs.env }}
               run: |
                 cd ./ios
                 bundle exec fastlane ios development \
-                  version:${{ github.event.inputs.version }} \
-                  build_number:${{ github.event.inputs.build }} \
-                  release_notes:"${{ github.event.inputs.release_notes }}" \
-                  groups:"${{ github.event.inputs.groups }}" \
-                  testers:"${{ github.event.inputs.testers }}" \
-                  env:${{ github.event.inputs.env }}
+                  version:"$VERSION" \
+                  build_number:"$BUILD_NUMBER" \
+                  release_notes:"$RELEASE_NOTES" \
+                  groups:"$GROUPS" \
+                  testers:"$TESTERS" \
+                  env:"$ENV"
