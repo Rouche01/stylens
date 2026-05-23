@@ -114,3 +114,14 @@ jobs:
                   groups:"$GROUPS" \
                   testers:"$TESTERS" \
                   env:"$ENV"
+            - name: Print Fastlane Build Logs
+              if: failure()
+              run: cat ~/Library/Logs/gym/Runner-Runner.log || true
+
+            # v4.6.2
+            - name: Upload Fastlane Build Logs
+              if: failure()
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                name: fastlane-build-logs
+                path: ~/Library/Logs/gym/*.log
