@@ -39,11 +39,13 @@ jobs:
 
         steps:
 
+            # v4.2.2
             - name: Checkout repository
-              uses: actions/checkout@11bd71901bbe5b16309077ee82733a9c2f6fc311 # v4.2.2
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
+            # v2.18.0
             - name: Flutter setup
-              uses: subosito/flutter-action@f2c65cce69ca25d10201aa868ed3b30275062a49 # v2.18.0
+              uses: subosito/flutter-action@f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff
               with:
                 channel: "stable"
                 cache: true
@@ -68,8 +70,9 @@ jobs:
             - name: Generate Xcode Config
               run: flutter build ios --config-only
               
+            # v4.0.2
             - name: Cache Pods
-              uses: actions/cache@d4373f267a02782043c9c4a6f7b74f85f63b88b5 # v4.0.2
+              uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
               with:
                 path: ios/Pods
                 key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
@@ -81,8 +84,9 @@ jobs:
                 cd ios
                 pod install
               
+            # v1.180.0
             - name: Setup Fastlane
-              uses: ruby/setup-ruby@ec02537da5712d61d4d141027399716af2b152d6 # v1.176.0
+              uses: ruby/setup-ruby@26543b599723220f18833989c9e88d669a08e562
               with:
                 ruby-version: "3.3"
                 bundler-cache: true
