@@ -23,7 +23,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
 
   static const _prefKey = 'closet_notified';
 
-  final List<IconData> _clothingIcons = [
+  final List<FaIconData> _clothingIcons = [
     FontAwesomeIcons.shirt,
     FontAwesomeIcons.userTie,
     FontAwesomeIcons.vest,
@@ -399,7 +399,7 @@ class _FeatureChip extends StatelessWidget {
 
 class _ClosetBackgroundPainter extends CustomPainter {
   final double animationValue;
-  final List<IconData> icons;
+  final List<FaIconData> icons;
   final Color color;
 
   _ClosetBackgroundPainter({

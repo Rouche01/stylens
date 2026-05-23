@@ -74,7 +74,7 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(
+                    icon: FaIcon(
                       FontAwesomeIcons.arrowLeftLong,
                       color: Theme.of(context).colorScheme.primary,
                     ),
