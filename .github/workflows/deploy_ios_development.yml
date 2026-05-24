@@ -1,7 +1,11 @@
-name: Deploy iOS to Development
+name: Deploy iOS
 on:
     workflow_dispatch:
         inputs:
+            target:
+                description: "Destination (firebase or testflight)"
+                required: true
+                default: "firebase"
             version:
                 description: "App Version (leave blank to read from pubspec.yaml)"
                 required: false
@@ -94,13 +98,23 @@ jobs:
                 bundler-cache: true
                 working-directory: ios
 
-            - name: Set up Firebase authentication
-              run: echo "${FIREBASE_SERVICE_ACCOUNT}" > ./ios/fastlane/service-account.json
+            - name: Set up credentials
+              env:
+                FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+                APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+              run: |
+                if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+                  echo "$FIREBASE_SERVICE_ACCOUNT" > ./ios/fastlane/service-account.json
+                fi
+                if [ -n "$APP_STORE_CONNECT_API_KEY" ]; then
+                  echo "$APP_STORE_CONNECT_API_KEY" > ./ios/fastlane/store.json
+                fi
 
-            - name: Build and Deploy to Firebase App Distribution
+            - name: Build and Deploy
               env:
                 MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
                 MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+                TARGET: ${{ github.event.inputs.target }}
                 VERSION: ${{ github.event.inputs.version }}
                 BUILD_NUMBER: ${{ github.event.inputs.build }}
                 RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
@@ -133,13 +147,20 @@ jobs:
                 fi
 
                 cd ./ios
-                bundle exec fastlane ios development \
-                  version:"$ACTUAL_VERSION" \
-                  build_number:"$ACTUAL_BUILD_NUMBER" \
-                  release_notes:"$ACTUAL_RELEASE_NOTES" \
-                  groups:"$GROUPS" \
-                  testers:"$TESTERS" \
-                  env:"$ENV"
+                if [ "$TARGET" = "testflight" ]; then
+                  bundle exec fastlane ios production \
+                    release_notes:"$ACTUAL_RELEASE_NOTES" \
+                    groups:"$GROUPS" \
+                    env:"$ENV"
+                else
+                  bundle exec fastlane ios development \
+                    version:"$ACTUAL_VERSION" \
+                    build_number:"$ACTUAL_BUILD_NUMBER" \
+                    release_notes:"$ACTUAL_RELEASE_NOTES" \
+                    groups:"$GROUPS" \
+                    testers:"$TESTERS" \
+                    env:"$ENV"
+                fi
             - name: Print Fastlane Build Logs
               if: failure()
               run: cat ~/Library/Logs/gym/Runner-Runner.log || true
