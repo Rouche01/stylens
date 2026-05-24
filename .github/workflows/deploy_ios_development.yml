@@ -15,9 +15,9 @@ on:
                 required: true
                 default: "gostylens-vanguards"
             release_notes:
-                description: "Release Notes"
-                required: true
-                default: "Initial iOS Release"
+                description: "Release Notes (leave blank to use the latest commit message)"
+                required: false
+                default: ""
             testers:
                 description: "Firebase Testers (optional)"
                 required: false
@@ -106,11 +106,15 @@ jobs:
                 TESTERS: ${{ github.event.inputs.testers }}
                 ENV: ${{ github.event.inputs.env }}
               run: |
+                ACTUAL_RELEASE_NOTES="$RELEASE_NOTES"
+                if [ -z "$ACTUAL_RELEASE_NOTES" ]; then
+                  ACTUAL_RELEASE_NOTES=$(git log -1 --pretty=%B)
+                fi
                 cd ./ios
                 bundle exec fastlane ios development \
                   version:"$VERSION" \
                   build_number:"$BUILD_NUMBER" \
-                  release_notes:"$RELEASE_NOTES" \
+                  release_notes:"$ACTUAL_RELEASE_NOTES" \
                   groups:"$GROUPS" \
                   testers:"$TESTERS" \
                   env:"$ENV"
