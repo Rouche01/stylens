@@ -42,6 +42,17 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
         steps:
+            - name: Select Xcode 26
+              run: |
+                XCODE_PATH=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+                if [ -n "$XCODE_PATH" ]; then
+                  echo "Selecting $XCODE_PATH"
+                  sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+                else
+                  echo "Xcode 26.x not found, listing /Applications:"
+                  ls -1 /Applications | grep Xcode || true
+                  exit 1
+                fi
 
             # v4.2.2
             - name: Checkout repository
