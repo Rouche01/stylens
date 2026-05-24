@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:lottie/lottie.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -21,6 +22,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   StreamSubscription<AuthState>? _authSubscription;
   Type? _lastBuiltType;
+  bool _showAnimationDelay = true;
 
   void _handleStackCleanup(Type currentType) {
     if (_lastBuiltType != null && _lastBuiltType != currentType) {
@@ -36,6 +38,13 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _showAnimationDelay = false;
+        });
+      }
+    });
     _authSubscription = locator<SupabaseClient>().auth.onAuthStateChange.listen((
       data,
     ) {
@@ -76,53 +85,79 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    final userState = context.watch<UserStateManager>();
     return StreamBuilder<AuthState>(
       stream: locator<SupabaseClient>().auth.onAuthStateChange,
       builder: (context, snapshot) {
-        final session = snapshot.data?.session;
+        final session =
+            snapshot.data?.session ??
+            locator<SupabaseClient>().auth.currentSession;
+        Widget child;
 
-        // 1. Unauthenticated -> Show Auth Page
-        if (session == null) {
+        // If we are still waiting for the minimum animation display delay, show the Lottie loader
+        if (_showAnimationDelay) {
           FlutterNativeSplash.remove();
-          final widget = const AuthPage();
-          _handleStackCleanup(widget.runtimeType);
-          return widget;
+          child = Scaffold(
+            key: const ValueKey('loading'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            body: Center(
+              child: Lottie.asset(
+                'assets/animations/gostylens-logo-reveal-v2.json',
+                width: 300,
+                height: 300,
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
         }
-
+        // 1. Unauthenticated -> Show Auth Page
+        else if (session == null) {
+          FlutterNativeSplash.remove();
+          final widget = const AuthPage(key: ValueKey('auth_page'));
+          _handleStackCleanup(widget.runtimeType);
+          child = widget;
+        }
         // 2. Authenticated -> Check Profile State
-        return Consumer<UserStateManager>(
-          builder: (context, userState, _) {
-            // Profile not checked yet? Trigger fetch.
-            if (userState.operationState.fetchStatus ==
-                UserFetchStatus.initial) {
-              Future.microtask(() => userState.fetchCurrentUser());
-            }
+        else {
+          // Profile not checked yet? Trigger fetch.
+          if (userState.operationState.fetchStatus == UserFetchStatus.initial) {
+            Future.microtask(() => userState.fetchCurrentUser());
+          }
 
-            // Still loading profile? Keep showing splash (by returning a matching background)
-            if (userState.operationState.fetchStatus ==
-                    UserFetchStatus.initial ||
-                userState.operationState.fetchStatus ==
-                    UserFetchStatus.loading) {
-              return Scaffold(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-              );
-            }
-
+          // Still loading profile? Keep showing Lottie loader.
+          if (userState.operationState.fetchStatus == UserFetchStatus.initial ||
+              userState.operationState.fetchStatus == UserFetchStatus.loading) {
+            child = Scaffold(
+              key: const ValueKey('loading'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              body: Center(
+                child: Lottie.asset(
+                  'assets/animations/gostylens-logo-reveal-v2.json',
+                  width: 300,
+                  height: 300,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            );
+          } else {
             Widget rootWidget;
 
             // Profile checked, needs onboarding?
             if (userState.operationState.fetchStatus ==
                 UserFetchStatus.onboarding) {
-              rootWidget = const OnboardingNamePage();
+              rootWidget = const OnboardingNamePage(
+                key: ValueKey('onboarding_page'),
+              );
             }
             // Profile checked, exists?
             else if (userState.operationState.fetchStatus ==
                 UserFetchStatus.ready) {
-              rootWidget = MyHomePage();
+              rootWidget = MyHomePage(key: const ValueKey('home_page'));
             }
             // Fallback: This means fetch failed for a non-onboarding reason (e.g. Server down)
             else {
               rootWidget = AuthErrorView(
+                key: const ValueKey('error_page'),
                 error: userState.lastError,
                 onRetry: () => userState.resetState(),
               );
@@ -130,8 +165,15 @@ class _AuthGateState extends State<AuthGate> {
 
             FlutterNativeSplash.remove();
             _handleStackCleanup(rootWidget.runtimeType);
-            return rootWidget;
-          },
+            child = rootWidget;
+          }
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 600),
+          switchInCurve: Curves.easeInOut,
+          switchOutCurve: Curves.easeInOut,
+          child: child,
         );
       },
     );

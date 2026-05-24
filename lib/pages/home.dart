@@ -7,6 +7,8 @@ import 'package:gostylens/widgets/start_conversation_fab.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 
 class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
