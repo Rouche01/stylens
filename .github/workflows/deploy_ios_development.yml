@@ -3,13 +3,13 @@ on:
     workflow_dispatch:
         inputs:
             version:
-                description: "App Version (e.g. 1.0.0)"
-                required: true
-                default: "1.0.0"
+                description: "App Version (leave blank to read from pubspec.yaml)"
+                required: false
+                default: ""
             build:
-                description: "Build Number (e.g. 42)"
-                required: true
-                default: "1"
+                description: "Build Number (leave blank to use GitHub Run Number)"
+                required: false
+                default: ""
             groups:
                 description: "Firebase Tester Groups"
                 required: true
@@ -42,6 +42,8 @@ jobs:
             # v4.2.2
             - name: Checkout repository
               uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+              with:
+                fetch-depth: 0
 
             # v2.18.0
             - name: Flutter setup
@@ -106,14 +108,34 @@ jobs:
                 TESTERS: ${{ github.event.inputs.testers }}
                 ENV: ${{ github.event.inputs.env }}
               run: |
+                # Resolve version from pubspec.yaml if not provided
+                ACTUAL_VERSION="$VERSION"
+                if [ -z "$ACTUAL_VERSION" ]; then
+                  PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+                  ACTUAL_VERSION=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f1)
+                fi
+
+                # Resolve build number from GitHub run_number if not provided
+                ACTUAL_BUILD_NUMBER="$BUILD_NUMBER"
+                if [ -z "$ACTUAL_BUILD_NUMBER" ]; then
+                  ACTUAL_BUILD_NUMBER="${{ github.run_number }}"
+                fi
+
+                # Resolve release notes
                 ACTUAL_RELEASE_NOTES="$RELEASE_NOTES"
                 if [ -z "$ACTUAL_RELEASE_NOTES" ]; then
-                  ACTUAL_RELEASE_NOTES=$(git log -1 --pretty=%B)
+                  LAST_TAG=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --abbrev=0 2>/dev/null || echo "")
+                  if [ -n "$LAST_TAG" ]; then
+                    ACTUAL_RELEASE_NOTES=$(git log "$LAST_TAG..HEAD" --pretty=format:"- %s")
+                  else
+                    ACTUAL_RELEASE_NOTES=$(git log -5 --pretty=format:"- %s")
+                  fi
                 fi
+
                 cd ./ios
                 bundle exec fastlane ios development \
-                  version:"$VERSION" \
-                  build_number:"$BUILD_NUMBER" \
+                  version:"$ACTUAL_VERSION" \
+                  build_number:"$ACTUAL_BUILD_NUMBER" \
                   release_notes:"$ACTUAL_RELEASE_NOTES" \
                   groups:"$GROUPS" \
                   testers:"$TESTERS" \
