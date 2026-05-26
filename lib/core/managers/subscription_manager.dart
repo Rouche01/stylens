@@ -137,12 +137,14 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       _offerings = await Purchases.getOfferings();
 
       await AnalyticsService().capture(
-        'debug_subscription_init',
+        'subscription_initialized',
         properties: {
+          'user_id': dbId,
           'has_customer_info': _customerInfo != null,
           'offerings_count': _offerings?.all.length ?? 0,
           'active_subscriptions':
               _customerInfo?.activeSubscriptions.toList() ?? [],
+          'has_core_plan': userHasCorePlan,
         },
       );
 
@@ -165,10 +167,17 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
 
       _isInitialized = true;
       notifyListeners();
-    } on PlatformException catch (e) {
-      await AnalyticsService().capture(
-        'debug_subscription_init_error',
-        properties: {'error': e.message ?? 'unknown'},
+    } on PlatformException catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'subscription_initialize',
+          'user_id': dbId,
+          'error_code': e.code,
+          'error_message': e.message ?? 'unknown',
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        },
       );
       if (kDebugMode) {
         print('RevenueCat Initialization Error: ${e.message}');
@@ -188,7 +197,15 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
         _subscription = response.data;
         notifyListeners();
       }
-    } catch (e) {
+    } catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'subscription_sync',
+          'user_id': _currentUserId ?? 'unknown',
+        },
+      );
       if (kDebugMode) {
         print('Error syncing UI subscription state: $e');
       }
@@ -224,7 +241,16 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
         _currentUserId!,
         body: body,
       );
-    } catch (e) {
+    } catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'push_revenuecat_state',
+          'user_id': _currentUserId ?? 'unknown',
+          'provider_customer_id': _customerInfo?.originalAppUserId ?? 'unknown',
+        },
+      );
       if (kDebugMode) {
         print('Error pushing RevenueCat state to backend: $e');
       }
@@ -245,9 +271,20 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       await syncSubscription();
 
       return userHasCorePlan;
-    } on PlatformException catch (e) {
-      var errorCode = PurchasesErrorHelper.getErrorCode(e);
+    } on PlatformException catch (e, st) {
+      final errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
+        await AnalyticsService().captureException(
+          e,
+          stackTrace: st,
+          properties: {
+            'context': 'purchase_package',
+            'user_id': _currentUserId ?? 'unknown',
+            'error_code': e.code,
+            'error_message': e.message ?? 'unknown',
+            'platform': Platform.isIOS ? 'ios' : 'android',
+          },
+        );
         if (kDebugMode) {
           print('Purchase error: ${e.message}');
         }
@@ -271,7 +308,18 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       await syncSubscription();
 
       return userHasCorePlan;
-    } on PlatformException catch (e) {
+    } on PlatformException catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'restore_purchases',
+          'user_id': _currentUserId ?? 'unknown',
+          'error_code': e.code,
+          'error_message': e.message ?? 'unknown',
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        },
+      );
       if (kDebugMode) {
         print('Restore error: ${e.message}');
       }
@@ -299,7 +347,16 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
 
       final uri = Uri.parse(managementUrl);
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (e) {
+    } catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'cancel_subscription',
+          'user_id': _currentUserId ?? 'unknown',
+          'management_url': _customerInfo?.managementURL ?? 'none',
+        },
+      );
       if (kDebugMode) {
         print('Error launching subscription management: $e');
       }
@@ -313,7 +370,15 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       if (_isInitialized) {
         await Purchases.logOut();
       }
-    } catch (e) {
+    } catch (e, st) {
+      await AnalyticsService().captureException(
+        e,
+        stackTrace: st,
+        properties: {
+          'context': 'subscription_reset',
+          'user_id': _currentUserId ?? 'unknown',
+        },
+      );
       if (kDebugMode) {
         print('RevenueCat LogOut Error: $e');
       }
