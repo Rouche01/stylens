@@ -177,6 +177,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
           'error_code': e.code,
           'error_message': e.message ?? 'unknown',
           'platform': Platform.isIOS ? 'ios' : 'android',
+          'api_key': EnvConfig.revenueCatApiKey,
         },
       );
       if (kDebugMode) {
