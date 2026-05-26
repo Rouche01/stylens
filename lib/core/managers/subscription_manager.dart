@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gostylens/constants/revenue_cat.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -134,6 +135,16 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
 
       _customerInfo = await Purchases.getCustomerInfo();
       _offerings = await Purchases.getOfferings();
+
+      await AnalyticsService().capture(
+        'debug_subscription_init',
+        properties: {
+          'has_customer_info': _customerInfo != null,
+          'offerings_count': _offerings?.all.length ?? 0,
+          'active_subscriptions':
+              _customerInfo?.activeSubscriptions.toList() ?? [],
+        },
+      );
 
       // 🟢 Push RC state on first init to ensure backend is up-to-date
       await _pushRevenueCatState();
