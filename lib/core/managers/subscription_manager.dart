@@ -166,6 +166,10 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       _isInitialized = true;
       notifyListeners();
     } on PlatformException catch (e) {
+      await AnalyticsService().capture(
+        'debug_subscription_init_error',
+        properties: {'error': e.message ?? 'unknown'},
+      );
       if (kDebugMode) {
         print('RevenueCat Initialization Error: ${e.message}');
       }
