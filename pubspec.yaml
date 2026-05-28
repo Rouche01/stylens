@@ -60,7 +60,7 @@ flutter:
           weight: 300
         - asset: assets/fonts/Metropolis-Medium.otf
           weight: 500
-        - asset: assets/fonts/Metropolis-Semibold.otf
+        - asset: assets/fonts/Metropolis-SemiBold.otf
           weight: 600
         - asset: assets/fonts/Metropolis-Bold.otf
           weight: 700
