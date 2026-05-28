@@ -1,0 +1,134 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+platform :android do
+  desc "Build and distribute a new Android development build via Firebase App Distribution"
+  lane :development do |options|
+    # Handle input parameters
+    version        = options[:version]       || "1.0.0"
+    build_number   = options[:build_number]  || 1
+    release_notes  = options[:release_notes] || "Lots of amazing new features to test out!"
+    groups         = options[:groups]        || "gostylens-vanguards"
+    testers        = options[:testers]       || ""
+    env            = options[:env]           || "staging"
+
+    # Inject the ENV dart-define so build.gradle picks up the right .env file
+    dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
+
+    # Build a signed release APK (AAB is required for Play Store only)
+    gradle(
+      task: "assemble",
+      build_type: "Release",
+      project_dir: "./",
+      properties: {
+        "dart-defines"        => dart_defines,
+        "versionCode"         => build_number.to_s,
+        "versionName"         => version.to_s,
+      }
+    )
+
+    # Upload to Firebase App Distribution
+    firebase_app_distribution(
+      app: "1:727398816020:android:5afeab15183077fb950a01",
+      service_credentials_file: "fastlane/service-account.json",
+      android_artifact_type: "APK",
+      android_artifact_path: "../build/app/outputs/flutter-apk/app-release.apk",
+      testers: testers.to_s.empty? ? nil : testers,
+      groups:  groups.to_s.empty?  ? nil : groups,
+      release_notes: release_notes,
+      debug: true
+    )
+  end
+
+  desc "Build and release a new Android production build to Google Play (internal track)"
+  lane :production do |options|
+    # Handle input parameters
+    release_notes  = options[:release_notes] || "Lots of amazing new features to test out!"
+    track          = options[:track]         || "internal"
+    env            = options[:env]           || "production"
+
+    # Resolve the next version code from the Play Store
+    next_version_code = bump_version_code()
+
+    dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
+
+    # Build a signed release AAB (required for Play Store uploads)
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: "./",
+      properties: {
+        "dart-defines"  => dart_defines,
+        "versionCode"   => next_version_code.to_s,
+      }
+    )
+
+    # Upload to Google Play
+    upload_to_play_store(
+      track: track,
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      json_key: "fastlane/play-store.json",
+      release_status: "draft",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
+  # Returns the next versionCode by querying the current production/internal
+  # track from Google Play and incrementing by 1.
+  def bump_version_code
+    begin
+      version_codes = google_play_track_version_codes(
+        track: "internal",
+        json_key: "fastlane/play-store.json"
+      )
+      (version_codes.max.to_i + 1)
+    rescue => e
+      UI.important("Could not fetch version codes from Play Store (#{e.message}). Defaulting to 1.")
+      1
+    end
+  end
+
+  # Builds a comma-separated dart-defines string with ENV= prepended.
+  # Merges with any pre-existing DART_DEFINES so other defines are preserved.
+  def build_dart_defines(env:, existing: nil)
+    require "base64"
+
+    new_define_b64 = Base64.strict_encode64("ENV=#{env}")
+
+    if existing.to_s.empty?
+      return new_define_b64
+    end
+
+    # Filter out any previous ENV= entries, then prepend the new one
+    filtered = existing.split(",").reject do |d|
+      begin
+        Base64.decode64(d).start_with?("ENV=")
+      rescue
+        false
+      end
+    end
+
+    ([new_define_b64] + filtered).join(",")
+  end
+end

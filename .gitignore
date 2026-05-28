@@ -60,3 +60,10 @@ ios/fastlane/report.xml
 ios/fastlane/test_output
 ios/*.ipa
 ios/*.app.dSYM.zip
+android/fastlane/*.json
+android/fastlane/report.xml
+android/fastlane/test_output
+
+# Android keystore
+*.keystore
+*.jks

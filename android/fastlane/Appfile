@@ -1,0 +1,5 @@
+json_key_file("fastlane/play-store.json") # Path to the JSON secret file - Follow https://docs.fastlane.tools/actions/supply/#setup
+package_name("com.stylenslab.gostylens") # e.g. com.krausefx.app
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile

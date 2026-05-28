@@ -1,0 +1,182 @@
+name: Deploy Android
+on:
+    workflow_dispatch:
+        inputs:
+            target:
+                description: "Destination (firebase or playstore)"
+                required: true
+                default: "firebase"
+            version:
+                description: "App Version (leave blank to read from pubspec.yaml)"
+                required: false
+                default: ""
+            build:
+                description: "Build Number (leave blank to use GitHub Run Number)"
+                required: false
+                default: ""
+            groups:
+                description: "Firebase Tester Groups"
+                required: true
+                default: "gostylens-vanguards"
+            release_notes:
+                description: "Release Notes (leave blank to use the latest commit message)"
+                required: false
+                default: ""
+            testers:
+                description: "Firebase Testers (optional)"
+                required: false
+                default: ""
+            track:
+                description: "Play Store Track (internal, alpha, beta, production) — only used when target=playstore"
+                required: false
+                default: "internal"
+            env:
+                description: "Environment (staging or production)"
+                required: true
+                default: "staging"
+
+permissions:
+  contents: read
+
+jobs:
+    deployAndroid:
+        runs-on: ubuntu-latest
+
+        steps:
+            # v4.2.2
+            - name: Checkout repository
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+              with:
+                fetch-depth: 0
+
+            # v2.18.0
+            - name: Flutter setup
+              uses: subosito/flutter-action@f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff
+              with:
+                channel: "stable"
+                cache: true
+              id: flutter
+
+            # v4.2.1
+            - name: Setup Java (required for Gradle)
+              uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9
+              with:
+                distribution: "temurin"
+                java-version: "17"
+
+            - name: Setup Environment Files
+              env:
+                ENV_STAGING_FILE: ${{ secrets.ENV_STAGING_FILE }}
+                STG_ANDROID_GOOGLE_SERVICE_JSON: ${{ secrets.STG_ANDROID_GOOGLE_SERVICE_JSON }}
+              run: |
+                echo "$ENV_STAGING_FILE" > .env.staging
+                echo "$STG_ANDROID_GOOGLE_SERVICE_JSON" > android/app/google-services.json
+                touch .env.development
+                touch .env.production
+
+            - name: Get packages
+              run: flutter pub get
+
+            # v4.3.0
+            - name: Cache Gradle
+              uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+              with:
+                path: |
+                  ~/.gradle/caches
+                  ~/.gradle/wrapper
+                key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/*.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+                restore-keys: |
+                  ${{ runner.os }}-gradle-
+
+            - name: Setup Android Keystore
+              env:
+                ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+                ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+                ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+                ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+              run: |
+                echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+                cat >> android/local.properties << EOF
+                storeFile=release.keystore
+                storePassword=$ANDROID_STORE_PASSWORD
+                keyAlias=$ANDROID_KEY_ALIAS
+                keyPassword=$ANDROID_KEY_PASSWORD
+                EOF
+
+            # v1.310.0
+            - name: Setup Fastlane
+              uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f
+              with:
+                ruby-version: "3.3"
+                bundler-cache: true
+                working-directory: android
+
+            - name: Set up credentials
+              env:
+                FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+                PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
+              run: |
+                if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+                  echo "$FIREBASE_SERVICE_ACCOUNT" > ./android/fastlane/service-account.json
+                fi
+                if [ -n "$PLAY_STORE_JSON_KEY" ]; then
+                  echo "$PLAY_STORE_JSON_KEY" > ./android/fastlane/play-store.json
+                fi
+
+            - name: Build and Deploy
+              env:
+                TARGET: ${{ github.event.inputs.target }}
+                VERSION: ${{ github.event.inputs.version }}
+                BUILD_NUMBER: ${{ github.event.inputs.build }}
+                RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+                GROUPS: ${{ github.event.inputs.groups }}
+                TESTERS: ${{ github.event.inputs.testers }}
+                TRACK: ${{ github.event.inputs.track }}
+                ENV: ${{ github.event.inputs.env }}
+              run: |
+                # Resolve version from pubspec.yaml if not provided
+                ACTUAL_VERSION="$VERSION"
+                if [ -z "$ACTUAL_VERSION" ]; then
+                  PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+                  ACTUAL_VERSION=$(echo "$PUBSPEC_VERSION" | cut -d'+' -f1)
+                fi
+
+                # Resolve build number from GitHub run_number if not provided
+                ACTUAL_BUILD_NUMBER="$BUILD_NUMBER"
+                if [ -z "$ACTUAL_BUILD_NUMBER" ]; then
+                  ACTUAL_BUILD_NUMBER="${{ github.run_number }}"
+                fi
+
+                # Resolve release notes
+                ACTUAL_RELEASE_NOTES="$RELEASE_NOTES"
+                if [ -z "$ACTUAL_RELEASE_NOTES" ]; then
+                  LAST_TAG=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --abbrev=0 2>/dev/null || echo "")
+                  if [ -n "$LAST_TAG" ]; then
+                    ACTUAL_RELEASE_NOTES=$(git log "$LAST_TAG..HEAD" --pretty=format:"- %s")
+                  else
+                    ACTUAL_RELEASE_NOTES=$(git log -5 --pretty=format:"- %s")
+                  fi
+                fi
+
+                cd ./android
+                if [ "$TARGET" = "playstore" ]; then
+                  bundle exec fastlane android production \
+                    release_notes:"$ACTUAL_RELEASE_NOTES" \
+                    track:"$TRACK" \
+                    env:"$ENV"
+                else
+                  bundle exec fastlane android development \
+                    version:"$ACTUAL_VERSION" \
+                    build_number:"$ACTUAL_BUILD_NUMBER" \
+                    release_notes:"$ACTUAL_RELEASE_NOTES" \
+                    groups:"$GROUPS" \
+                    testers:"$TESTERS" \
+                    env:"$ENV"
+                fi
+
+            - name: Upload Gradle Build Logs
+              if: failure()
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                name: gradle-build-logs
+                path: android/app/build/outputs/logs/

@@ -9,6 +9,12 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+// Keystore credentials — populated by CI via local.properties or env vars
+val ksFile     = localProperties.getProperty("storeFile")
+val ksPassword = localProperties.getProperty("storePassword") ?: System.getenv("ANDROID_STORE_PASSWORD") ?: ""
+val ksAlias    = localProperties.getProperty("keyAlias")      ?: System.getenv("ANDROID_KEY_ALIAS")       ?: ""
+val ksKeyPass  = localProperties.getProperty("keyPassword")   ?: System.getenv("ANDROID_KEY_PASSWORD")    ?: ""
+
 val dartDefines = if (project.hasProperty("dart-defines")) {
     (project.property("dart-defines") as String).split(",").associate {
         val decoded = String(Base64.getDecoder().decode(it))
@@ -67,11 +73,21 @@ android {
         manifestPlaceholders["posthogHost"] = posthogHost
     }
 
+    signingConfigs {
+        if (!ksFile.isNullOrEmpty()) {
+            create("release") {
+                storeFile     = file(ksFile)
+                storePassword = ksPassword
+                keyAlias      = ksAlias
+                keyPassword   = ksKeyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseConfig = signingConfigs.findByName("release")
+            signingConfig = releaseConfig ?: signingConfigs.getByName("debug")
         }
     }
 }
