@@ -66,4 +66,5 @@ android/fastlane/test_output
 
 # Android keystore
 *.keystore
+*.keystore.base64
 *.jks
