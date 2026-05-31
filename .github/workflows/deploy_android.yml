@@ -76,8 +76,7 @@ jobs:
 
             - name: Get packages
               run: |
-                flutter pub get
-                flutter clean
+                rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
                 flutter pub get
 
             # v4.3.0
