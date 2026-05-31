@@ -1,0 +1,82 @@
+{
+  "default": {
+    "keyword": {
+      "font": "./fonts/ClashDisplay-Medium.otf",
+      "color": "#B8E994",
+      "size": 52
+    },
+    "title": {
+      "font": "./fonts/ClashDisplay-Medium.otf",
+      "color": "#FFFFFF",
+      "size": 28
+    },
+    "background": "../background.png",
+    "padding": 50,
+    "show_device_frame": true
+  },
+  "data": [
+    {
+      "filter": "screenshot_auth",
+      "keyword": {
+        "text": "GET STARTED"
+      },
+      "title": {
+        "text": "Join and unlock your personal AI stylist"
+      }
+    },
+    {
+      "filter": "screenshot_home",
+      "keyword": {
+        "text": "STRIKE A POSE"
+      },
+      "title": {
+        "text": "Analyze your outfit instantly"
+      }
+    },
+    {
+      "filter": "screenshot_choose_gallery",
+      "keyword": {
+        "text": "PICK A PHOTO"
+      },
+      "title": {
+        "text": "Import existing outfits from your gallery"
+      }
+    },
+    {
+      "filter": "screenshot_closet",
+      "keyword": {
+        "text": "CLOSET"
+      },
+      "title": {
+        "text": "Organize your fits in one place"
+      }
+    },
+    {
+      "filter": "screenshot_history",
+      "keyword": {
+        "text": "HISTORY"
+      },
+      "title": {
+        "text": "Review your past styling recommendations"
+      }
+    },
+    {
+      "filter": "screenshot_style_analysis_chat",
+      "keyword": {
+        "text": "STYLE CHAT"
+      },
+      "title": {
+        "text": "Chat with your AI stylist for personalized advice"
+      }
+    },
+    {
+      "filter": "screenshot_profile",
+      "keyword": {
+        "text": "PROFILE"
+      },
+      "title": {
+        "text": "Manage your settings and style preferences"
+      }
+    }
+  ]
+}

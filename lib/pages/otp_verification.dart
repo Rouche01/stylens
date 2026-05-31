@@ -64,10 +64,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         onSuccess: (isNewUser) {
           if (!mounted) return;
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verification successful!')),
-          );
-
           if (isNewUser) {
             _userStateManager.updateRegistrationDraft(email: widget.email);
           }

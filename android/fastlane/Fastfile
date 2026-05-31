@@ -79,7 +79,7 @@ platform :android do
     # Upload to Google Play
     upload_to_play_store(
       track: track,
-      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
       json_key: "fastlane/play-store.json",
       release_status: "draft",
       skip_upload_apk: true,
@@ -130,5 +130,44 @@ platform :android do
     end
 
     ([new_define_b64] + filtered).join(",")
+  end
+
+  desc "Run integration tests to capture raw screenshots"
+  lane :capture_screenshots do
+    # Clear old raw screenshots to ensure a fresh run
+    sh("rm -rf ./screenshots/en-US/*.png")
+
+    # Run the integration test on the connected simulator/emulator
+    Bundler.with_original_env do
+      sh("cd .. && flutter drive --dart-define=INTEGRATION_TEST=true --driver=screenshot_driver/integration_test.dart --target=integration_test/screenshot_test.dart")
+    end
+  end
+
+  desc "Resize and frame raw screenshots locally with custom titles and background colors"
+  lane :frame_screenshots do
+    # Clear old framed screenshots to ensure a fresh state
+    sh("mkdir -p ./framed_screenshots/en-US")
+    sh("rm -rf ./framed_screenshots/en-US/*.png")
+
+    # Resize screenshots to standard 1080x1920 (required by frameit) by cropping the bottom off tall devices
+    Dir.glob("./screenshots/en-US/*.png").each do |screenshot|
+      next if screenshot.include?("_framed")
+      # -gravity north ensures we keep the top app bar and only chop off the bottom
+      sh("magick #{screenshot} -gravity north -extent 1080x1920 #{screenshot}")
+    end
+
+    # Frame the generated screenshots
+    frameit(
+      path: "./fastlane/screenshots"
+    )
+
+    # Move framed screenshots into a separate folder
+    sh("mv ./screenshots/en-US/*_framed.png ./framed_screenshots/en-US/")
+  end
+
+  desc "Capture, resize, and frame screenshots locally"
+  lane :frame_store_screenshots do
+    capture_screenshots
+    frame_screenshots
   end
 end

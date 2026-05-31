@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/core/config/env_config.dart';
 
 Future<String> regenerateImageUrl(String imageKey) async {
   final assetApiService = locator<AssetApiService>();
@@ -88,7 +89,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
       );
     } else {
       imageWidget = Image.network(
-        _currentRemoteImage!.url,
+        EnvConfig.resolvePlatformUrl(_currentRemoteImage!.url),
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
@@ -192,13 +193,23 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
           : _extractImageKey(_currentRemoteImage?.url ?? '');
 
       if (imageKey != null) {
-        getCachedOrRegenerateUrl(imageKey).then((newUrl) {
-          if (mounted) {
-            setState(() {
-              _currentRemoteImage = RemoteImage(url: newUrl, key: imageKey);
+        getCachedOrRegenerateUrl(imageKey)
+            .then((newUrl) {
+              if (mounted) {
+                setState(() {
+                  _currentRemoteImage = RemoteImage(url: newUrl, key: imageKey);
+                });
+              }
+            })
+            .catchError((e) {
+              if (mounted) {
+                setState(() {
+                  // Mark as retried and reset remote image so it shows fallback
+                  _hasRetried = true;
+                  _currentRemoteImage = null;
+                });
+              }
             });
-          }
-        });
         // Show loading indicator while retrying
         return Container(
           width: widget.width,

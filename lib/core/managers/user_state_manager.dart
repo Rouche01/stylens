@@ -11,10 +11,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class UserStateManager extends ChangeNotifier {
   final UserApiService _userApiService;
-  final SubscriptionManager _subscriptionManager = locator<SubscriptionManager>();
+  final SubscriptionManager _subscriptionManager =
+      locator<SubscriptionManager>();
 
-  UserStateManager()
-    : _userApiService = locator<UserApiService>();
+  UserStateManager() : _userApiService = locator<UserApiService>();
 
   UserOperationState _operationState = const UserOperationState();
   UserOperationState get operationState => _operationState;

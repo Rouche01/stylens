@@ -63,6 +63,9 @@ ios/*.app.dSYM.zip
 android/fastlane/*.json
 android/fastlane/report.xml
 android/fastlane/test_output
+android/fastlane/screenshots/**/*.png
+android/fastlane/screenshots/**/*.jpg
+android/fastlane/screenshots/**/*.jpeg
 
 # Android keystore
 *.keystore

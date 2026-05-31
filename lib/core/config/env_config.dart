@@ -5,7 +5,20 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class EnvConfig {
   static String get supabaseUrl => _get('SUPABASE_URL');
   static String get supabaseAnonKey => _get('SUPABASE_ANON_KEY');
-  static String get apiBaseUrl => _get('API_BASE_URL');
+  static String resolvePlatformUrl(String url) {
+    if (!kIsWeb && Platform.isAndroid && url.contains('localhost')) {
+      return url.replaceAll('localhost', '10.0.2.2');
+    }
+    if (!kIsWeb && Platform.isAndroid && url.contains('127.0.0.1')) {
+      return url.replaceAll('127.0.0.1', '10.0.2.2');
+    }
+    return url;
+  }
+
+  static String get apiBaseUrl {
+    String url = _get('API_BASE_URL');
+    return resolvePlatformUrl(url);
+  }
 
   static String get revenueCatApiKey {
     if (kIsWeb) return '';

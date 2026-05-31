@@ -58,6 +58,7 @@ class MyApp extends StatelessWidget {
       ],
       child: PostHogWidget(
         child: MaterialApp(
+          debugShowCheckedModeBanner: false,
           title: 'Stylens',
           navigatorObservers: [PosthogObserver()],
           builder: (context, child) => GlobalLoaderScope(child: child!),
@@ -151,6 +152,7 @@ class ErrorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(child: Text('Failed to load environment: $errorMessage')),
       ),

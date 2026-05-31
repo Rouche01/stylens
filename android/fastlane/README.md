@@ -31,6 +31,30 @@ Build and distribute a new Android development build via Firebase App Distributi
 
 Build and release a new Android production build to Google Play (internal track)
 
+### android capture_screenshots
+
+```sh
+[bundle exec] fastlane android capture_screenshots
+```
+
+Run integration tests to capture raw screenshots
+
+### android frame_screenshots
+
+```sh
+[bundle exec] fastlane android frame_screenshots
+```
+
+Resize and frame raw screenshots locally with custom titles and background colors
+
+### android frame_store_screenshots
+
+```sh
+[bundle exec] fastlane android frame_store_screenshots
+```
+
+Capture, resize, and frame screenshots locally
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
