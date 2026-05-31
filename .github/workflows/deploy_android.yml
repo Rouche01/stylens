@@ -75,7 +75,10 @@ jobs:
                 touch .env.production
 
             - name: Get packages
-              run: flutter pub get
+              run: |
+                flutter pub get
+                flutter clean
+                flutter pub get
 
             # v4.3.0
             - name: Cache Gradle

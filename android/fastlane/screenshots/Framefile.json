@@ -1,81 +1,56 @@
 {
   "default": {
-    "keyword": {
-      "font": "./fonts/ClashDisplay-Medium.otf",
-      "color": "#B8E994",
-      "size": 52
-    },
+    "title_min_height": 400,
     "title": {
       "font": "./fonts/ClashDisplay-Medium.otf",
-      "color": "#FFFFFF",
-      "size": 28
+      "color": "#E8F5E8",
+      "size": 75
     },
     "background": "../background.png",
-    "padding": 50,
+    "padding": 60,
     "show_device_frame": true
   },
   "data": [
     {
       "filter": "screenshot_auth",
-      "keyword": {
-        "text": "GET STARTED"
-      },
       "title": {
-        "text": "Join and unlock your personal AI stylist"
+        "text": "Meet your new\npersonal stylist"
       }
     },
     {
       "filter": "screenshot_home",
-      "keyword": {
-        "text": "STRIKE A POSE"
-      },
       "title": {
-        "text": "Analyze your outfit instantly"
+        "text": "Get an instant\nfit check"
       }
     },
     {
       "filter": "screenshot_choose_gallery",
-      "keyword": {
-        "text": "PICK A PHOTO"
-      },
       "title": {
-        "text": "Import existing outfits from your gallery"
+        "text": "Upload fits\nfrom your gallery"
       }
     },
     {
       "filter": "screenshot_closet",
-      "keyword": {
-        "text": "CLOSET"
-      },
       "title": {
-        "text": "Organize your fits in one place"
+        "text": "Your wardrobe,\nauto-organized"
       }
     },
     {
       "filter": "screenshot_history",
-      "keyword": {
-        "text": "HISTORY"
-      },
       "title": {
-        "text": "Review your past styling recommendations"
+        "text": "Review your\npast styles"
       }
     },
     {
       "filter": "screenshot_style_analysis_chat",
-      "keyword": {
-        "text": "STYLE CHAT"
-      },
       "title": {
-        "text": "Chat with your AI stylist for personalized advice"
+        "text": "Get tailored\nstyle advice"
       }
     },
     {
       "filter": "screenshot_profile",
-      "keyword": {
-        "text": "PROFILE"
-      },
       "title": {
-        "text": "Manage your settings and style preferences"
+        "text": "Manage your settings\nand preferences"
       }
     }
   ]
