@@ -59,9 +59,11 @@ platform :android do
     release_notes  = options[:release_notes] || "Lots of amazing new features to test out!"
     track          = options[:track]         || "internal"
     env            = options[:env]           || "production"
+    build_number   = options[:build_number]
 
-    # Resolve the next version code from the Play Store
-    next_version_code = bump_version_code()
+    # Resolve the next version code from the Play Store (or use manual override)
+    next_version_code = build_number.to_s.empty? ? bump_version_code() : build_number.to_i
+    UI.message("Using version code: #{next_version_code}")
 
     dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
 
@@ -94,18 +96,30 @@ platform :android do
   # Helpers
   # ---------------------------------------------------------------------------
 
-  # Returns the next versionCode by querying the current production/internal
-  # track from Google Play and incrementing by 1.
+  # Returns the next versionCode by querying all tracks from Google Play
+  # and incrementing the highest found by 1.
   def bump_version_code
-    begin
-      version_codes = google_play_track_version_codes(
-        track: "internal",
-        json_key: "fastlane/play-store.json"
-      )
-      (version_codes.max.to_i + 1)
-    rescue => e
-      UI.important("Could not fetch version codes from Play Store (#{e.message}). Defaulting to 1.")
+    all_codes = []
+    %w[internal alpha beta production].each do |t|
+      begin
+        codes = google_play_track_version_codes(
+          track: t,
+          json_key: "fastlane/play-store.json"
+        )
+        all_codes.concat(codes.map(&:to_i))
+        UI.message("Track '#{t}' version codes: #{codes}")
+      rescue => e
+        UI.important("Could not fetch version codes for track '#{t}': #{e.message}")
+      end
+    end
+
+    if all_codes.empty?
+      UI.important("No version codes found across any track. Defaulting to 1.")
       1
+    else
+      next_code = all_codes.max + 1
+      UI.message("Next version code: #{next_code}")
+      next_code
     end
   end
 

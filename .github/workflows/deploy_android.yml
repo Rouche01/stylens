@@ -166,6 +166,7 @@ jobs:
                   bundle exec fastlane android production \
                     release_notes:"$ACTUAL_RELEASE_NOTES" \
                     track:"$TRACK" \
+                    build_number:"$ACTUAL_BUILD_NUMBER" \
                     env:"$ENV"
                 else
                   bundle exec fastlane android development \
