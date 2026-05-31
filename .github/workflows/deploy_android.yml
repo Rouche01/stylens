@@ -76,8 +76,8 @@ jobs:
 
             - name: Get packages
               run: |
-                rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
                 flutter pub get
+                rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
             # v4.3.0
             - name: Cache Gradle
