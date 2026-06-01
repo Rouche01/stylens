@@ -62,8 +62,8 @@ platform :android do
     build_number   = options[:build_number]
 
     # Resolve the next version code from the Play Store (or use manual override)
-    next_version_code = build_number.to_s.empty? ? bump_version_code() : build_number.to_i
-    UI.message("Using version code: #{next_version_code}")
+    next_version_code = build_number.to_s.strip.empty? ? bump_version_code() : build_number.to_i
+    UI.message("🔢 Using version code: #{next_version_code}")
 
     dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
 
@@ -72,11 +72,17 @@ platform :android do
       task: "bundle",
       build_type: "Release",
       project_dir: "./",
+      flags: "-PversionCode=#{next_version_code}",
       properties: {
         "dart-defines"  => dart_defines,
         "versionCode"   => next_version_code.to_s,
       }
     )
+
+    # Verify the AAB was built with the correct version code
+    aab_path = "../build/app/outputs/bundle/release/app-release.aab"
+    embedded_code = sh("aapt2 dump badging #{aab_path} 2>/dev/null | grep versionCode | grep -o \"versionCode='[^']*'\" | head -1 || echo 'aapt2 not available'", log: false).strip
+    UI.message("✅ AAB embedded version info: #{embedded_code}")
 
     # Upload to Google Play
     upload_to_play_store(
@@ -84,6 +90,7 @@ platform :android do
       aab: "../build/app/outputs/bundle/release/app-release.aab",
       json_key: "fastlane/play-store.json",
       release_status: "draft",
+      version_codes_to_retain: [next_version_code],
       skip_upload_apk: true,
       skip_upload_metadata: true,
       skip_upload_changelogs: true,

@@ -66,8 +66,16 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = if (project.hasProperty("versionCode")) {
+            (project.property("versionCode") as String).toInt()
+        } else {
+            flutter.versionCode
+        }
+        versionName = if (project.hasProperty("versionName")) {
+            project.property("versionName") as String
+        } else {
+            flutter.versionName
+        }
 
         manifestPlaceholders["posthogApiKey"] = posthogApiKey
         manifestPlaceholders["posthogHost"] = posthogHost
