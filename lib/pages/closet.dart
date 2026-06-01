@@ -196,7 +196,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Text(
-                              'Every outfit you analyse gets saved here — tagged, organised, and ready to mix & match.',
+                              'Items from outfits you analyse gets saved here — tagged, organised, and ready to mix & match.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontFamily: 'Metropolis',

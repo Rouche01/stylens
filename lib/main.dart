@@ -12,10 +12,17 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Warm up the SharedPreferences Pigeon channel before any plugin uses it.
+  // On release builds, PostHog/Supabase call shared_preferences internally
+  // during init — if the channel isn't established first, it throws a
+  // PlatformException(channel-error) and crashes the app.
+  await SharedPreferences.getInstance();
 
   try {
     const String environment = String.fromEnvironment(
