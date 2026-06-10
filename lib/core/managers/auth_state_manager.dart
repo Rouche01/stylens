@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:gostylens/utils/auth_utils.dart';
+import 'package:gostylens/core/managers/push_notification_manager.dart';
 
 class AuthStateManager extends ChangeNotifier {
   final supabase = locator<SupabaseClient>();
@@ -166,6 +167,13 @@ class AuthStateManager extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Unregister push notifications token on logout
+      try {
+        await locator<PushNotificationManager>().unregisterToken();
+      } catch (e) {
+        print('Error unregistering push token during logout: $e');
+      }
+
       await supabase.auth.signOut();
       _analyticsService.reset();
       onSuccess?.call();

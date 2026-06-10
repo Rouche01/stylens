@@ -6,6 +6,7 @@ import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/models/user_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -107,6 +108,8 @@ class UserStateManager extends ChangeNotifier {
           userData.id,
           initialSubscription: userData.subscription,
         );
+        // Initialize Push Notifications
+        locator<PushNotificationManager>().initialize();
         onSuccess?.call(userData);
       } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
         print('stylens user not found');
@@ -187,6 +190,9 @@ class UserStateManager extends ChangeNotifier {
           initialSubscription: userData.subscription,
         );
 
+        // Initialize Push Notifications
+        locator<PushNotificationManager>().initialize();
+
         // Refresh the session to ensure the user claim is updated
         await locator<supabase.SupabaseClient>().auth.refreshSession();
         onSuccess?.call(userData);
@@ -256,6 +262,13 @@ class UserStateManager extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Unregister push notifications token on delete account
+      try {
+        await locator<PushNotificationManager>().unregisterToken();
+      } catch (e) {
+        print('Error unregistering push token: $e');
+      }
+
       final response = await _userApiService.deleteUser(_currentUser!.id);
 
       if (response.isSuccess) {

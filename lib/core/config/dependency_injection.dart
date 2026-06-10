@@ -17,6 +17,7 @@ import 'package:gostylens/core/services/api_service/user_api_service.dart';
 import 'package:gostylens/core/services/api_service/asset_api_service.dart';
 import 'package:gostylens/core/services/api_service/subscription_api_service.dart';
 import 'package:gostylens/core/services/api_service/style_analysis_api_service.dart';
+import 'package:gostylens/core/services/api_service/push_notification_api_service.dart';
 
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -25,6 +26,7 @@ import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
+import 'package:gostylens/core/managers/push_notification_manager.dart';
 
 // Global locator instance
 final locator = GetIt.instance;
@@ -87,6 +89,9 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<StyleAnalysisApiService>(
     () => StyleAnalysisApiService(),
   );
+  locator.registerLazySingleton<PushNotificationApiService>(
+    () => PushNotificationApiService(),
+  );
 
   // Setup Singletons
   final supabaseClient = Supabase.instance.client;
@@ -143,4 +148,7 @@ Future<void> setupLocator() async {
   );
   locator.registerLazySingleton<UserStateManager>(() => UserStateManager());
   locator.registerLazySingleton<AssetUploadManager>(() => AssetUploadManager());
+  locator.registerLazySingleton<PushNotificationManager>(
+    () => PushNotificationManager(),
+  );
 }

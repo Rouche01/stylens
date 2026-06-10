@@ -117,5 +117,9 @@
 		<true/>
 		<key>com.posthog.posthog.AUTO_INIT</key>
 		<false/>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>

@@ -14,6 +14,8 @@ import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -32,6 +34,9 @@ void main() async {
 
     await dotenv.load(fileName: ".env.$environment");
     EnvConfig.init();
+
+    // Initialize Firebase
+    await Firebase.initializeApp();
 
     // Set up singleton services
     await setupLocator();

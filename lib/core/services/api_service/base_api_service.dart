@@ -50,6 +50,23 @@ abstract class BaseApiService {
     );
   }
 
+  Future<ApiResponse<T>> put<T>(
+    String path, {
+    Map<String, dynamic>? body,
+    T Function(dynamic)? fromJson,
+    dio.Options? options,
+    String defaultErrorMessage = 'PUT request failed',
+  }) async {
+    return _request<T>(
+      'PUT',
+      path,
+      data: body,
+      options: options,
+      fromJson: fromJson,
+      defaultErrorMessage: defaultErrorMessage,
+    );
+  }
+
   Future<ApiResponse<T>> patch<T>(
     String path, {
     Map<String, dynamic>? body,
