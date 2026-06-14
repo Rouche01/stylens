@@ -25,6 +25,8 @@ import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:gostylens/core/managers/foreground_notification_handler.dart';
+import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 
@@ -101,6 +103,12 @@ Future<void> setupLocator() async {
   );
   locator.registerLazySingleton<GlobalLoaderController>(
     () => GlobalLoaderController(),
+  );
+  locator.registerLazySingleton<StyleAnalysisRouteTracker>(
+    () => StyleAnalysisRouteTracker(),
+  );
+  locator.registerLazySingleton<ForegroundNotificationHandler>(
+    () => ForegroundNotificationHandler(),
   );
 
   // Setup Dio

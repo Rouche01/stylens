@@ -15,7 +15,9 @@ import 'package:gostylens/widgets/attachment_sheet.dart';
 import 'package:gostylens/widgets/action_card.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/models/app_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
@@ -56,6 +58,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   void initState() {
     super.initState();
     _sessionManager = context.read<StyleAnalysisSessionManager>();
+    locator<StyleAnalysisRouteTracker>().setVisibleSession(
+      _sessionManager.selectedSessionId,
+    );
 
     _scrollController.addListener(_onScroll);
     _initializeSession();
@@ -67,6 +72,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   @override
   void dispose() {
+    locator<StyleAnalysisRouteTracker>().setVisibleSession(null);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _inputFocusNode.dispose();

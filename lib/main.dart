@@ -15,6 +15,7 @@ import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +71,8 @@ class MyApp extends StatelessWidget {
       ],
       child: PostHogWidget(
         child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
           title: 'Stylens',
           navigatorObservers: [PosthogObserver()],

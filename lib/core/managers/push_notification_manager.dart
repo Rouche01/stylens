@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 
 @pragma('vm:entry-point')
@@ -13,10 +14,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class PushNotificationManager {
   final PushNotificationApiService _apiService;
+  final ForegroundNotificationHandler _foregroundHandler;
   bool _initialized = false;
   String? _currentToken;
 
-  PushNotificationManager() : _apiService = locator<PushNotificationApiService>();
+  PushNotificationManager({
+    ForegroundNotificationHandler? foregroundHandler,
+  })  : _apiService = locator<PushNotificationApiService>(),
+        _foregroundHandler =
+            foregroundHandler ?? locator<ForegroundNotificationHandler>();
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -52,19 +58,18 @@ class PushNotificationManager {
           _registerToken(newToken);
         });
 
+        // Use in-app snackbars in foreground instead of the system banner.
+        await messaging.setForegroundNotificationPresentationOptions(
+          alert: false,
+          badge: true,
+          sound: false,
+        );
+
         // Set background message handler
         FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
         // Foreground messages listener
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          if (kDebugMode) {
-            print('Got a message in the foreground!');
-            print('Message data: ${message.data}');
-            if (message.notification != null) {
-              print('Message also contained a notification: ${message.notification?.title}');
-            }
-          }
-        });
+        FirebaseMessaging.onMessage.listen(_foregroundHandler.handle);
 
         _initialized = true;
       }
