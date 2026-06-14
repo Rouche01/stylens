@@ -74,6 +74,8 @@
 		<string>This app needs access to your camera to take photos for style analysis.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app needs access to your microphone (required by some camera plugins).</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>GoStylens uses your location to suggest outfits suited to your local weather.</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

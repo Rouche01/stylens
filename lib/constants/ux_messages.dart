@@ -29,4 +29,17 @@ abstract class UxMessages {
       "Hey! I'm your stylist. Let's get started on your vibe for today.";
   static const String initialStylistReplyWithoutImage2 =
       "Whenever you're ready, share your outfit and I'll jump right in with some tips!";
+
+  // --- Location permission ---
+  static const String locationExplainerTitle = 'Weather-aware styling';
+  static const String locationExplainerBody =
+      'Allow location access so your stylist can factor in your local weather when suggesting outfits.';
+  static const String locationExplainerAllow = 'Allow';
+  static const String locationExplainerNotNow = 'Not now';
+  static const String locationDeniedForeverTitle = 'Location access needed';
+  static const String locationDeniedForeverBody =
+      'Location is turned off for GoStylens. Enable it in Settings to get weather-aware styling tips.';
+  static const String locationOpenSettings = 'Open Settings';
+  static const String locationServicesDisabled =
+      'Location services are turned off on this device.';
 }

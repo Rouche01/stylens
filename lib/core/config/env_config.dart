@@ -43,6 +43,11 @@ class EnvConfig {
   static String get posthogApiKey => _get('POSTHOG_API_KEY');
   static String get posthogHost => _get('POSTHOG_HOST');
 
+  /// When false, skips the in-app location explainer and OS permission prompt.
+  /// Defaults to true if unset.
+  static bool get locationPermissionPromptEnabled =>
+      _getOptionalBool('LOCATION_PERMISSION_PROMPT_ENABLED', defaultValue: true);
+
   /// Call this on app startup to ensure all required environment variables are present.
   static void init() {
     supabaseUrl;
@@ -68,5 +73,11 @@ class EnvConfig {
       throw Exception('Environment variable $key is missing or empty.');
     }
     return value.trim();
+  }
+
+  static bool _getOptionalBool(String key, {required bool defaultValue}) {
+    final value = dotenv.env[key]?.trim();
+    if (value == null || value.isEmpty) return defaultValue;
+    return value.toLowerCase() == 'true' || value == '1';
   }
 }

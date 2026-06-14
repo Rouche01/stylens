@@ -15,8 +15,10 @@ import 'package:gostylens/widgets/attachment_sheet.dart';
 import 'package:gostylens/widgets/action_card.dart';
 import 'package:gostylens/pages/paywall.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/models/app_image.dart';
 
@@ -67,6 +69,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SubscriptionManager>().syncSubscription();
+      if (_isNewSession) {
+        _maybePromptForLocation();
+      }
     });
   }
 
@@ -119,6 +124,102 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     } catch (e) {
       debugPrint('Error loading session: $e');
     }
+  }
+
+  Future<void> _maybePromptForLocation() async {
+    if (!EnvConfig.locationPermissionPromptEnabled) return;
+    if (!mounted || !_isNewSession) return;
+
+    final locationManager = locator<LocationManager>();
+    if (await locationManager.hasShownExplainer()) return;
+    if (!mounted) return;
+
+    final allow = await _showStyledConfirmDialog(
+      title: UxMessages.locationExplainerTitle,
+      message: UxMessages.locationExplainerBody,
+      cancelLabel: UxMessages.locationExplainerNotNow,
+      confirmLabel: UxMessages.locationExplainerAllow,
+    );
+
+    if (!mounted) return;
+
+    await locationManager.markExplainerShown(userDeclined: allow != true);
+
+    if (allow != true) return;
+
+    final result = await locationManager.ensureAccess();
+    if (!mounted) return;
+
+    switch (result) {
+      case LocationAccessResult.deniedForever:
+        await _showLocationDeniedForeverDialog();
+      case LocationAccessResult.servicesDisabled:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(UxMessages.locationServicesDisabled)),
+        );
+      case LocationAccessResult.granted:
+      case LocationAccessResult.denied:
+      case LocationAccessResult.userPreviouslyDeclined:
+        break;
+    }
+  }
+
+  Future<void> _showLocationDeniedForeverDialog() async {
+    final openSettings = await _showStyledConfirmDialog(
+      title: UxMessages.locationDeniedForeverTitle,
+      message: UxMessages.locationDeniedForeverBody,
+      cancelLabel: UxMessages.locationExplainerNotNow,
+      confirmLabel: UxMessages.locationOpenSettings,
+    );
+
+    if (openSettings == true) {
+      await locator<LocationManager>().openSettings();
+    }
+  }
+
+  Future<bool?> _showStyledConfirmDialog({
+    required String title,
+    required String message,
+    required String cancelLabel,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        actionsPadding: const EdgeInsets.only(right: 16, bottom: 8, top: 0),
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: 18,
+          ),
+        ),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          child: Text(message),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(cancelLabel, style: TextStyle(color: Colors.grey[600])),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              confirmLabel,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _saveStateAndDispose() {

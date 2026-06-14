@@ -29,6 +29,7 @@ import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
+import 'package:gostylens/core/managers/location_manager.dart';
 
 // Global locator instance
 final locator = GetIt.instance;
@@ -159,4 +160,5 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<PushNotificationManager>(
     () => PushNotificationManager(),
   );
+  locator.registerLazySingleton<LocationManager>(() => LocationManager());
 }
