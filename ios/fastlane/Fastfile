@@ -42,7 +42,7 @@ platform :ios do
     # Update Flutter environment in Generated.xcconfig
     update_flutter_env(env)
 
-    sh("scripts/patch_geolocator_location_hardening.sh")
+    patch_geolocator_location_hardening
 
     # Build iOS app (packaging/signing)
     
@@ -101,7 +101,7 @@ platform :ios do
     # Update Flutter environment in Generated.xcconfig
     update_flutter_env(env)
 
-    sh("scripts/patch_geolocator_location_hardening.sh")
+    patch_geolocator_location_hardening
 
     # Build iOS app (packaging/signing)
     
@@ -141,6 +141,14 @@ platform :ios do
       api_key: api_key
     )
     return (latest_build_number.to_i + 1)
+  end
+
+  def patch_geolocator_location_hardening
+    script = File.expand_path("../scripts/patch_geolocator_location_hardening.sh", __dir__)
+    unless File.exist?(script)
+      UI.user_error!("Geolocator patch script not found at #{script}")
+    end
+    sh(script)
   end
 
   # Lightweight helper to set the environment for Flutter
