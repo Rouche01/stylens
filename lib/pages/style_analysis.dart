@@ -60,9 +60,11 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   void initState() {
     super.initState();
     _sessionManager = context.read<StyleAnalysisSessionManager>();
-    locator<StyleAnalysisRouteTracker>().setVisibleSession(
-      _sessionManager.selectedSessionId,
+    locator<StyleAnalysisRouteTracker>().setChatScreenVisible(
+      visible: true,
+      sessionId: _sessionManager.selectedSessionId,
     );
+    _sessionManager.addListener(_syncRouteTracker);
 
     _scrollController.addListener(_onScroll);
     _initializeSession();
@@ -75,9 +77,17 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     });
   }
 
+  void _syncRouteTracker() {
+    if (!mounted) return;
+    locator<StyleAnalysisRouteTracker>().updateVisibleSession(
+      _sessionManager.selectedSessionId,
+    );
+  }
+
   @override
   void dispose() {
-    locator<StyleAnalysisRouteTracker>().setVisibleSession(null);
+    _sessionManager.removeListener(_syncRouteTracker);
+    locator<StyleAnalysisRouteTracker>().setChatScreenVisible(visible: false);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _inputFocusNode.dispose();

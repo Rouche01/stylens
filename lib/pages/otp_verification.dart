@@ -34,6 +34,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     _authStateManager = context.read<AuthStateManager>();
     _userStateManager = context.read<UserStateManager>();
     _resendTapRecognizer = TapGestureRecognizer();
+    _otpController.addListener(_onOtpChanged);
+  }
+
+  void _onOtpChanged() {
+    setState(() {});
   }
 
   void _onResend() {
@@ -81,6 +86,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   @override
   void dispose() {
+    _otpController.removeListener(_onOtpChanged);
     _otpController.dispose();
     _resendTapRecognizer.dispose();
     super.dispose();
@@ -113,12 +119,13 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    child: AutofillGroup(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                           AuthHeader(
                             topPadding: 24,
                             title: 'Check Your Inbox',
@@ -146,10 +153,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                           Pinput(
                             length: 6,
                             controller: _otpController,
+                            autofocus: true,
+                            autofillHints: const [AutofillHints.oneTimeCode],
                             keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
+                            textInputAction: TextInputAction.done,
+                            inputFormatters: const [_OtpDigitsFormatter()],
                             mainAxisAlignment: MainAxisAlignment.start,
                             separatorBuilder: (index) =>
                                 const SizedBox(width: 6),
@@ -203,7 +211,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                                 ).colorScheme.primary.withValues(alpha: 0.05),
                               ),
                             ),
-                            onChanged: (_) => setState(() {}),
                             onCompleted: (_) => _verifyOtp(),
                           ),
                           const SizedBox(height: 32),
@@ -255,6 +262,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         ],
                       ),
                     ),
+                    ),
                   ),
                 ),
               ],
@@ -262,6 +270,23 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _OtpDigitsFormatter extends TextInputFormatter {
+  const _OtpDigitsFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final text = digits.length > 6 ? digits.substring(0, 6) : digits;
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

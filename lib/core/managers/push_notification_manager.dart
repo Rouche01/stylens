@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -6,17 +7,25 @@ import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (kDebugMode) {
     print("Handling background message: ${message.messageId}");
   }
 }
 
+/// Registers the background handler. Must run before [runApp].
+void registerFirebaseMessagingBackgroundHandler() {
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+}
+
 class PushNotificationManager {
   final PushNotificationApiService _apiService;
   final ForegroundNotificationHandler _foregroundHandler;
-  bool _initialized = false;
+  bool _permissionRequested = false;
+  bool _notificationsAuthorized = false;
   String? _currentToken;
+  StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   PushNotificationManager({
     ForegroundNotificationHandler? foregroundHandler,
@@ -24,55 +33,61 @@ class PushNotificationManager {
         _foregroundHandler =
             foregroundHandler ?? locator<ForegroundNotificationHandler>();
 
+  /// Attaches the foreground listener once. Safe to call from [main].
+  void attachForegroundListener() {
+    _foregroundSubscription ??= FirebaseMessaging.onMessage.listen(
+      _foregroundHandler.handle,
+      onError: (Object error, StackTrace stackTrace) {
+        if (kDebugMode) {
+          print('FirebaseMessaging.onMessage error: $error');
+        }
+      },
+    );
+  }
+
   Future<void> initialize() async {
-    if (_initialized) return;
+    attachForegroundListener();
 
     try {
       final messaging = FirebaseMessaging.instance;
 
-      // Request permissions
-      final settings = await messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      if (kDebugMode) {
-        print('User granted permission: ${settings.authorizationStatus}');
-      }
-
-      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional) {
-        // Register token
-        final token = await messaging.getToken();
-        if (token != null) {
-          await _registerToken(token);
-        }
-
-        // Handle token refresh
-        messaging.onTokenRefresh.listen((newToken) {
-          _registerToken(newToken);
-        });
-
-        // Use in-app snackbars in foreground instead of the system banner.
-        await messaging.setForegroundNotificationPresentationOptions(
-          alert: false,
+      if (!_permissionRequested) {
+        final settings = await messaging.requestPermission(
+          alert: true,
+          announcement: false,
           badge: true,
-          sound: false,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+          sound: true,
         );
 
-        // Set background message handler
-        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        _permissionRequested = true;
+        _notificationsAuthorized =
+            settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
 
-        // Foreground messages listener
-        FirebaseMessaging.onMessage.listen(_foregroundHandler.handle);
-
-        _initialized = true;
+        if (kDebugMode) {
+          print('User granted permission: ${settings.authorizationStatus}');
+        }
       }
+
+      if (!_notificationsAuthorized) return;
+
+      // Use in-app snackbars in foreground instead of the system banner.
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: false,
+        badge: true,
+        sound: false,
+      );
+
+      final token = await messaging.getToken();
+      if (token != null) {
+        await _registerToken(token);
+      }
+
+      _tokenRefreshSubscription ??=
+          messaging.onTokenRefresh.listen(_registerToken);
     } catch (e) {
       if (kDebugMode) {
         print('Error initializing push notifications: $e');

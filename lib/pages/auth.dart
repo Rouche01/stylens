@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
@@ -56,6 +57,8 @@ class _AuthPageState extends State<AuthPage> {
         _emailController.text.trim(),
         onSuccess: () {
           if (mounted) {
+            FocusManager.instance.primaryFocus?.unfocus();
+            TextInput.finishAutofillContext(shouldSave: true);
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) =>
@@ -142,12 +145,13 @@ class _AuthPageState extends State<AuthPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    child: AutofillGroup(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                           const AuthHeader(title: 'Login / Sign Up'),
                           CustomFormField(
                             controller: _emailController,
@@ -202,6 +206,7 @@ class _AuthPageState extends State<AuthPage> {
                           const SizedBox(height: 32),
                         ],
                       ),
+                    ),
                     ),
                   ),
                 ),

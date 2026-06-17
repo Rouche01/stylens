@@ -63,14 +63,21 @@ class _CustomFormFieldState extends State<CustomFormField> {
       inputFormatters = [FilteringTextInputFormatter.digitsOnly];
     }
 
+    final isEmail = widget.fieldType == FieldType.email;
+
     return TextFormField(
       controller: widget.controller,
       obscureText: isPassword,
-      keyboardType: widget.fieldType == FieldType.email
+      keyboardType: isEmail
           ? TextInputType.emailAddress
           : widget.fieldType == FieldType.number
           ? TextInputType.number
           : TextInputType.text,
+      autocorrect: !isEmail,
+      enableSuggestions: !isEmail,
+      spellCheckConfiguration:
+          isEmail ? const SpellCheckConfiguration.disabled() : null,
+      autofillHints: isEmail ? const [AutofillHints.email] : null,
       inputFormatters: inputFormatters,
       decoration: InputDecoration(
         hintText: widget.hintText,

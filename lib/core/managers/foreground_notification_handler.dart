@@ -20,6 +20,9 @@ class ForegroundNotificationHandler {
   final StyleAnalysisRouteTracker _routeTracker;
 
   void handle(RemoteMessage message) {
+    if (kDebugMode) {
+      print('Foreground notification received: ${message.data}');
+    }
     if (!_shouldShow(message)) {
       if (kDebugMode) {
         print('Foreground notification suppressed: ${message.data}');
@@ -44,16 +47,33 @@ class ForegroundNotificationHandler {
     if (type == PushNotificationTypes.styleAdviceReady &&
         sessionId != null &&
         sessionId.isNotEmpty &&
-        _routeTracker.isViewingSession(sessionId)) {
+        _isViewingStyleAdviceSession(sessionId)) {
       return false;
     }
 
     return true;
   }
 
+  bool _isViewingStyleAdviceSession(String sessionId) {
+    if (_routeTracker.isViewingSession(sessionId)) return true;
+
+    // New sessions assign an ID after the chat screen opens; the route tracker
+    // may lag until the next rebuild, so fall back to the session manager.
+    if (!_routeTracker.isOnChatScreen) return false;
+
+    final activeSessionId =
+        locator<StyleAnalysisSessionManager>().selectedSessionId;
+    return activeSessionId != null && activeSessionId == sessionId;
+  }
+
   void _showInAppSnackBar(RemoteMessage message) {
     final messenger = rootScaffoldMessengerKey.currentState;
-    if (messenger == null) return;
+    if (messenger == null) {
+      if (kDebugMode) {
+        print('Foreground notification skipped: scaffold messenger unavailable');
+      }
+      return;
+    }
 
     final title = _titleFor(message);
     final body = _bodyFor(message);

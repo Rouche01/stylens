@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/navigation/auth_gate.dart';
@@ -15,6 +16,7 @@ import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 
 void main() async {
@@ -38,9 +40,11 @@ void main() async {
 
     // Initialize Firebase
     await Firebase.initializeApp();
+    registerFirebaseMessagingBackgroundHandler();
 
     // Set up singleton services
     await setupLocator();
+    locator<PushNotificationManager>().attachForegroundListener();
 
     runApp(const MyApp());
   } catch (e) {
@@ -69,13 +73,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: locator<UserStateManager>()),
         ChangeNotifierProvider.value(value: locator<AssetUploadManager>()),
       ],
-      child: PostHogWidget(
-        child: MaterialApp(
+      child: _wrapWithPostHog(
+        MaterialApp(
           navigatorKey: rootNavigatorKey,
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
           title: 'Stylens',
-          navigatorObservers: [PosthogObserver()],
+          navigatorObservers: AnalyticsService.isEnabled
+              ? [PosthogObserver()]
+              : const [],
           builder: (context, child) => GlobalLoaderScope(child: child!),
           theme: ThemeData(
             fontFamily: 'Metropolis',
@@ -155,6 +161,11 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _wrapWithPostHog(Widget child) {
+  if (!AnalyticsService.isEnabled) return child;
+  return PostHogWidget(child: child);
 }
 
 class MyAppState extends ChangeNotifier {}

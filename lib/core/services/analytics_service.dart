@@ -7,12 +7,14 @@ class AnalyticsService {
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
 
-  /// Set this to false to temporarily disable all PostHog events
+  /// Set this to false to temporarily disable all PostHog events in release.
   static const bool _enabled = true;
+
+  static bool get isEnabled => _enabled && !kDebugMode;
 
   /// Initialize PostHog with configuration
   Future<void> init() async {
-    if (!_enabled) return;
+    if (!isEnabled) return;
     try {
       final config = PostHogConfig(EnvConfig.posthogApiKey);
       config.host = EnvConfig.posthogHost;
@@ -48,7 +50,7 @@ class AnalyticsService {
       debugPrint('👤 [PostHog] Identify: $userId');
       if (properties != null) debugPrint('   Properties: $properties');
     }
-    if (!_enabled || kDebugMode) return;
+    if (!isEnabled) return;
     await Posthog().identify(userId: userId, userProperties: properties);
   }
 
@@ -61,7 +63,7 @@ class AnalyticsService {
       debugPrint('📊 [PostHog] Event: $eventName');
       if (properties != null) debugPrint('   Properties: $properties');
     }
-    if (!_enabled || kDebugMode) return;
+    if (!isEnabled) return;
     await Posthog().capture(eventName: eventName, properties: properties);
   }
 
@@ -74,7 +76,7 @@ class AnalyticsService {
       debugPrint('📱 [PostHog] Screen: $screenName');
       if (properties != null) debugPrint('   Properties: $properties');
     }
-    if (!_enabled || kDebugMode) return;
+    if (!isEnabled) return;
     await Posthog().screen(screenName: screenName, properties: properties);
   }
 
@@ -88,7 +90,7 @@ class AnalyticsService {
       debugPrint('🚨 [PostHog] Exception: $error');
       if (properties != null) debugPrint('   Properties: $properties');
     }
-    if (!_enabled || kDebugMode) return;
+    if (!isEnabled) return;
     await Posthog().captureException(
       error: error,
       stackTrace: stackTrace,
@@ -101,7 +103,7 @@ class AnalyticsService {
     if (kDebugMode) {
       debugPrint('🔄 [PostHog] Reset');
     }
-    if (!_enabled || kDebugMode) return;
+    if (!isEnabled) return;
     await Posthog().reset();
   }
 }
