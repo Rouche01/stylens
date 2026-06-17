@@ -80,6 +80,9 @@ post_install do |installer|
     end
   end
 
+  # geolocator_apple is built via SPM; strip always-location APIs from the plugin binary.
+  system('sh', File.join(__dir__, 'scripts', 'patch_geolocator_location_hardening.sh'))
+
   # Only inject PostHog-related build settings into the Runner project.
   # Do NOT touch CODE_SIGNING_* here so Xcode can sign for your team.
   project_path = File.join(File.dirname(__FILE__), 'Runner.xcodeproj')

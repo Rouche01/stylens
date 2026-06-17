@@ -37,7 +37,6 @@ dependencies:
   firebase_core: ^4.10.0
   firebase_messaging: ^16.3.0
   geolocator: ^13.0.4
-  permission_handler: ^11.4.0
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart' as permission_handler;
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum LocationAccessResult {
@@ -130,6 +129,6 @@ class LocationManager {
   }
 
   Future<bool> openSettings() {
-    return permission_handler.openAppSettings();
+    return Geolocator.openAppSettings();
   }
 }

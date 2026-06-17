@@ -29,8 +29,8 @@ class UserApiService extends BaseApiService {
     final requestBody = {
       'authId': authId,
       'name': name,
-      if (gender != null) 'gender': gender,
-      if (email != null) 'email': email,
+      'gender': ?gender, 
+      'email': ?email,
     };
 
     return post<User>(
@@ -49,9 +49,9 @@ class UserApiService extends BaseApiService {
     String? gender,
   }) async {
     final requestBody = {
-      if (name != null) 'name': name,
-      if (nickname != null) 'nickname': nickname,
-      if (gender != null) 'gender': gender,
+      'name': ?name,
+      'nickname': ?nickname,
+      'gender': ?gender,
     };
 
     return patch<User>(

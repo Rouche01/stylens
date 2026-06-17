@@ -41,7 +41,9 @@ platform :ios do
     
     # Update Flutter environment in Generated.xcconfig
     update_flutter_env(env)
-    
+
+    sh("scripts/patch_geolocator_location_hardening.sh")
+
     # Build iOS app (packaging/signing)
     
     # Build iOS app (packaging/signing)
@@ -98,7 +100,9 @@ platform :ios do
     
     # Update Flutter environment in Generated.xcconfig
     update_flutter_env(env)
-    
+
+    sh("scripts/patch_geolocator_location_hardening.sh")
+
     # Build iOS app (packaging/signing)
     
     # Build iOS app (packaging/signing)

@@ -76,6 +76,8 @@
 		<string>This app needs access to your microphone (required by some camera plugins).</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>GoStylens uses your location to suggest outfits suited to your local weather.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>GoStylens uses your location to suggest outfits suited to your local weather while you use the app.</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

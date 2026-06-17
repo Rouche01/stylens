@@ -298,7 +298,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                                       AnalyticsService().capture(
                                         'closet_notify_me',
                                         properties: {
-                                          if (email != null) 'email': email,
+                                          'email': ?email,
                                         },
                                       );
 
