@@ -30,6 +30,10 @@ import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
+import 'package:gostylens/core/navigation/home_tab_controller.dart';
 
 // Global locator instance
 final locator = GetIt.instance;
@@ -111,6 +115,10 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<ForegroundNotificationHandler>(
     () => ForegroundNotificationHandler(),
   );
+  locator.registerLazySingleton<HomeTabController>(() => HomeTabController());
+  locator.registerLazySingleton<DeepLinkParser>(() => DeepLinkParser());
+  locator.registerLazySingleton<DeepLinkRouter>(() => DeepLinkRouter());
+  locator.registerLazySingleton<DeepLinkService>(() => DeepLinkService());
 
   // Setup Dio
   locator.registerLazySingleton<dio.Dio>(() {

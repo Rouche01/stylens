@@ -9,6 +9,8 @@ import 'package:gostylens/widgets/auth_error_view.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
+import 'package:gostylens/core/navigation/home_tab_controller.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:lottie/lottie.dart';
 
@@ -23,6 +25,17 @@ class _AuthGateState extends State<AuthGate> {
   StreamSubscription<AuthState>? _authSubscription;
   Type? _lastBuiltType;
   bool _showAnimationDelay = true;
+  bool _wasNavigationReady = false;
+
+  void _scheduleNavigationReadyUpdate(bool ready) {
+    if (_wasNavigationReady == ready) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _wasNavigationReady == ready) return;
+      _wasNavigationReady = ready;
+      locator<DeepLinkService>().setNavigationReady(ready);
+    });
+  }
 
   void _handleStackCleanup(Type currentType) {
     if (_lastBuiltType != null && _lastBuiltType != currentType) {
@@ -49,6 +62,13 @@ class _AuthGateState extends State<AuthGate> {
       data,
     ) {
       final event = data.event;
+      if (event == AuthChangeEvent.signedIn) {
+        final deepLinkService = locator<DeepLinkService>();
+        if (!deepLinkService.hasPending) {
+          locator<HomeTabController>().setTab(HomeTabController.captureIndex);
+        }
+      }
+
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.signedOut ||
           event == AuthChangeEvent.userDeleted ||
@@ -92,6 +112,12 @@ class _AuthGateState extends State<AuthGate> {
         final session =
             snapshot.data?.session ??
             locator<SupabaseClient>().auth.currentSession;
+
+        _scheduleNavigationReadyUpdate(
+          session != null &&
+              userState.operationState.fetchStatus == UserFetchStatus.ready,
+        );
+
         Widget child;
 
         // If we are still waiting for the minimum animation display delay, show the Lottie loader

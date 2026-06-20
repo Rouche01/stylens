@@ -4,20 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
-import 'package:gostylens/pages/style_analysis.dart';
-
-/// Known `data.type` values sent by the backend.
-abstract final class PushNotificationTypes {
-  static const styleAdviceReady = 'style_advice_ready';
-}
 
 class ForegroundNotificationHandler {
   ForegroundNotificationHandler({
     StyleAnalysisRouteTracker? routeTracker,
-  }) : _routeTracker = routeTracker ?? locator<StyleAnalysisRouteTracker>();
+    DeepLinkParser? parser,
+    DeepLinkService? deepLinkService,
+  })  : _routeTracker = routeTracker ?? locator<StyleAnalysisRouteTracker>(),
+        _parser = parser ?? locator<DeepLinkParser>(),
+        _deepLinkService = deepLinkService ?? locator<DeepLinkService>();
 
   final StyleAnalysisRouteTracker _routeTracker;
+  final DeepLinkParser _parser;
+  final DeepLinkService _deepLinkService;
 
   void handle(RemoteMessage message) {
     if (kDebugMode) {
@@ -40,21 +43,20 @@ class ForegroundNotificationHandler {
       return false;
     }
 
-    final type = message.data['type'] ?? message.data['notification_type'];
-    final sessionId =
-        message.data['session_id'] ?? message.data['sessionId'];
-
-    if (type == PushNotificationTypes.styleAdviceReady &&
-        sessionId != null &&
-        sessionId.isNotEmpty &&
-        _isViewingStyleAdviceSession(sessionId)) {
-      return false;
+    final destination = _parser.parsePushData(message.data);
+    if (destination.target == DeepLinkTarget.session) {
+      final sessionId = destination.sessionId;
+      if (sessionId != null &&
+          sessionId.isNotEmpty &&
+          _isViewingSession(sessionId)) {
+        return false;
+      }
     }
 
     return true;
   }
 
-  bool _isViewingStyleAdviceSession(String sessionId) {
+  bool _isViewingSession(String sessionId) {
     if (_routeTracker.isViewingSession(sessionId)) return true;
 
     // New sessions assign an ID after the chat screen opens; the route tracker
@@ -77,9 +79,7 @@ class ForegroundNotificationHandler {
 
     final title = _titleFor(message);
     final body = _bodyFor(message);
-    final sessionId =
-        message.data['session_id'] ?? message.data['sessionId'];
-    final canOpenSession = sessionId != null && sessionId.isNotEmpty;
+    final canOpen = _parser.canOpenFromPushData(message.data);
 
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -87,24 +87,18 @@ class ForegroundNotificationHandler {
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         content: _NotificationSnackBarContent(title: title, body: body),
-        action: canOpenSession
+        action: canOpen
             ? SnackBarAction(
                 label: 'Open',
-                onPressed: () => _openStyleAnalysisSession(sessionId),
+                onPressed: () => _openDeepLink(message.data),
               )
             : null,
       ),
     );
   }
 
-  void _openStyleAnalysisSession(String sessionId) {
-    final navigator = rootNavigatorKey.currentState;
-    if (navigator == null) return;
-
-    locator<StyleAnalysisSessionManager>().setSelectedSessionId(sessionId);
-    navigator.push(
-      MaterialPageRoute(builder: (_) => const StyleAnalysisPage()),
-    );
+  void _openDeepLink(Map<String, dynamic> data) {
+    _deepLinkService.handlePushData(data);
   }
 
   String? _titleFor(RemoteMessage message) =>

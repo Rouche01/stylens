@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/foreground_notification_handler.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 
 @pragma('vm:entry-point')
@@ -25,7 +26,9 @@ class PushNotificationManager {
   bool _notificationsAuthorized = false;
   String? _currentToken;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  StreamSubscription<RemoteMessage>? _openedAppSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  bool _initialMessageHandled = false;
 
   PushNotificationManager({
     ForegroundNotificationHandler? foregroundHandler,
@@ -43,6 +46,30 @@ class PushNotificationManager {
         }
       },
     );
+  }
+
+  /// Handles notification taps when the app was backgrounded or killed.
+  void attachOpenedAppListener() {
+    _openedAppSubscription ??=
+        // backgrounded (warm resume)
+        FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedAppMessage);
+
+    if (_initialMessageHandled) return;
+    _initialMessageHandled = true;
+
+    // killed (cold start)
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message != null) {
+        _handleOpenedAppMessage(message);
+      }
+    });
+  }
+
+  void _handleOpenedAppMessage(RemoteMessage message) {
+    if (kDebugMode) {
+      print('Notification opened app: ${message.data}');
+    }
+    locator<DeepLinkService>().handlePushData(message.data);
   }
 
   Future<void> initialize() async {

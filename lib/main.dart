@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,8 @@ void main() async {
     // Set up singleton services
     await setupLocator();
     locator<PushNotificationManager>().attachForegroundListener();
+    locator<PushNotificationManager>().attachOpenedAppListener();
+    await locator<DeepLinkService>().initialize();
 
     runApp(const MyApp());
   } catch (e) {
