@@ -12,12 +12,8 @@ class ProfileMenuPage extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     final authState = context.read<AuthStateManager>();
-    final userState = context.read<UserStateManager>();
 
     authState.logOut(
-      onSuccess: () async {
-        await userState.resetState();
-      },
       onError: (error) {
         if (context.mounted) {
           ScaffoldMessenger.of(

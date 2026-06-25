@@ -44,7 +44,7 @@ Future<void> setupLocator() async {
   // Initialize Supabase
   await Supabase.initialize(
     url: EnvConfig.supabaseUrl,
-    anonKey: EnvConfig.supabaseAnonKey,
+    publishableKey: EnvConfig.supabaseAnonKey,
   );
 
   // Initialize Google Sign In
@@ -118,7 +118,12 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<HomeTabController>(() => HomeTabController());
   locator.registerLazySingleton<DeepLinkParser>(() => DeepLinkParser());
   locator.registerLazySingleton<DeepLinkRouter>(() => DeepLinkRouter());
-  locator.registerLazySingleton<DeepLinkService>(() => DeepLinkService());
+  locator.registerLazySingleton<DeepLinkService>(
+    () => DeepLinkService(
+      parser: locator<DeepLinkParser>(),
+      router: locator<DeepLinkRouter>(),
+    ),
+  );
 
   // Setup Dio
   locator.registerLazySingleton<dio.Dio>(() {

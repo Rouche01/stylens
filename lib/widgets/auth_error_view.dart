@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:gostylens/models/api_responses/api_response.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/auth_state_manager.dart';
+import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:flutter/material.dart';
 
 class AuthErrorView extends StatelessWidget {
   final ErrorData? error;
@@ -69,7 +68,17 @@ class AuthErrorView extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () => locator<SupabaseClient>().auth.signOut(),
+              onPressed: () {
+                locator<AuthStateManager>().logOut(
+                  onError: (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Logout failed: $error')),
+                      );
+                    }
+                  },
+                );
+              },
               child: Text(
                 'Back to Login',
                 style: TextStyle(

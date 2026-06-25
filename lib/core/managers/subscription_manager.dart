@@ -365,8 +365,8 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Resets the manager state. Should be called when logging out.
-  Future<void> reset() async {
+  /// Clears subscription state and logs out of RevenueCat. Call on auth logout.
+  Future<void> clearState() async {
     try {
       if (_isInitialized) {
         await Purchases.logOut();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
@@ -19,9 +20,17 @@ class DeepLinkRouter {
   final StyleAnalysisRouteTracker _routeTracker;
   final HomeTabController _homeTabController;
 
-  void navigate(DeepLinkDestination destination) {
+  static const _maxNavigateAttempts = 10;
+
+  void navigate(DeepLinkDestination destination, {int attempt = 0}) {
     final navigator = rootNavigatorKey.currentState;
-    if (navigator == null) return;
+    if (navigator == null) {
+      if (attempt >= _maxNavigateAttempts) return;
+      SchedulerBinding.instance.addPostFrameCallback(
+        (_) => navigate(destination, attempt: attempt + 1),
+      );
+      return;
+    }
 
     switch (destination.target) {
       case DeepLinkTarget.capture:
@@ -38,14 +47,18 @@ class DeepLinkRouter {
         }
         _openSession(navigator, sessionId);
       case DeepLinkTarget.paywall:
-        navigator.push(
-          MaterialPageRoute(builder: (_) => const PaywallPage()),
-        );
+        _pushPage(navigator, (context) => const PaywallPage());
       case DeepLinkTarget.billing:
-        navigator.push(
-          MaterialPageRoute(builder: (_) => BillingPlanPage()),
-        );
+        _pushPage(navigator, (context) => BillingPlanPage());
     }
+  }
+
+  void _pushPage(
+    NavigatorState navigator,
+    Widget Function(BuildContext context) builder,
+  ) {
+    navigator.popUntil((route) => route.isFirst);
+    navigator.push(MaterialPageRoute(builder: builder));
   }
 
   void _navigateToTab(NavigatorState navigator, int tabIndex) {

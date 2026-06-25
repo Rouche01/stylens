@@ -6,10 +6,22 @@ class DeepLinkParser {
 
   /// Returns null when [uri] is not a GoStylens deep link (e.g. Google OAuth).
   DeepLinkDestination? parseUri(Uri uri) {
-    if (uri.scheme != supportedScheme) return null;
+    if (uri.scheme.toLowerCase() != supportedScheme) return null;
+
+    var host = uri.host;
+    var pathSegments = List<String>.from(uri.pathSegments);
+
+    // Some platforms emit gostylens:/history (path-only) instead of gostylens://history.
+    if (host.isEmpty && pathSegments.isEmpty && uri.path.isNotEmpty) {
+      pathSegments = uri.path
+          .split('/')
+          .where((segment) => segment.isNotEmpty)
+          .toList();
+    }
+
     return _parseLocation(
-      host: uri.host,
-      pathSegments: uri.pathSegments,
+      host: host,
+      pathSegments: pathSegments,
       dest: uri.queryParameters['dest'],
       sessionId: uri.queryParameters['session_id'] ??
           uri.queryParameters['sessionId'],

@@ -5,12 +5,14 @@ import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
+import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/models/user_state.dart';
+import 'package:gostylens/navigation/auth_flow_user_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-class UserStateManager extends ChangeNotifier {
+class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   final UserApiService _userApiService;
   final SubscriptionManager _subscriptionManager =
       locator<SubscriptionManager>();
@@ -18,14 +20,17 @@ class UserStateManager extends ChangeNotifier {
   UserStateManager() : _userApiService = locator<UserApiService>();
 
   UserOperationState _operationState = const UserOperationState();
+  @override
   UserOperationState get operationState => _operationState;
 
   bool get isBusy => _operationState.isBusy;
 
   User? _currentUser;
+  @override
   User? get currentUser => _currentUser;
 
   ErrorData? _lastError;
+  @override
   ErrorData? get lastError => _lastError;
 
   // Registration Draft State
@@ -75,6 +80,7 @@ class UserStateManager extends ChangeNotifier {
   }
 
   /// Fetches the profile of the currently authenticated Supabase user from the backend DB.
+  @override
   Future<void> fetchCurrentUser({
     void Function(User user)? onSuccess,
     void Function(String error)? onError,
@@ -112,7 +118,6 @@ class UserStateManager extends ChangeNotifier {
         locator<PushNotificationManager>().initialize();
         onSuccess?.call(userData);
       } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
-        print('stylens user not found');
         _operationState = _operationState.copyWith(
           fetchStatus: UserFetchStatus.onboarding,
         );
@@ -137,7 +142,6 @@ class UserStateManager extends ChangeNotifier {
       );
       onError?.call(_lastError!.message);
     } finally {
-      print('finally');
       notifyListeners();
     }
   }
@@ -262,19 +266,11 @@ class UserStateManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Unregister push notifications token on delete account
-      try {
-        await locator<PushNotificationManager>().unregisterToken();
-      } catch (e) {
-        print('Error unregistering push token: $e');
-      }
-
       final response = await _userApiService.deleteUser(_currentUser!.id);
 
       if (response.isSuccess) {
-        // Sign out of Supabase - this will trigger AuthGate to redirect the user
-        await locator<supabase.SupabaseClient>().auth.signOut();
-        await resetState();
+        // AuthStateManager.signOut emits signedOut; AuthFlowController clears state.
+        await locator<AuthStateManager>().logOut();
         onSuccess?.call();
       } else {
         onError?.call(response.error?.message ?? 'Failed to delete account.');
@@ -288,12 +284,13 @@ class UserStateManager extends ChangeNotifier {
   }
 
   /// Clears the user and subscription state. Should be called when logging out.
-  Future<void> resetState() async {
+  @override
+  Future<void> clearState() async {
     _currentUser = null;
     _registrationDraft = null;
     _operationState = const UserOperationState();
     _lastError = null;
-    await _subscriptionManager.reset();
+    await _subscriptionManager.clearState();
     notifyListeners();
   }
 }
