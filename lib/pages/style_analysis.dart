@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
+import 'package:gostylens/navigation/navigation_helpers.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
@@ -19,7 +20,6 @@ import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
-import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
 import 'package:gostylens/models/app_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
@@ -60,11 +60,6 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   void initState() {
     super.initState();
     _sessionManager = context.read<StyleAnalysisSessionManager>();
-    locator<StyleAnalysisRouteTracker>().setChatScreenVisible(
-      visible: true,
-      sessionId: _sessionManager.selectedSessionId,
-    );
-    _sessionManager.addListener(_syncRouteTracker);
 
     _scrollController.addListener(_onScroll);
     _initializeSession();
@@ -77,17 +72,8 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     });
   }
 
-  void _syncRouteTracker() {
-    if (!mounted) return;
-    locator<StyleAnalysisRouteTracker>().updateVisibleSession(
-      _sessionManager.selectedSessionId,
-    );
-  }
-
   @override
   void dispose() {
-    _sessionManager.removeListener(_syncRouteTracker);
-    locator<StyleAnalysisRouteTracker>().setChatScreenVisible(visible: false);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _inputFocusNode.dispose();
@@ -394,7 +380,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () => popDetailOrGoHome(context),
         color: Theme.of(context).colorScheme.primary,
       ),
       actions: [

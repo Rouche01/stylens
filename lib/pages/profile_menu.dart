@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/constants/links.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/pages/billing_plan.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/profile_edit_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -241,10 +242,7 @@ class ProfileMenuPage extends StatelessWidget {
                       icon: Icons.credit_card,
                       label: 'Billing / Plan',
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => BillingPlanPage()),
-                        );
+                        context.push(AppRoutes.billing);
                       },
                     ),
                   ],

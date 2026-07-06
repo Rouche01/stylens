@@ -1,85 +1,73 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/navigation/home_tab_controller.dart';
-import 'package:gostylens/pages/capture.dart';
-import 'package:gostylens/pages/closet.dart';
-import 'package:gostylens/pages/history.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/widgets/start_conversation_fab.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+/// Bottom-nav shell hosting the Closet / Capture / History tab branches.
+///
+/// Driven by GoRouter's [StatefulNavigationShell] so each tab keeps its own
+/// navigation stack and state across switches.
+class HomeShell extends StatefulWidget {
+  const HomeShell({super.key, required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomeShell> createState() => _HomeShellState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with StyleAnalysisActions {
-  final HomeTabController _homeTabController = locator<HomeTabController>();
+class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
+  static const int _historyIndex = 2;
+
+  void _onDestinationSelected(int index) {
+    widget.navigationShell.goBranch(
+      index,
+      // Re-tapping the active tab returns it to its initial route.
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _homeTabController,
-      builder: (context, _) {
-        final selectedIndex = _homeTabController.tabIndex;
+    final selectedIndex = widget.navigationShell.currentIndex;
 
-        Widget page;
-        switch (selectedIndex) {
-          case 0:
-            page = ClosetPage();
-          case 1:
-            page = CapturePage();
-          case 2:
-            page = HistoryPage();
-          default:
-            throw UnimplementedError('no widget for $selectedIndex');
-        }
-
-        return Scaffold(
-          body: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            switchInCurve: Curves.easeInOut,
-            switchOutCurve: Curves.easeInOut,
-            child: Container(key: ValueKey<int>(selectedIndex), child: page),
-          ),
-          bottomNavigationBar: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: NavigationBar(
-                backgroundColor: Theme.of(
-                  context,
-                ).navigationBarTheme.backgroundColor?.withValues(alpha: 0.8),
-                selectedIndex: selectedIndex,
-                onDestinationSelected: _homeTabController.setTab,
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.checkroom_outlined),
-                    selectedIcon: Icon(Icons.checkroom),
-                    label: 'Closet',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.camera_alt_outlined),
-                    selectedIcon: Icon(Icons.camera_alt),
-                    label: 'Capture',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.history_outlined),
-                    selectedIcon: Icon(Icons.history),
-                    label: 'History',
-                  ),
-                ],
+    return Scaffold(
+      body: widget.navigationShell,
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: NavigationBar(
+            backgroundColor: Theme.of(
+              context,
+            ).navigationBarTheme.backgroundColor?.withValues(alpha: 0.8),
+            selectedIndex: selectedIndex,
+            onDestinationSelected: _onDestinationSelected,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.checkroom_outlined),
+                selectedIcon: Icon(Icons.checkroom),
+                label: 'Closet',
               ),
-            ),
+              NavigationDestination(
+                icon: Icon(Icons.camera_alt_outlined),
+                selectedIcon: Icon(Icons.camera_alt),
+                label: 'Capture',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history),
+                label: 'History',
+              ),
+            ],
           ),
-          floatingActionButton: selectedIndex == 2
-              ? StartConversationFab(
-                  onPressed: () => startNewSessionAndNavigate(context),
-                )
-              : null,
-        );
-      },
+        ),
+      ),
+      floatingActionButton: selectedIndex == _historyIndex
+          ? StartConversationFab(
+              onPressed: () => startNewSessionAndNavigate(context),
+            )
+          : null,
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/pages/onboarding_gender.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
@@ -44,9 +45,7 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
       name: _nameController.text.trim(),
     );
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const OnboardingGenderPage()),
-    );
+    context.push(AppRoutes.onboardingGender);
   }
 
   @override

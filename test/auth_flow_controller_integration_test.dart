@@ -5,8 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart' as app_user;
 import 'package:gostylens/models/user_state.dart';
-import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
-import 'package:gostylens/core/navigation/home_tab_controller.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
 import 'package:gostylens/navigation/auth_flow_user_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,8 +23,6 @@ void main() {
       controller = AuthFlowController(
         client: _FakeSupabaseClient(goTrue),
         userState: userState,
-        deepLinkService: _FakeDeepLinkService(),
-        homeTabController: HomeTabController(),
         minSplashDuration: Duration.zero,
       );
     });
@@ -132,12 +128,4 @@ class _FakeSupabaseClient extends Fake implements SupabaseClient {
 
   @override
   GoTrueClient get auth => _auth;
-}
-
-class _FakeDeepLinkService extends Fake implements DeepLinkService {
-  @override
-  bool get hasPending => false;
-
-  @override
-  void setNavigationReady(bool ready) {}
 }

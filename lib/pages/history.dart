@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
-import 'package:gostylens/pages/style_analysis.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/style_analysis_session_card.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -45,10 +46,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
 
     sessionManager.setSelectedSessionId(sessionId);
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
-    );
+    await context.push(AppRoutes.session(sessionId));
 
     if (mounted) {
       sessionManager.fetchSessions(forceRefresh: true);

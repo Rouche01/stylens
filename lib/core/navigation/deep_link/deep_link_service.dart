@@ -5,46 +5,34 @@ import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
+import 'package:gostylens/core/navigation/deep_link/pending_deep_link.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 
 class DeepLinkService {
   DeepLinkService({
     AppLinks? appLinks,
     DeepLinkParser? parser,
     DeepLinkRouter? router,
-    Duration duplicateWindow = const Duration(milliseconds: 1500),
   })  : _appLinks = appLinks ?? AppLinks(),
         _parser = parser ?? DeepLinkParser(),
-        _router = router ?? DeepLinkRouter(),
-        _duplicateWindow = duplicateWindow;
+        _router = router ?? DeepLinkRouter();
 
   final AppLinks _appLinks;
   final DeepLinkParser _parser;
   final DeepLinkRouter _router;
 
-  /// iOS can deliver the same custom-scheme link several times for a single tap.
-  /// Identical destinations within this window are ignored to avoid push/pop
-  /// churn that would otherwise leave the user back on the previous screen.
-  final Duration _duplicateWindow;
-
   StreamSubscription<Uri>? _linkSubscription;
-  DeepLinkDestination? _pending;
+  PendingDeepLink? _pending;
   bool _navigationReady = false;
-
-  DeepLinkTarget? _lastDispatchedTarget;
-  String? _lastDispatchedSessionId;
-  DateTime? _lastDispatchedAt;
 
   bool get hasPending => _pending != null;
 
   @visibleForTesting
   bool get navigationReady => _navigationReady;
 
+  /// Subscribes to warm-resume custom-scheme links. Cold-start links are handled
+  /// by GoRouter's platform route provider and [redirectForDeepLinkUri].
   Future<void> initialize() async {
-    final initialUri = await _appLinks.getInitialLink();
-    if (initialUri != null) {
-      _handleUri(initialUri);
-    }
-
     _linkSubscription ??= _appLinks.uriLinkStream.listen(
       _handleUri,
       onError: (Object error, StackTrace stackTrace) {
@@ -55,18 +43,31 @@ class DeepLinkService {
     );
   }
 
+  /// Tracks whether the app shell is ready for imperative deep-link navigation
+  /// (push stream, push notifications). Pending destinations are consumed by
+  /// GoRouter redirect via [takePendingDestination] when auth reaches userReady.
   void setNavigationReady(bool ready) {
     _navigationReady = ready;
-    if (!ready) return;
-    consumePending();
   }
 
-  void consumePending() {
-    if (!_navigationReady || _pending == null) return;
+  /// Stashes a destination for later (auth gating or deferred push-detail).
+  void stashPendingDestination(DeepLinkDestination destination) {
+    _pending = PendingDeepLink(
+      destination: destination,
+      shellLocation: semanticShellFor(destination.target),
+    );
+  }
 
-    final destination = _pending!;
+  /// Returns and clears the stashed pending link, if any.
+  PendingDeepLink? takePendingDestination() {
+    final pending = _pending;
     _pending = null;
-    _dispatch(destination);
+    return pending;
+  }
+
+  /// Pushes a full-screen detail route after the current navigation frame.
+  void schedulePushDetail(DeepLinkDestination destination) {
+    _router.schedulePushDetail(destination);
   }
 
   void handlePushData(Map<String, dynamic> data) {
@@ -88,34 +89,15 @@ class DeepLinkService {
 
   void _enqueueOrDispatch(DeepLinkDestination destination) {
     if (!_navigationReady) {
-      _pending = destination;
+      stashPendingDestination(destination);
       return;
     }
     _dispatch(destination);
   }
 
   void _dispatch(DeepLinkDestination destination) {
-    if (_isDuplicate(destination)) return;
-
-    // The router resolves the root navigator and retries across frames if it is
-    // not mounted yet, so no extra scheduling/defer is needed here. Stack
-    // cleanup on auth transitions happens before pending links are consumed
-    // (see AuthFlowController), so a pushed route is never popped after landing.
+    // Warm-resume fallback when uriLinkStream fires without a matching platform
+    // redirect. Tab `go` and guarded `push` are idempotent if both paths run.
     _router.navigate(destination);
-  }
-
-  bool _isDuplicate(DeepLinkDestination destination) {
-    final now = DateTime.now();
-    final isSameDestination = _lastDispatchedTarget == destination.target &&
-        _lastDispatchedSessionId == destination.sessionId;
-    final withinWindow = _lastDispatchedAt != null &&
-        now.difference(_lastDispatchedAt!) < _duplicateWindow;
-
-    if (isSameDestination && withinWindow) return true;
-
-    _lastDispatchedTarget = destination.target;
-    _lastDispatchedSessionId = destination.sessionId;
-    _lastDispatchedAt = now;
-    return false;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/constants/links.dart';
+import 'package:gostylens/navigation/navigation_helpers.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -52,7 +53,7 @@ class _PaywallPageState extends State<PaywallPage> {
   Future<void> _restoreSubscription() async {
     final isPro = await _subscriptionManager.restorePurchases();
     if (isPro && mounted) {
-      Navigator.of(context).pop(true);
+      popDetailOrGoHome(context, result: true);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Purchases restored!')));
@@ -67,7 +68,7 @@ class _PaywallPageState extends State<PaywallPage> {
     if (selectedPackage != null) {
       final isPro = await _subscriptionManager.purchasePackage(selectedPackage);
       if (isPro && mounted) {
-        Navigator.of(context).pop(true);
+        popDetailOrGoHome(context, result: true);
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +287,7 @@ class PaywallHeader extends StatelessWidget {
               ),
               child: IconButton(
                 icon: Icon(Icons.close, color: cs.primary),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => popDetailOrGoHome(context),
               ),
             ),
         ],

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:provider/provider.dart';
-import 'package:gostylens/navigation/auth_gate.dart';
+import 'package:gostylens/navigation/app_router.dart';
+import 'package:gostylens/navigation/auth_flow_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -45,23 +46,66 @@ void main() async {
 
     // Set up singleton services
     await setupLocator();
+
+    // Build the auth state machine and the router before wiring deep links, so
+    // out-of-tree navigation (deep links / push) always has a router to target.
+    final authController = AuthFlowController()..start();
+    appRouter = createAppRouter(authController);
+
     locator<PushNotificationManager>().attachForegroundListener();
     locator<PushNotificationManager>().attachOpenedAppListener();
     await locator<DeepLinkService>().initialize();
 
-    runApp(const MyApp());
+    runApp(MyApp(authController: authController));
   } catch (e) {
     FlutterNativeSplash.remove();
     runApp(ErrorApp(errorMessage: e.toString()));
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+const Color darkGreen = Color(0xFF3D4A3D);
+const Color limeGreen = Color(0xFFB8E994);
+const Color lightGreen = Color(0xFFE8F5E8);
 
-  static const Color darkGreen = Color(0xFF3D4A3D);
-  static const Color limeGreen = Color(0xFFB8E994);
-  static const Color lightGreen = Color(0xFFE8F5E8);
+class MyApp extends StatefulWidget {
+  const MyApp({required this.authController, super.key});
+
+  final AuthFlowController authController;
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _splashRemoved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.authController.addListener(_onAuthStageChanged);
+    _onAuthStageChanged();
+  }
+
+  /// Removes the native splash once we leave booting, and marks deep-link
+  /// navigation ready. Pending destinations are consumed by GoRouter redirect
+  /// when auth reaches userReady (auth is the router refreshListenable).
+  void _onAuthStageChanged() {
+    final stage = widget.authController.stage;
+
+    if (!_splashRemoved && stage != AuthStage.booting) {
+      _splashRemoved = true;
+      FlutterNativeSplash.remove();
+    }
+
+    locator<DeepLinkService>().setNavigationReady(stage == AuthStage.userReady);
+  }
+
+  @override
+  void dispose() {
+    widget.authController.removeListener(_onAuthStageChanged);
+    widget.authController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,14 +121,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: locator<AssetUploadManager>()),
       ],
       child: _wrapWithPostHog(
-        MaterialApp(
-          navigatorKey: rootNavigatorKey,
+        MaterialApp.router(
+          routerConfig: appRouter,
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
           title: 'Stylens',
-          navigatorObservers: AnalyticsService.isEnabled
-              ? [PosthogObserver()]
-              : const [],
           builder: (context, child) => GlobalLoaderScope(child: child!),
           theme: ThemeData(
             fontFamily: 'Metropolis',
@@ -159,7 +200,6 @@ class MyApp extends StatelessWidget {
               ),
             ),
           ),
-          home: const AuthGate(),
         ),
       ),
     );

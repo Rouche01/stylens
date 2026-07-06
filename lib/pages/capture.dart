@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -6,9 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
-import 'style_analysis.dart';
-import 'profile_menu.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/app_image.dart';
 
@@ -50,10 +50,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
         ]);
 
         // Step 3: Navigate instantly
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => StyleAnalysisPage()),
-        );
+        context.push(AppRoutes.sessionNew);
 
         // Step 4: Analytics
         locator<AnalyticsService>().capture(
@@ -143,12 +140,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
                       Image.asset('assets/imgs/logo_primary.png', height: 28),
                       IconButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ProfileMenuPage(),
-                            ),
-                          );
+                          context.push(AppRoutes.profile);
                         },
                         icon: const Icon(Icons.account_circle_rounded),
                         iconSize: 39,

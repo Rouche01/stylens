@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
-import 'package:gostylens/pages/paywall.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
-import 'package:gostylens/pages/style_analysis.dart';
 
 mixin StyleAnalysisActions {
   /// Checks if the user has reached their free tier limit and shows paywall if needed.
@@ -45,10 +45,7 @@ mixin StyleAnalysisActions {
 
     if (!context.mounted) return false;
 
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const PaywallPage()),
-    );
+    final result = await context.push<bool>(AppRoutes.paywall);
 
     return result == true;
   }
@@ -61,10 +58,7 @@ mixin StyleAnalysisActions {
     if (!context.mounted) return;
 
     context.read<StyleAnalysisSessionManager>().startEmptySession();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const StyleAnalysisPage()),
-    );
+    context.push(AppRoutes.sessionNew);
   }
 
   /// Uploads an image to R2 and returns the RemoteImage object.

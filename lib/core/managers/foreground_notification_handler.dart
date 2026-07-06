@@ -2,23 +2,19 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
-import 'package:gostylens/core/navigation/style_analysis_route_tracker.dart';
+import 'package:gostylens/navigation/app_router.dart';
 
 class ForegroundNotificationHandler {
   ForegroundNotificationHandler({
-    StyleAnalysisRouteTracker? routeTracker,
     DeepLinkParser? parser,
     DeepLinkService? deepLinkService,
-  })  : _routeTracker = routeTracker ?? locator<StyleAnalysisRouteTracker>(),
-        _parser = parser ?? locator<DeepLinkParser>(),
+  })  : _parser = parser ?? locator<DeepLinkParser>(),
         _deepLinkService = deepLinkService ?? locator<DeepLinkService>();
 
-  final StyleAnalysisRouteTracker _routeTracker;
   final DeepLinkParser _parser;
   final DeepLinkService _deepLinkService;
 
@@ -48,24 +44,12 @@ class ForegroundNotificationHandler {
       final sessionId = destination.sessionId;
       if (sessionId != null &&
           sessionId.isNotEmpty &&
-          _isViewingSession(sessionId)) {
+          isViewingSession(sessionId)) {
         return false;
       }
     }
 
     return true;
-  }
-
-  bool _isViewingSession(String sessionId) {
-    if (_routeTracker.isViewingSession(sessionId)) return true;
-
-    // New sessions assign an ID after the chat screen opens; the route tracker
-    // may lag until the next rebuild, so fall back to the session manager.
-    if (!_routeTracker.isOnChatScreen) return false;
-
-    final activeSessionId =
-        locator<StyleAnalysisSessionManager>().selectedSessionId;
-    return activeSessionId != null && activeSessionId == sessionId;
   }
 
   void _showInAppSnackBar(RemoteMessage message) {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
-import 'package:gostylens/pages/paywall.dart';
+import 'package:gostylens/navigation/app_routes.dart';
+import 'package:gostylens/navigation/navigation_helpers.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -123,7 +125,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
         backgroundColor: cs.tertiary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => popDetailOrGoHome(context),
           color: cs.primary,
         ),
       ),
@@ -263,12 +265,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                               SizedBox(
                                 child: OutlinedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PaywallPage(),
-                                      ),
-                                    );
+                                    context.push(AppRoutes.paywall);
                                   },
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: cs.primary,

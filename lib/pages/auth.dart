@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/pages/otp_verification.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/custom_form_field.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
@@ -59,11 +60,9 @@ class _AuthPageState extends State<AuthPage> {
           if (mounted) {
             FocusManager.instance.primaryFocus?.unfocus();
             TextInput.finishAutofillContext(shouldSave: true);
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) =>
-                    OtpVerificationPage(email: _emailController.text.trim()),
-              ),
+            final email = _emailController.text.trim();
+            context.push(
+              '${AppRoutes.otp}?email=${Uri.encodeQueryComponent(email)}',
             );
           }
         },
@@ -137,8 +136,11 @@ class _AuthPageState extends State<AuthPage> {
   Widget build(BuildContext context) {
     return Consumer<AuthStateManager>(
       builder: (context, authStateManager, child) {
+        final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surfaceDim,
+          resizeToAvoidBottomInset: true,
           body: SafeArea(
             child: Column(
               children: [
@@ -204,13 +206,14 @@ class _AuthPageState extends State<AuthPage> {
                             ),
                           ],
                           const SizedBox(height: 32),
+                          if (keyboardOpen) const AuthLegalFooter(),
                         ],
                       ),
                     ),
                     ),
                   ),
                 ),
-                const AuthLegalFooter(),
+                if (!keyboardOpen) const AuthLegalFooter(),
               ],
             ),
           ),
