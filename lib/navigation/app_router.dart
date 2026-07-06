@@ -124,12 +124,9 @@ GoRouter createAppRouter(AuthFlowController auth) {
         builder: (context, state) {
           final id = state.pathParameters['id'];
           if (id != null && id.isNotEmpty) {
-            // Defensive sync for cold restoration to /session/:id, where the
-            // session manager has no selection yet. Normal in-app and deep-link
-            // flows set the id before navigating, so this is usually a no-op.
-            _ensureSelectedSession(id);
+            locator<StyleAnalysisSessionManager>().setSelectedSessionId(id);
           }
-          return const StyleAnalysisPage();
+          return StyleAnalysisPage(routeSessionId: id);
         },
       ),
       GoRoute(
@@ -250,28 +247,35 @@ String neutralLocationForStage(AuthStage stage) => switch (stage) {
 
 /// Current top-of-stack location, usable outside the widget tree.
 String currentLocation() =>
-    appRouter.routerDelegate.currentConfiguration.uri.toString();
+    appRouter.routerDelegate.state.matchedLocation;
 
 /// Whether the chat (style analysis) screen is currently on top.
 bool isOnSessionRoute() => isSessionLocation(currentLocation());
 
 /// Whether the chat for [sessionId] is the screen currently on top.
 ///
-/// Derived from the active route plus the session manager's selection, which
-/// also covers brand-new sessions whose id is assigned only after the chat
-/// screen opens. Used to suppress redundant deep-link/notification navigation.
-bool isViewingSession(String sessionId) {
-  if (!isOnSessionRoute()) return false;
-  final activeSessionId = locator<StyleAnalysisSessionManager>().selectedSessionId;
-  return activeSessionId != null && activeSessionId == sessionId;
+/// Matches the route path (`/session/:id`) and/or the session manager selection
+/// so guards work even when the two are briefly out of sync.
+@visibleForTesting
+bool matchesViewingSession({
+  required String location,
+  required String sessionId,
+  String? managerSessionId,
+}) {
+  if (!isSessionLocation(location)) return false;
+  final normalized = sessionId.trim();
+  final routeId = sessionIdFromLocation(location);
+  if (routeId != null && routeId == normalized) return true;
+  return managerSessionId != null && managerSessionId == normalized;
 }
 
-void _ensureSelectedSession(String id) {
-  final manager = locator<StyleAnalysisSessionManager>();
-  if (manager.selectedSessionId == id) return;
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (manager.selectedSessionId != id) {
-      manager.setSelectedSessionId(id);
-    }
-  });
+/// Used to suppress redundant deep-link/notification navigation.
+bool isViewingSession(String sessionId) {
+  if (!isOnSessionRoute()) return false;
+  return matchesViewingSession(
+    location: currentLocation(),
+    sessionId: sessionId,
+    managerSessionId:
+        locator<StyleAnalysisSessionManager>().selectedSessionId,
+  );
 }

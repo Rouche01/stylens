@@ -56,6 +56,14 @@ bool isSessionLocation(String location) =>
     location == AppRoutes.sessionNew ||
     location.startsWith('${AppRoutes.sessionNew}/');
 
+/// Extracts the session id from `/session/:id`, or null for `/session` (new).
+String? sessionIdFromLocation(String location) {
+  if (location == AppRoutes.sessionNew) return null;
+  if (!location.startsWith('${AppRoutes.sessionNew}/')) return null;
+  final id = location.substring('${AppRoutes.sessionNew}/'.length);
+  return id.isEmpty ? null : id;
+}
+
 /// Full-screen routes that must be [GoRouter.push]ed over the tab shell, never
 /// reached via redirect `go` (which would leave nothing to pop back to).
 bool isPushDetailTarget(DeepLinkTarget target) => switch (target) {

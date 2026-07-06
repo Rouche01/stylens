@@ -23,7 +23,11 @@ import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/models/app_image.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
-  const StyleAnalysisPage({super.key});
+  /// Set when opened via `/session/:id` so existing-session logic does not
+  /// depend on [StyleAnalysisSessionManager] being synced first.
+  final String? routeSessionId;
+
+  const StyleAnalysisPage({super.key, this.routeSessionId});
 
   @override
   State<StyleAnalysisPage> createState() => _StyleAnalysisPageState();
@@ -40,8 +44,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   static const double _loadMoreThreshold = 200.0;
 
   bool get _isNewSession =>
-      _sessionManager.selectedSessionId == null ||
-      _sessionManager.selectedSessionId!.isEmpty;
+      widget.routeSessionId == null &&
+      (_sessionManager.selectedSessionId == null ||
+          _sessionManager.selectedSessionId!.isEmpty);
 
   bool get _shouldShowInitialActionCard {
     final messages = _sessionManager.selectedSessionMessages;
@@ -90,7 +95,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _sessionManager.clearOperationErrors();
 
-      if (!_isNewSession) {
+      if (widget.routeSessionId != null || !_isNewSession) {
         _loadExistingSession();
       }
 

@@ -23,8 +23,9 @@ class DeepLinkParser {
       host: host,
       pathSegments: pathSegments,
       dest: uri.queryParameters['dest'],
-      sessionId: uri.queryParameters['session_id'] ??
-          uri.queryParameters['sessionId'],
+      sessionId: _normalizeSessionId(
+        uri.queryParameters['session_id'] ?? uri.queryParameters['sessionId'],
+      ),
     );
   }
 
@@ -39,11 +40,11 @@ class DeepLinkParser {
     }
 
     final type = data['type'] ?? data['notification_type'];
-    final sessionId = data['session_id'] ?? data['sessionId'];
+    final sessionId = _normalizeSessionId(
+      data['session_id'] ?? data['sessionId'],
+    );
 
-    if (type == PushNotificationTypes.styleAdviceReady &&
-        sessionId is String &&
-        sessionId.isNotEmpty) {
+    if (type == PushNotificationTypes.styleAdviceReady && sessionId != null) {
       return DeepLinkDestination.session(sessionId);
     }
 
@@ -61,6 +62,12 @@ class DeepLinkParser {
   static bool hasExplicitLink(Map<String, dynamic> data) {
     final link = data['link'];
     return link is String && link.isNotEmpty;
+  }
+
+  String? _normalizeSessionId(dynamic raw) {
+    if (raw == null) return null;
+    final id = raw.toString().trim();
+    return id.isEmpty ? null : id;
   }
 
   DeepLinkDestination _parseLocation({

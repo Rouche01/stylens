@@ -242,5 +242,45 @@ void main() {
       expect(semanticShellForLocation(AppRoutes.paywall), AppRoutes.capture);
       expect(semanticShellForLocation(AppRoutes.billing), AppRoutes.capture);
     });
+
+    test('sessionIdFromLocation', () {
+      expect(sessionIdFromLocation(AppRoutes.sessionNew), isNull);
+      expect(sessionIdFromLocation(AppRoutes.session('s1')), 's1');
+    });
+
+    test('matchesViewingSession', () {
+      expect(
+        matchesViewingSession(
+          location: AppRoutes.session('s1'),
+          sessionId: 's1',
+          managerSessionId: null,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingSession(
+          location: AppRoutes.session('s1'),
+          sessionId: 's2',
+          managerSessionId: null,
+        ),
+        isFalse,
+      );
+      expect(
+        matchesViewingSession(
+          location: AppRoutes.capture,
+          sessionId: 's1',
+          managerSessionId: 's1',
+        ),
+        isFalse,
+      );
+      expect(
+        matchesViewingSession(
+          location: AppRoutes.sessionNew,
+          sessionId: 's1',
+          managerSessionId: 's1',
+        ),
+        isTrue,
+      );
+    });
   });
 }
