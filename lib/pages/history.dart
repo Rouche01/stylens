@@ -46,10 +46,12 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
 
     sessionManager.setSelectedSessionId(sessionId);
 
-    await context.push(AppRoutes.session(sessionId));
+    final stale = await context.push<bool>(AppRoutes.session(sessionId));
 
-    if (mounted) {
-      sessionManager.fetchSessions(forceRefresh: true);
+    if (mounted &&
+        (stale == true || sessionManager.sessionsListStale)) {
+      sessionManager.consumeSessionsListStale();
+      await sessionManager.refreshSessionsPreservingPagination(silent: true);
     }
   }
 

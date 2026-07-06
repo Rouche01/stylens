@@ -1,7 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/action_state.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
+
+/// Merges a fresh page-1 fetch into [existing], updating overlapping sessions
+/// and retaining items from pages 2+ that are not in the fresh results.
+@visibleForTesting
+List<StyleAnalysisSession> mergePageOne(
+  List<StyleAnalysisSession> existing,
+  List<StyleAnalysisSession> freshPageOne,
+) {
+  final freshIds = freshPageOne.map((s) => s.id).toSet();
+  final tail = existing.where((s) => !freshIds.contains(s.id)).toList();
+  final merged = [...freshPageOne, ...tail];
+  merged.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  return merged;
+}
 
 /// Manages operations for the sessions list
 /// State is stored in the parent manager's _stateSlices map
@@ -36,7 +51,11 @@ class SessionsSlice {
   String? get error => _getState().error;
 
   // --- Operations ---
-  Future<void> fetch({bool forceRefresh = false, bool? isFavourite}) async {
+  Future<void> fetch({
+    bool forceRefresh = false,
+    bool? isFavourite,
+    bool silent = false,
+  }) async {
     // Only fetch fresh data if forceRefresh is explicitly requested, or if the filter changed.
     final filterChanged = isFavourite != _isFavouriteFilter;
 
@@ -59,8 +78,10 @@ class SessionsSlice {
 
     _isFavouriteFilter = isFavourite;
 
-    _setState(ActionState.loading(data: _getState().data));
-    _notifyListeners();
+    if (!silent || (_getState().data ?? []).isEmpty) {
+      _setState(ActionState.loading(data: _getState().data));
+      _notifyListeners();
+    }
 
     final response = await _apiService.fetchSessions(
       isFavourite: isFavourite,
@@ -74,11 +95,67 @@ class SessionsSlice {
       _paginationInfo = paginatedResponse.pagination;
 
       _setState(ActionState.success(sessions));
-    } else {
+    } else if (!silent || sessions.isEmpty) {
       _setState(
         ActionState.error(response.error?.message ?? 'Failed to load sessions'),
       );
     }
+    _notifyListeners();
+  }
+
+  Future<void> refreshPreservingPagination({bool silent = false}) async {
+    final existing = sessions;
+    final previouslyHadNext = _paginationInfo?.hasNextPage ?? false;
+    final previousPage = _paginationInfo?.page ?? 1;
+
+    if (!silent || existing.isEmpty) {
+      _setState(ActionState.loading(data: existing));
+      _notifyListeners();
+    }
+
+    final response = await _apiService.fetchSessions(
+      isFavourite: _isFavouriteFilter,
+      forceRefresh: true,
+    );
+
+    if (response.isSuccess && response.data != null) {
+      final paginatedResponse = response.data!;
+      final freshPageOne = paginatedResponse.items;
+      final freshPagination = paginatedResponse.pagination;
+
+      final merged = mergePageOne(existing, freshPageOne);
+
+      _paginationInfo = PaginationInfo(
+        page: previousPage > freshPagination.page
+            ? previousPage
+            : freshPagination.page,
+        pageSize: freshPagination.pageSize,
+        totalItems: freshPagination.totalItems,
+        totalPages: freshPagination.totalPages,
+        hasNextPage: freshPagination.hasNextPage || previouslyHadNext,
+        hasPreviousPage: freshPagination.hasPreviousPage,
+      );
+
+      _setState(ActionState.success(merged));
+    } else if (!silent || existing.isEmpty) {
+      _setState(
+        ActionState.error(response.error?.message ?? 'Failed to load sessions'),
+      );
+    }
+    _notifyListeners();
+  }
+
+  void bumpSessionActivity(String sessionId, {String? title}) {
+    final index = sessions.indexWhere((s) => s.id == sessionId);
+    if (index == -1) return;
+
+    final updated = List<StyleAnalysisSession>.from(sessions);
+    updated[index] = updated[index].copyWith(
+      updatedAt: DateTime.now(),
+      title: title,
+    );
+    updated.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    _setState(ActionState.success(updated));
     _notifyListeners();
   }
 

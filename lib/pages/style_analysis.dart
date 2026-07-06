@@ -380,7 +380,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () => popDetailOrGoHome(context),
+        onPressed: () => popDetailOrGoHome(
+          context,
+          result: _sessionManager.sessionsListStale,
+        ),
         color: Theme.of(context).colorScheme.primary,
       ),
       actions: [

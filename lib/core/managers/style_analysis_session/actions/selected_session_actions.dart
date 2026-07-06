@@ -213,6 +213,7 @@ mixin SelectedSessionActions {
       required ContextMode contextMode,
     })
     startStreaming,
+    void Function(String sessionId)? onSessionsListActivity,
   }) async {
     final id = sessionId;
     final isNew = id == null;
@@ -253,6 +254,8 @@ mixin SelectedSessionActions {
       }
 
       if (finalSessionId != null) {
+        onSessionsListActivity?.call(finalSessionId);
+
         // 5. Trigger Assistant
         await startStreaming(
           finalSessionId,

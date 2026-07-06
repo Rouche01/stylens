@@ -70,6 +70,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   late final SelectedSessionSlice _selectedSessionSlice;
   late final SessionStreamingSlice _streamingSlice;
 
+  bool _sessionsListStale = false;
+
   StyleAnalysisSessionManager() {
     _apiService = locator<StyleAnalysisApiService>();
 
@@ -109,6 +111,23 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   bool get hasMoreSessions => _sessionsSlice.hasMore;
   int get totalCount => _sessionsSlice.totalCount;
   String? get sessionsError => _sessionsSlice.error;
+
+  bool get sessionsListStale => _sessionsListStale;
+
+  void markSessionsListStale() {
+    _sessionsListStale = true;
+  }
+
+  bool consumeSessionsListStale() {
+    final wasStale = _sessionsListStale;
+    _sessionsListStale = false;
+    return wasStale;
+  }
+
+  void _onSessionsListActivity(String sessionId) {
+    markSessionsListStale();
+    _sessionsSlice.bumpSessionActivity(sessionId);
+  }
 
   // ============================================================
   // SELECTED SESSION - Getters
@@ -171,8 +190,22 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   // ============================================================
   // SESSIONS OPERATIONS
   // ============================================================
-  Future<void> fetchSessions({bool forceRefresh = false, bool? isFavourite}) =>
-      _sessionsSlice.fetch(forceRefresh: forceRefresh, isFavourite: isFavourite);
+  Future<void> fetchSessions({
+    bool forceRefresh = false,
+    bool? isFavourite,
+    bool silent = false,
+  }) =>
+      _sessionsSlice.fetch(
+        forceRefresh: forceRefresh,
+        isFavourite: isFavourite,
+        silent: silent,
+      );
+
+  Future<void> refreshSessionsPreservingPagination({bool silent = true}) =>
+      _sessionsSlice.refreshPreservingPagination(silent: silent);
+
+  void bumpSessionActivity(String sessionId, {String? title}) =>
+      _sessionsSlice.bumpSessionActivity(sessionId, title: title);
 
   Future<void> loadMoreSessions() => _sessionsSlice.loadMore();
 
@@ -267,7 +300,8 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
           ActionState<void>.success(null);
       notifyListeners();
 
-      _sessionsSlice.fetch(forceRefresh: true);
+      markSessionsListStale();
+      await _sessionsSlice.refreshPreservingPagination(silent: true);
 
       // Delay briefly to allow backend to update usage limits, then sync subscription
       Future.delayed(const Duration(seconds: 2), () {
@@ -328,6 +362,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
       final id = selectedSessionId;
       if (id != null) {
+        _onSessionsListActivity(id);
         await _startStreaming(id, contextMode: ContextMode.recent);
         locator<AnalyticsService>().capture(
           'message_sent',
@@ -394,6 +429,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
             ActionState<void>.success(null);
         notifyListeners();
 
+        _onSessionsListActivity(id);
         await _startStreaming(id, contextMode: ContextMode.recent);
       } else {
         _stateSlices[ManagerStateSliceName.addMessageToSession] =
@@ -430,6 +466,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
       text: text,
       images: images,
       startStreaming: _startStreaming,
+      onSessionsListActivity: _onSessionsListActivity,
     );
   }
 
@@ -477,6 +514,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
           _selectedSessionSlice.replaceLastBotMessage(finalText);
           _selectedSessionSlice.removeLoadingMessage();
         }
+        markSessionsListStale();
       },
       onError: (id, error) {
         if (_selectedSessionSlice.sessionId == id) {
