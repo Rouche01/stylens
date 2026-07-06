@@ -24,6 +24,12 @@ jobs:
                 channel: "stable"
                 cache: true
             - run: flutter --version
+            - name: Create placeholder env files for asset bundle
+              run: |
+                # .env.* are gitignored locally but declared as Flutter assets in pubspec.yaml.
+                for env in development production staging; do
+                  cp .env.example ".env.$env"
+                done
             - name: Get packages
               run: flutter pub get
 
