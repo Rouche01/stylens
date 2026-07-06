@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/actions/selected_session_actions.dart';
+import 'package:gostylens/core/managers/style_analysis_session/session_message_cache.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/style_analysis_session/slices/selected_session_slice.dart';
 import 'package:gostylens/core/services/api_service/asset_api_service.dart';
@@ -40,6 +41,76 @@ void main() {
       expect(merged.length, 10);
       expect(merged.first.text, 'new-head');
       expect(merged.last.timestamp, DateTime(2024, 1, 1));
+    });
+  });
+
+  group('SessionMessageCache', () {
+    StyleAnalysisSessionMessage message(String text) {
+      return StyleAnalysisSessionMessage(
+        timestamp: DateTime.now(),
+        role: UserRole.user,
+        text: text,
+      );
+    }
+
+    SessionMessageCacheEntry entry(String text) {
+      return SessionMessageCacheEntry(
+        messages: [message(text)],
+        cachedAt: DateTime.now(),
+      );
+    }
+
+    test('put and get round-trip', () {
+      final cache = SessionMessageCache();
+      cache.put('s1', entry('hello'));
+
+      expect(cache.contains('s1'), isTrue);
+      expect(cache.get('s1')?.messages.first.text, 'hello');
+    });
+
+    test('contains is false for missing or empty messages', () {
+      final cache = SessionMessageCache();
+      expect(cache.contains('missing'), isFalse);
+
+      cache.put(
+        'empty',
+        SessionMessageCacheEntry(messages: const [], cachedAt: DateTime.now()),
+      );
+      expect(cache.contains('empty'), isFalse);
+    });
+
+    test('evicts oldest entry when over maxSize', () {
+      final cache = SessionMessageCache(maxSize: 2);
+      cache.put('s1', entry('one'));
+      cache.put('s2', entry('two'));
+      cache.put('s3', entry('three'));
+
+      expect(cache.contains('s1'), isFalse);
+      expect(cache.contains('s2'), isTrue);
+      expect(cache.contains('s3'), isTrue);
+    });
+
+    test('get touches LRU so recently read entry is kept', () {
+      final cache = SessionMessageCache(maxSize: 2);
+      cache.put('s1', entry('one'));
+      cache.put('s2', entry('two'));
+
+      expect(cache.get('s1'), isNotNull);
+
+      cache.put('s3', entry('three'));
+
+      expect(cache.contains('s1'), isTrue);
+      expect(cache.contains('s2'), isFalse);
+      expect(cache.contains('s3'), isTrue);
+    });
+
+    test('clear removes all entries', () {
+      final cache = SessionMessageCache();
+      cache.put('s1', entry('hello'));
+      cache.clear();
+
+      expect(cache.contains('s1'), isFalse);
+      expect(cache.get('s1'), isNull);
     });
   });
 
@@ -202,6 +273,17 @@ void main() {
       expect(slice.messages, isEmpty);
       expect(slice.hasCachedMessages('s1'), isFalse);
     });
+
+    test('clearMessageCache clears saved draft text', () {
+      slice.select('s1');
+      slice.saveDraftText('draft');
+      slice.releaseActiveSession();
+
+      slice.clearMessageCache();
+      slice.select('s1');
+
+      expect(slice.draftText, isNull);
+    });
   });
 
   group('StyleAnalysisSessionManager clearMessageCache', () {
@@ -251,6 +333,16 @@ void main() {
 
       manager.clearMessageCache();
       expect(manager.hasCachedMessages('s1'), isFalse);
+    });
+
+    test('clearMessageCache clears draft text for released session', () {
+      manager.setSelectedSessionId('s1');
+      manager.disposeSelectedSession(messageInputText: 'saved draft');
+
+      manager.clearMessageCache();
+      manager.setSelectedSessionId('s1');
+
+      expect(manager.selectedSessionDraftText, isNull);
     });
   });
 }
