@@ -118,31 +118,34 @@ class ProfileMenuPage extends StatelessWidget {
       child: Column(
         children: [
           for (int i = 0; i < items.length; i++) ...[
-            ListTile(
-              leading: Icon(
-                items[i].icon,
-                color: items[i].color ?? cs.primary.withValues(alpha: 0.7),
-                size: 22,
-              ),
-              title: Text(
-                items[i].label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: items[i].color ?? cs.primary,
+            Material(
+              color: Colors.transparent,
+              child: ListTile(
+                leading: Icon(
+                  items[i].icon,
+                  color: items[i].color ?? cs.primary.withValues(alpha: 0.7),
+                  size: 22,
                 ),
-              ),
-              trailing:
-                  items[i].trailing ??
-                  Icon(
-                    Icons.chevron_right,
-                    color: cs.primary.withValues(alpha: 0.3),
-                    size: 20,
+                title: Text(
+                  items[i].label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: items[i].color ?? cs.primary,
                   ),
-              onTap: items[i].onTap,
-              dense: true,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                ),
+                trailing:
+                    items[i].trailing ??
+                    Icon(
+                      Icons.chevron_right,
+                      color: cs.primary.withValues(alpha: 0.3),
+                      size: 20,
+                    ),
+                onTap: items[i].onTap,
+                dense: true,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             if (i < items.length - 1)
