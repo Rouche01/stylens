@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart' as app_user;
 import 'package:gostylens/models/user_state.dart';
@@ -15,11 +17,17 @@ void main() {
   group('AuthFlowController sign-out integration', () {
     late _FakeGoTrueClient goTrue;
     late _RecordingAuthFlowUserState userState;
+    late _FakeSessionManager sessionManager;
     late AuthFlowController? controller;
 
     setUp(() {
       goTrue = _FakeGoTrueClient();
       userState = _RecordingAuthFlowUserState();
+      sessionManager = _FakeSessionManager();
+      final getIt = GetIt.instance;
+      if (!getIt.isRegistered<StyleAnalysisSessionManager>()) {
+        getIt.registerSingleton<StyleAnalysisSessionManager>(sessionManager);
+      }
       controller = AuthFlowController(
         client: _FakeSupabaseClient(goTrue),
         userState: userState,
@@ -29,6 +37,10 @@ void main() {
 
     tearDown(() {
       controller?.dispose();
+      final getIt = GetIt.instance;
+      if (getIt.isRegistered<StyleAnalysisSessionManager>()) {
+        getIt.unregister<StyleAnalysisSessionManager>();
+      }
     });
 
     test('clears user state once when signedOut is emitted', () async {
@@ -39,6 +51,7 @@ void main() {
       await pumpEventQueue();
 
       expect(userState.clearStateCallCount, 1);
+      expect(sessionManager.clearMessageCacheCallCount, 1);
       expect(controller!.stage, AuthStage.unauthenticated);
     });
 
@@ -50,6 +63,7 @@ void main() {
       await pumpEventQueue();
 
       expect(userState.clearStateCallCount, 1);
+      expect(sessionManager.clearMessageCacheCallCount, 1);
       expect(controller!.stage, AuthStage.unauthenticated);
     });
 
@@ -61,8 +75,18 @@ void main() {
       await pumpEventQueue();
 
       expect(userState.clearStateCallCount, 0);
+      expect(sessionManager.clearMessageCacheCallCount, 0);
     });
   });
+}
+
+class _FakeSessionManager extends Fake implements StyleAnalysisSessionManager {
+  int clearMessageCacheCallCount = 0;
+
+  @override
+  void clearMessageCache() {
+    clearMessageCacheCallCount++;
+  }
 }
 
 Session _fakeSession() {
