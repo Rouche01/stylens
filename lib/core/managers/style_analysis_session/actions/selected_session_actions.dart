@@ -13,6 +13,21 @@ import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/core/managers/style_analysis_session/slices/session_streaming_slice.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 
+/// Merges a fresh page-1 message fetch into [existing], replacing the head
+/// segment and retaining older pages already loaded beyond page 1.
+@visibleForTesting
+List<StyleAnalysisSessionMessage> mergeMessagesPageOne(
+  List<StyleAnalysisSessionMessage> existing,
+  List<StyleAnalysisSessionMessage> freshPageOne,
+) {
+  if (freshPageOne.isEmpty) return existing;
+  if (existing.isEmpty) return freshPageOne;
+  if (existing.length <= freshPageOne.length) return freshPageOne;
+
+  final tail = existing.sublist(freshPageOne.length);
+  return [...freshPageOne, ...tail];
+}
+
 mixin SelectedSessionActions {
   // --- Abstract Getters & Methods (Required for Actions) ---
   StyleAnalysisApiService get apiService;
@@ -38,6 +53,9 @@ mixin SelectedSessionActions {
   void saveDraftText(String text);
   void clearAttachedImages();
 
+  bool hasCachedMessages(String sessionId);
+  void persistMessageCache();
+
   // --- Actions Mixin Logic ---
   static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
   static const _initialBotReplyWithImage =
@@ -55,15 +73,25 @@ mixin SelectedSessionActions {
   int get currentPage => paginationInfo?.page ?? 1;
 
   // --- Fetch Messages ---
-  Future<bool> fetchMessages() async {
+  Future<bool> fetchMessages({
+    bool silent = false,
+    bool forceRefresh = false,
+  }) async {
     final id = sessionId;
     if (id == null) {
       sliceStateManager.setError('No session selected');
       return false;
     }
 
+    if (hasCachedMessages(id) && messages.isNotEmpty && !forceRefresh) {
+      return refreshMessagesPreservingPagination(silent: silent);
+    }
+
+    final shouldSetLoading = !silent || messages.isEmpty;
+
     final response = await sliceStateManager.execute(
       action: () => apiService.fetchSessionMessages(id),
+      setLoadingState: shouldSetLoading,
       retainDataOnLoading: true,
       retainDataOnError: true,
       onSuccess: (response, currentData) {
@@ -93,7 +121,75 @@ mixin SelectedSessionActions {
       },
     );
 
+    if (response != null) {
+      persistMessageCache();
+    }
+
     return response != null;
+  }
+
+  Future<bool> refreshMessagesPreservingPagination({
+    bool silent = false,
+  }) async {
+    final id = sessionId;
+    if (id == null) return false;
+
+    final existing = messages;
+    final previouslyHadNext = paginationInfo?.hasNextPage ?? false;
+    final previousPage = paginationInfo?.page ?? 1;
+    final shouldSetLoading = !silent || existing.isEmpty;
+
+    try {
+      if (shouldSetLoading) {
+        sliceStateManager.setLoading(
+          data: SelectedStyleAnalysisSession(
+            sessionId: id,
+            messages: existing,
+          ),
+        );
+      }
+
+      final response = await apiService.fetchSessionMessages(id);
+
+      if (response.isSuccess && response.data != null) {
+        final freshPageOne = response.data!.items;
+        final freshPagination = response.data!.pagination;
+        final merged = mergeMessagesPageOne(existing, freshPageOne);
+
+        paginationInfo = PaginationInfo(
+          page: previousPage > freshPagination.page
+              ? previousPage
+              : freshPagination.page,
+          pageSize: freshPagination.pageSize,
+          totalItems: freshPagination.totalItems,
+          totalPages: freshPagination.totalPages,
+          hasNextPage: freshPagination.hasNextPage || previouslyHadNext,
+          hasPreviousPage: freshPagination.hasPreviousPage,
+        );
+
+        sliceStateManager.setSuccess(
+          SelectedStyleAnalysisSession(sessionId: id, messages: merged),
+        );
+        persistMessageCache();
+        return true;
+      }
+
+      if (!silent || existing.isEmpty) {
+        sliceStateManager.setError(
+          response.error?.message ?? 'Failed to load messages',
+          retainData: existing.isNotEmpty,
+        );
+      }
+      return false;
+    } catch (e) {
+      if (!silent || existing.isEmpty) {
+        sliceStateManager.setError(
+          e.toString(),
+          retainData: existing.isNotEmpty,
+        );
+      }
+      return false;
+    }
   }
 
   // --- Load More Messages ---
@@ -126,6 +222,10 @@ mixin SelectedSessionActions {
 
     isLoadingMoreMessages = false;
     sliceStateManager.notify();
+
+    if (response != null) {
+      persistMessageCache();
+    }
 
     return response != null;
   }
@@ -167,6 +267,10 @@ mixin SelectedSessionActions {
         return e.toString();
       },
     );
+
+    if (response != null) {
+      persistMessageCache();
+    }
 
     return response?.data;
   }
@@ -369,6 +473,7 @@ mixin SelectedSessionActions {
       sliceStateManager.setData(
         currentState.copyWith(messages: updatedMessages),
       );
+      persistMessageCache();
     }
   }
 }

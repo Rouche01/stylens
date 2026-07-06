@@ -114,14 +114,22 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     });
   }
 
-  Future<void> _loadExistingSession() async {
+  Future<void> _loadExistingSession({bool forceRefresh = false}) async {
     final draftText = _sessionManager.selectedSessionDraftText;
     if (draftText != null && draftText.isNotEmpty) {
       _messageController.text = draftText;
     }
 
+    final id = _sessionManager.selectedSessionId;
+
     try {
-      await _sessionManager.fetchSelectedSessionMessages();
+      await _sessionManager.fetchSelectedSessionMessages(
+        silent:
+            !forceRefresh &&
+            id != null &&
+            _sessionManager.hasCachedMessages(id),
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       debugPrint('Error loading session: $e');
     }
@@ -419,7 +427,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
           return ErrorDisplay(
             title: 'Failed to load session',
             message: sessionManager.selectedSessionError!,
-            onRetry: _loadExistingSession,
+            onRetry: () => _loadExistingSession(forceRefresh: true),
           );
         }
 

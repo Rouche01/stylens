@@ -10,10 +10,13 @@ import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/session_ui_state.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/actions/selected_session_actions.dart';
+import 'package:gostylens/core/managers/style_analysis_session/session_message_cache_entry.dart';
 
 /// Manages operations for the currently selected session
 /// State is stored in the parent manager's _stateSlices map
 class SelectedSessionSlice with SelectedSessionActions {
+  static const int _maxCacheSize = 10;
+
   @override
   final StyleAnalysisApiService apiService;
   @override
@@ -40,6 +43,8 @@ class SelectedSessionSlice with SelectedSessionActions {
 
   // --- UI State (kept locally in slice) ---
   final Map<String, SessionUIState> _uiStates = {};
+  final Map<String, SessionMessageCacheEntry> _messageCache = {};
+  final List<String> _cacheAccessOrder = [];
 
   // --- Getters ---
   SelectedStyleAnalysisSession? get session => sliceStateManager.data;
@@ -56,16 +61,38 @@ class SelectedSessionSlice with SelectedSessionActions {
     return id != null ? _uiStates[id]?.attachedImageFiles ?? [] : [];
   }
 
+  @override
+  bool hasCachedMessages(String sessionId) {
+    final entry = _messageCache[sessionId];
+    return entry != null && entry.messages.isNotEmpty;
+  }
+
+  void clearMessageCache() {
+    _messageCache.clear();
+    _cacheAccessOrder.clear();
+  }
+
   // --- Selection ---
   void select(String sessionId) {
-    // If selecting the same session, keep the existing messages cached!
-    // This allows smooth background refreshing without wiping the screen.
     if (this.sessionId == sessionId) {
       return;
     }
 
-    paginationInfo = null;
     isLoadingMoreMessages = false;
+    final cached = _messageCache[sessionId];
+    if (cached != null && cached.messages.isNotEmpty) {
+      paginationInfo = cached.pagination;
+      sliceStateManager.setSuccess(
+        SelectedStyleAnalysisSession(
+          sessionId: sessionId,
+          messages: cached.messages,
+        ),
+      );
+      _touchCacheAccess(sessionId);
+      return;
+    }
+
+    paginationInfo = null;
     sliceStateManager.setSuccess(
       SelectedStyleAnalysisSession(sessionId: sessionId, messages: []),
     );
@@ -75,6 +102,51 @@ class SelectedSessionSlice with SelectedSessionActions {
     paginationInfo = null;
     isLoadingMoreMessages = false;
     sliceStateManager.setInitial();
+  }
+
+  void releaseActiveSession({String? draftText}) {
+    if (draftText != null) saveDraftText(draftText);
+    persistMessageCache();
+    paginationInfo = null;
+    isLoadingMoreMessages = false;
+    sliceStateManager.setInitial();
+  }
+
+  @override
+  void persistMessageCache() {
+    final id = sessionId;
+    if (id == null || id.isEmpty) return;
+
+    final currentMessages = messages;
+    if (currentMessages.isEmpty) return;
+
+    _messageCache[id] = SessionMessageCacheEntry(
+      messages: List<StyleAnalysisSessionMessage>.from(currentMessages),
+      pagination: paginationInfo,
+      cachedAt: DateTime.now(),
+    );
+    _touchCacheAccess(id);
+    _evictOldestCacheEntriesIfNeeded();
+  }
+
+  void _touchCacheAccess(String sessionId) {
+    _cacheAccessOrder.remove(sessionId);
+    _cacheAccessOrder.add(sessionId);
+  }
+
+  void _evictOldestCacheEntriesIfNeeded() {
+    while (_cacheAccessOrder.length > _maxCacheSize) {
+      final evictId = _cacheAccessOrder.removeAt(0);
+      _messageCache.remove(evictId);
+    }
+  }
+
+  void _setSessionSuccess(
+    SelectedStyleAnalysisSession data, {
+    bool notify = true,
+  }) {
+    sliceStateManager.setSuccess(data, notify: notify);
+    persistMessageCache();
   }
 
   // --- Message Operations ---
@@ -95,7 +167,7 @@ class SelectedSessionSlice with SelectedSessionActions {
       error: error,
     );
 
-    sliceStateManager.setSuccess(
+    _setSessionSuccess(
       SelectedStyleAnalysisSession(
         sessionId: sessionId,
         messages: [newMessage, ...messages],
@@ -112,7 +184,7 @@ class SelectedSessionSlice with SelectedSessionActions {
     }
 
     final firstMessage = currentMessages.first;
-    sliceStateManager.setSuccess(
+    _setSessionSuccess(
       SelectedStyleAnalysisSession(
         sessionId: sessionId,
         messages: [
@@ -136,7 +208,7 @@ class SelectedSessionSlice with SelectedSessionActions {
   @override
   void removeLoadingMessage() {
     if (messages.isNotEmpty && messages.first.isLoading) {
-      sliceStateManager.setSuccess(
+      _setSessionSuccess(
         SelectedStyleAnalysisSession(
           sessionId: sessionId,
           messages: messages.sublist(1),
@@ -148,7 +220,7 @@ class SelectedSessionSlice with SelectedSessionActions {
   @override
   void replaceLoadingWithError(StyleAnalysisSessionMessageError error) {
     if (messages.isNotEmpty && messages.first.isLoading) {
-      sliceStateManager.setSuccess(
+      _setSessionSuccess(
         SelectedStyleAnalysisSession(
           sessionId: sessionId,
           messages: [
@@ -166,7 +238,7 @@ class SelectedSessionSlice with SelectedSessionActions {
 
   void removeErrorMessage() {
     if (messages.isNotEmpty && messages.first.isError) {
-      sliceStateManager.setSuccess(
+      _setSessionSuccess(
         SelectedStyleAnalysisSession(
           sessionId: sessionId,
           messages: messages.sublist(1),
@@ -211,7 +283,6 @@ class SelectedSessionSlice with SelectedSessionActions {
   }
 
   void dispose({String? draftText}) {
-    if (draftText != null) saveDraftText(draftText);
-    clear();
+    releaseActiveSession(draftText: draftText);
   }
 }

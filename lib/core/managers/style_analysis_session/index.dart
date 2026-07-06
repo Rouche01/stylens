@@ -232,12 +232,23 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     _syncStreamingState();
   }
 
-  Future<bool> fetchSelectedSessionMessages() async {
+  bool hasCachedMessages(String sessionId) =>
+      _selectedSessionSlice.hasCachedMessages(sessionId);
+
+  void clearMessageCache() => _selectedSessionSlice.clearMessageCache();
+
+  Future<bool> fetchSelectedSessionMessages({
+    bool silent = false,
+    bool forceRefresh = false,
+  }) async {
     final isStreaming =
         selectedSessionId != null &&
         _streamingSlice.isStreaming(selectedSessionId!);
 
-    final success = await _selectedSessionSlice.fetchMessages();
+    final success = await _selectedSessionSlice.fetchMessages(
+      silent: silent,
+      forceRefresh: forceRefresh,
+    );
 
     if (success) {
       // Sync loading message state based on whether we were awaiting response
@@ -481,8 +492,7 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   void clearAttachedImages() => _selectedSessionSlice.clearAttachedImages();
 
   void disposeSelectedSession({String? messageInputText}) {
-    _selectedSessionSlice.dispose(draftText: messageInputText);
-    _selectedSessionSlice.clear();
+    _selectedSessionSlice.releaseActiveSession(draftText: messageInputText);
   }
 
   // ============================================================

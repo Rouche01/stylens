@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/user_state.dart';
@@ -98,6 +99,7 @@ class AuthFlowController extends ChangeNotifier {
         (event == AuthChangeEvent.initialSession && data.session == null)) {
       // Single owner of user/subscription cleanup on sign-out.
       _userState.clearState();
+      locator<StyleAnalysisSessionManager>().clearMessageCache();
     }
 
     if (event == AuthChangeEvent.userUpdated) {
