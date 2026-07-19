@@ -31,6 +31,38 @@ Push a new iOS development build
 
 Push a new iOS production build
 
+### ios frame_screenshots
+
+```sh
+[bundle exec] fastlane ios frame_screenshots
+```
+
+Resize and frame raw screenshots locally with custom titles and background colors
+
+### ios export_appstore_screenshots
+
+```sh
+[bundle exec] fastlane ios export_appstore_screenshots
+```
+
+Export App Store Connect-ready 6.9 inch iPhone screenshots (1320x2868, no alpha)
+
+### ios export_appstore_preview
+
+```sh
+[bundle exec] fastlane ios export_appstore_preview
+```
+
+Convert a simulator recording into a 6.9 inch App Store app preview (886x1920, H.264)
+
+### ios export_appstore_assets
+
+```sh
+[bundle exec] fastlane ios export_appstore_assets
+```
+
+Export App Store screenshots and optionally an app preview video
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

@@ -13,6 +13,8 @@
 # Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
+require "shellwords"
+
 default_platform(:ios)
 platform :ios do
   desc "Push a new iOS development build"
@@ -204,5 +206,132 @@ platform :ios do
 
     File.write(config_path, content)
     UI.success("Successfully updated Flutter environment to: #{env}")
+  end
+
+  desc "Resize and frame raw screenshots locally with custom titles and background colors"
+  lane :frame_screenshots do |options|
+    extent = options[:extent] || ENV["SCREENSHOT_EXTENT"] || "1320x2868"
+
+    screenshots = Dir.glob("./screenshots/en-US/*.png").reject { |path| path.include?("_framed") }
+    UI.user_error!("No raw screenshots found in ios/fastlane/screenshots/en-US. Add PNGs manually before running frame_screenshots.") if screenshots.empty?
+
+    sh("mkdir -p ./framed_screenshots/en-US")
+    sh("rm -rf ./framed_screenshots/en-US/*.png")
+
+    screenshots.each do |screenshot|
+      sh("magick #{screenshot} -gravity north -extent #{extent} #{screenshot}")
+    end
+
+    frameit(
+      path: File.expand_path("./screenshots", __dir__)
+    )
+
+    framed_screenshots = Dir.glob("./screenshots/en-US/*_framed.png")
+    if framed_screenshots.empty?
+      UI.user_error!("frameit did not produce any framed screenshots. Check ios/fastlane/screenshots/Framefile.json and ImageMagick.")
+    end
+
+    sh("mv ./screenshots/en-US/*_framed.png ./framed_screenshots/en-US/")
+  end
+
+  desc "Export App Store Connect-ready iPhone screenshots (default 1284x2778 for 6.5 inch display, no alpha)"
+  lane :export_appstore_screenshots do |options|
+    locale = options[:locale] || ENV["APPSTORE_LOCALE"] || "en-US"
+    source = (options[:source] || ENV["APPSTORE_SCREENSHOT_SOURCE"] || "framed").to_s
+    # App Store Connect commonly validates against 6.5" display sizes:
+    # 1284x2778, 1242x2688 (+ landscape variants). Override with extent: if needed.
+    extent = options[:extent] || ENV["SCREENSHOT_EXTENT"] || "1284x2778"
+    width, height = extent.split("x")
+    background = options[:background] || ENV["APPSTORE_BACKGROUND"] || "#375536"
+    output_dir = File.expand_path("./appstore/#{locale}", __dir__)
+
+    screenshots = case source
+                  when "raw"
+                    Dir.glob(File.expand_path("./screenshots/#{locale}/*.png", __dir__))
+                  when "framed"
+                    Dir.glob(File.expand_path("./framed_screenshots/#{locale}/*_framed.png", __dir__))
+                  else
+                    UI.user_error!("Invalid source '#{source}'. Use 'framed' or 'raw'.")
+                  end
+
+    screenshots.reject! { |path| path.include?("_framed") && source == "raw" }
+    screenshots.reject! { |path| File.basename(path).match?(/_cp(?:_\w+)?\.png\z/) }
+    UI.user_error!("No #{source} screenshots found for #{locale}. Run frame_screenshots first or switch source to raw.") if screenshots.empty?
+
+    sh("mkdir -p #{output_dir}")
+    sh("rm -rf #{output_dir}/*.png")
+
+    screenshots.each do |screenshot|
+      output_name = File.basename(screenshot).sub(/_framed(?=\.png$)/, "")
+      output_path = File.join(output_dir, output_name)
+      sh(
+        "magick #{Shellwords.escape(screenshot)} -alpha remove -background #{Shellwords.escape(background)} " \
+        "-filter Lanczos -resize #{width}x#{height}! #{Shellwords.escape(output_path)}"
+      )
+    end
+
+    UI.success("Exported #{screenshots.length} App Store screenshots (#{extent}) to #{output_dir}")
+  end
+
+  desc "Export App Store Connect-ready 13 inch iPad screenshots (default 2048x2732, no alpha)"
+  lane :export_appstore_ipad_screenshots do |options|
+    locale = options[:locale] || ENV["APPSTORE_IPAD_LOCALE"] || "en-US-ipad"
+    extent = options[:extent] || ENV["APPSTORE_IPAD_EXTENT"] || "2048x2732"
+    width, height = extent.split("x")
+    background = options[:background] || ENV["APPSTORE_BACKGROUND"] || "#FFFFFF"
+    input_dir = File.expand_path("./screenshots/#{locale}", __dir__)
+    output_dir = File.expand_path("./appstore/#{locale}", __dir__)
+
+    screenshots = Dir.glob(File.join(input_dir, "*.png"))
+    screenshots.reject! { |path| File.basename(path).match?(/_cp(?:_\w+)?\.png\z/) }
+    UI.user_error!("No iPad screenshots found in #{input_dir}.") if screenshots.empty?
+
+    sh("mkdir -p #{output_dir}")
+    sh("rm -rf #{output_dir}/*.png")
+
+    screenshots.each do |screenshot|
+      output_path = File.join(output_dir, File.basename(screenshot))
+      sh(
+        "magick #{Shellwords.escape(screenshot)} -alpha remove -background #{Shellwords.escape(background)} " \
+        "-flatten -colorspace sRGB -type TrueColor -filter Lanczos -resize #{width}x#{height}! " \
+        "#{Shellwords.escape(output_path)}"
+      )
+    end
+
+    UI.success("Exported #{screenshots.length} iPad App Store screenshots (#{extent}) to #{output_dir}")
+  end
+
+  desc "Convert a simulator recording into a 6.9 inch App Store app preview (886x1920, H.264)"
+  lane :export_appstore_preview do |options|
+    input = options[:preview_input] || options[:input] || ENV["APPSTORE_PREVIEW_INPUT"]
+    UI.user_error!("Provide preview_input: or APPSTORE_PREVIEW_INPUT") if input.to_s.empty?
+    UI.user_error!("Preview input not found: #{input}") unless File.exist?(input)
+
+    locale = options[:locale] || ENV["APPSTORE_LOCALE"] || "en-US"
+    output_name = options[:output] || ENV["APPSTORE_PREVIEW_OUTPUT"] || "app_preview.mp4"
+    duration = options[:duration] || ENV["APPSTORE_PREVIEW_MAX_DURATION"] || "30"
+    output_dir = File.expand_path("./appstore/previews/#{locale}", __dir__)
+    output_path = File.join(output_dir, output_name)
+
+    sh("mkdir -p #{output_dir}")
+
+    sh(
+      "ffmpeg -y -i #{Shellwords.escape(input)} " \
+      "-vf \"scale=886:1920:force_original_aspect_ratio=decrease,pad=886:1920:(ow-iw)/2:(oh-ih)/2\" " \
+      "-c:v libx264 -profile:v high -level 4.0 -b:v 10M -maxrate 12M -bufsize 20M -r 30 " \
+      "-t #{duration} -c:a aac -b:a 256k -ar 48000 -ac 2 " \
+      "#{Shellwords.escape(output_path)}"
+    )
+
+    UI.success("Exported App Store preview to #{output_path}")
+  end
+
+  desc "Export App Store screenshots and optionally an app preview video"
+  lane :export_appstore_assets do |options|
+    export_appstore_screenshots(options)
+    export_appstore_ipad_screenshots(options) if options[:include_ipad] || ENV["APPSTORE_INCLUDE_IPAD"] == "true"
+
+    preview_input = options[:preview_input] || options[:input] || ENV["APPSTORE_PREVIEW_INPUT"]
+    export_appstore_preview(options) unless preview_input.to_s.empty?
   end
 end

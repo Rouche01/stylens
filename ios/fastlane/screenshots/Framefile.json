@@ -1,0 +1,58 @@
+{
+  "default": {
+    "title_min_height": 520,
+    "title": {
+      "font": "./fonts/ClashDisplay-Medium.otf",
+      "color": "#E8F5E8",
+      "size": 75
+    },
+    "background": "../background.png",
+    "padding": "60x35",
+    "show_device_frame": true,
+    "show_complete_frame": false
+  },
+  "data": [
+    {
+      "filter": "screenshot_auth",
+      "title": {
+        "text": "Meet your new\npersonal stylist"
+      }
+    },
+    {
+      "filter": "screenshot_home",
+      "title": {
+        "text": "Get an instant\nfit check"
+      }
+    },
+    {
+      "filter": "screenshot_choose_gallery",
+      "title": {
+        "text": "Upload fits\nfrom your gallery"
+      }
+    },
+    {
+      "filter": "screenshot_closet",
+      "title": {
+        "text": "Your wardrobe,\nauto-organized"
+      }
+    },
+    {
+      "filter": "screenshot_history",
+      "title": {
+        "text": "Review your\npast styles"
+      }
+    },
+    {
+      "filter": "screenshot_style_analysis_chat",
+      "title": {
+        "text": "Get tailored\nstyle advice"
+      }
+    },
+    {
+      "filter": "screenshot_profile",
+      "title": {
+        "text": "Manage your settings\nand preferences"
+      }
+    }
+  ]
+}

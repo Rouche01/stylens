@@ -139,6 +139,7 @@ class _AuthPageState extends State<AuthPage> {
         final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
         return Scaffold(
+          key: const ValueKey('auth_page'),
           backgroundColor: Theme.of(context).colorScheme.surfaceDim,
           resizeToAvoidBottomInset: true,
           body: SafeArea(

@@ -67,6 +67,17 @@ android/fastlane/test_output
 android/fastlane/screenshots/**/*.png
 android/fastlane/screenshots/**/*.jpg
 android/fastlane/screenshots/**/*.jpeg
+ios/fastlane/screenshots/**/*.png
+ios/fastlane/screenshots/**/*.jpg
+ios/fastlane/screenshots/**/*.jpeg
+ios/fastlane/screenshots/en-US-ipad/**/*.png
+ios/fastlane/framed_screenshots/**/*.png
+ios/fastlane/appstore/**/*.png
+ios/fastlane/appstore/**/*.jpg
+ios/fastlane/appstore/**/*.jpeg
+ios/fastlane/appstore/**/*.mp4
+ios/fastlane/appstore/**/*.mov
+ios/fastlane/appstore/**/*.m4v
 
 # Android keystore
 *.keystore
