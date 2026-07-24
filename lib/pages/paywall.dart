@@ -100,20 +100,24 @@ class _PaywallPageState extends State<PaywallPage> {
             final savingsPercentage =
                 _calculateSavingsPercentage(monthlyPackage, annualPackage) ?? 0;
 
-            // Formatting raw double manually for reliable $ amounts
-            double? price = selectedPackage?.storeProduct.price;
-            if (isAnnual && annualPackage != null) {
-              price = _calculateMonthlyPriceForAnnual(annualPackage);
-            }
-
             final currencyCode =
                 selectedPackage?.storeProduct.currencyCode ?? 'USD';
-            final priceString = price != null
-                ? NumberFormat.simpleCurrency(name: currencyCode).format(price)
-                : (isAnnual ? '\$5.99' : '\$9.99');
-            final periodString = isAnnual
-                ? '/ month, billed annually'
-                : '/ month';
+            final formatter = NumberFormat.simpleCurrency(name: currencyCode);
+
+            // Hero price must be the actual billed amount (Guideline 3.1.2).
+            final billedPrice = selectedPackage?.storeProduct.price;
+            final billedPriceString = billedPrice != null
+                ? formatter.format(billedPrice)
+                : (isAnnual ? '\$79.99' : '\$9.99');
+            final billedPeriodString = isAnnual ? '/ year' : '/ month';
+
+            // Per-month equivalent is subordinate — never the hero.
+            final monthlyEquivalent = isAnnual
+                ? _calculateMonthlyPriceForAnnual(annualPackage)
+                : null;
+            final monthlyEquivalentString = monthlyEquivalent != null
+                ? formatter.format(monthlyEquivalent)
+                : null;
 
             return Column(
               children: [
@@ -131,7 +135,7 @@ class _PaywallPageState extends State<PaywallPage> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                priceString,
+                                billedPriceString,
                                 style: TextStyle(
                                   fontSize: 36,
                                   fontWeight: FontWeight.w600,
@@ -145,7 +149,7 @@ class _PaywallPageState extends State<PaywallPage> {
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 4.0),
                                 child: Text(
-                                  periodString,
+                                  billedPeriodString,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: Color(0xFF6B7280),
@@ -155,6 +159,17 @@ class _PaywallPageState extends State<PaywallPage> {
                               ),
                             ],
                           ),
+                          if (monthlyEquivalentString != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'That\'s $monthlyEquivalentString/month',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           RichText(
                             text: TextSpan(
