@@ -10,6 +10,7 @@ import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:gostylens/utils/auth_utils.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
+import 'package:gostylens/core/managers/user_state_manager.dart';
 
 class AuthStateManager extends ChangeNotifier {
   final supabase = locator<SupabaseClient>();
@@ -206,8 +207,32 @@ class AuthStateManager extends ChangeNotifier {
       );
 
       if (response.user != null) {
-        final googleEmail = googleUser.email;
-        final googleName = googleUser.displayName;
+        final googleEmail = googleUser.email.trim();
+        final googleName = googleUser.displayName?.trim();
+        final resolvedName = (googleName != null && googleName.isNotEmpty)
+            ? googleName
+            : null;
+        final resolvedEmail = googleEmail.isNotEmpty ? googleEmail : null;
+
+        // Write draft early to beat AuthFlow redirect race to OnboardingName,
+        // and persist to user_metadata so onboarding can recover after relaunch.
+        if (resolvedName != null || resolvedEmail != null) {
+          locator<UserStateManager>().updateRegistrationDraft(
+            email: resolvedEmail,
+            name: resolvedName,
+          );
+          await supabase.auth.updateUser(
+            UserAttributes(
+              data: {
+                if (resolvedName != null) ...{
+                  'name': resolvedName,
+                  'full_name': resolvedName,
+                },
+                if (resolvedEmail != null) 'email': resolvedEmail,
+              },
+            ),
+          );
+        }
 
         // Check if user exists in the backend API
         final userResponse = await _userApiService.getUserByAuthId(
@@ -219,8 +244,8 @@ class AuthStateManager extends ChangeNotifier {
           _analyticsService.identify(
             response.user!.id,
             properties: {
-              'email': googleEmail,
-              'name': googleName ?? '',
+              'email': resolvedEmail ?? '',
+              'name': resolvedName ?? '',
               'auth_method': 'google',
             },
           );
@@ -230,13 +255,13 @@ class AuthStateManager extends ChangeNotifier {
           _analyticsService.identify(
             response.user!.id,
             properties: {
-              'email': googleEmail,
-              'name': googleName ?? '',
+              'email': resolvedEmail ?? '',
+              'name': resolvedName ?? '',
               'auth_method': 'google',
               'is_new_user': true,
             },
           );
-          onSuccess?.call(true, email: googleEmail, name: googleName);
+          onSuccess?.call(true, email: resolvedEmail, name: resolvedName);
         } else {
           // It failed for some other reason (500 Server Error, Network, etc.)
           onError?.call('Failed to verify user profile: ${userResponse.error}');
@@ -299,9 +324,39 @@ class AuthStateManager extends ChangeNotifier {
       );
 
       if (response.user != null) {
-        // Extract name and email from Apple credential if available
+        // Apple only returns name/email on first authorization — capture immediately.
+        // Prefer givenName for "What should we call you?"; fall back to full name.
         final appleEmail = credential.email;
-        final appleName = credential.givenName;
+        final givenName = credential.givenName?.trim();
+        final familyName = credential.familyName?.trim();
+        final fullName = [
+          givenName,
+          familyName,
+        ].whereType<String>().where((part) => part.isNotEmpty).join(' ');
+        final resolvedName = (givenName != null && givenName.isNotEmpty)
+            ? givenName
+            : (fullName.isEmpty ? null : fullName);
+
+        // Write draft early to beat AuthFlow redirect race to OnboardingName,
+        // and persist to user_metadata so onboarding can recover after relaunch
+        // (and so _extractMetadataFromSupabase can find it).
+        if (resolvedName != null ||
+            (appleEmail != null && appleEmail.isNotEmpty)) {
+          locator<UserStateManager>().updateRegistrationDraft(
+            email: appleEmail,
+            name: resolvedName,
+          );
+          await supabase.auth.updateUser(
+            UserAttributes(
+              data: {
+                'name': ?resolvedName,
+                if (fullName.isNotEmpty) 'full_name': fullName,
+                if (appleEmail != null && appleEmail.isNotEmpty)
+                  'email': appleEmail,
+              },
+            ),
+          );
+        }
 
         // Check if user exists in the backend API
         final userResponse = await _userApiService.getUserByAuthId(
@@ -314,7 +369,7 @@ class AuthStateManager extends ChangeNotifier {
             response.user!.id,
             properties: {
               'email': appleEmail ?? '',
-              'name': appleName ?? '',
+              'name': resolvedName ?? '',
               'auth_method': 'apple',
             },
           );
@@ -325,12 +380,12 @@ class AuthStateManager extends ChangeNotifier {
             response.user!.id,
             properties: {
               'email': appleEmail ?? '',
-              'name': appleName ?? '',
+              'name': resolvedName ?? '',
               'auth_method': 'apple',
               'is_new_user': true,
             },
           );
-          onSuccess?.call(true, email: appleEmail, name: appleName);
+          onSuccess?.call(true, email: appleEmail, name: resolvedName);
         } else {
           // It failed for some other reason (500 Server Error, Network, etc.)
           onError?.call('Failed to verify user profile: ${userResponse.error}');

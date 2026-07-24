@@ -16,26 +16,43 @@ class OnboardingNamePage extends StatefulWidget {
 
 class _OnboardingNamePageState extends State<OnboardingNamePage> {
   final TextEditingController _nameController = TextEditingController();
+  late final UserStateManager _userStateManager;
 
   bool get _isNameEmpty => _nameController.text.trim().isEmpty;
 
   @override
   void initState() {
     super.initState();
+    _userStateManager = context.read<UserStateManager>();
 
     // Pre-fill name if it exists in the registration draft (from Google/Apple Sign-In)
-    final draft = context.read<UserStateManager>().registrationDraft;
-    if (draft != null && draft.name.isNotEmpty) {
-      _nameController.text = draft.name;
-    }
+    _applyDraftNameIfNeeded();
+
+    // Cover race where draft is written after this page mounts.
+    _userStateManager.addListener(_onUserStateChanged);
 
     _nameController.addListener(() {
       setState(() {});
     });
   }
 
+  void _onUserStateChanged() {
+    if (!mounted) return;
+    _applyDraftNameIfNeeded();
+  }
+
+  /// Applies [registrationDraft].name when the field is still empty.
+  void _applyDraftNameIfNeeded() {
+    if (_nameController.text.trim().isNotEmpty) return;
+    final draft = _userStateManager.registrationDraft;
+    if (draft != null && draft.name.isNotEmpty) {
+      _nameController.text = draft.name;
+    }
+  }
+
   @override
   void dispose() {
+    _userStateManager.removeListener(_onUserStateChanged);
     _nameController.dispose();
     super.dispose();
   }
