@@ -94,9 +94,11 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
             alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 16,
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + MediaQuery.paddingOf(context).bottom,
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),

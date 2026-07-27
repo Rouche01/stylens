@@ -121,112 +121,109 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 0,
-        backgroundColor: cs.surfaceDim,
-        elevation: 0,
-      ),
       backgroundColor: cs.surfaceDim,
-      body: Stack(
+      body: Column(
         children: [
-          Column(
-            children: [
-              SafeArea(
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Image.asset('assets/imgs/logo_primary.png', height: 28),
+                  IconButton(
+                    onPressed: () {
+                      context.push(AppRoutes.profile);
+                    },
+                    icon: const Icon(Icons.account_circle_rounded),
+                    iconSize: 39,
+                    color: cs.primary,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              // Clear the floating dock while the Scaffold background extends under it.
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                16 + MediaQuery.paddingOf(context).bottom,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: cs.outline.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                  color: cs.surfaceDim,
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset('assets/imgs/logo_primary.png', height: 28),
-                      IconButton(
-                        onPressed: () {
-                          context.push(AppRoutes.profile);
-                        },
-                        icon: const Icon(Icons.account_circle_rounded),
-                        iconSize: 39,
-                        color: cs.primary,
+                      const Text('📸', style: TextStyle(fontSize: 80)),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Strike a Pose!',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: cs.onSurface,
+                              fontFamily: 'ClashDisplay',
+                              fontWeight: FontWeight.w500,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: cs.onSurface.withValues(alpha: 0.9),
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: _takePhoto,
+                        icon: const Icon(Icons.photo_camera),
+                        label: const Text('Take Photo'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          backgroundColor: cs.primary,
+                          foregroundColor: cs.onPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: _chooseFromGallery,
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Choose from Gallery'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: 16.0,
-                    right: 16.0,
-                    top: 0,
-                    bottom: 16.0,
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: cs.outline.withValues(alpha: 0.5),
-                        width: 1,
-                      ),
-                      color: cs.surfaceDim,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('📸', style: TextStyle(fontSize: 80)),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Strike a Pose!',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  color: cs.onSurface,
-                                  fontFamily: 'ClashDisplay',
-                                  fontWeight: FontWeight.w500,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(
-                                  color: cs.onSurface.withValues(alpha: 0.9),
-                                  height: 1.5,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          ElevatedButton.icon(
-                            onPressed: _takePhoto,
-                            icon: const Icon(Icons.photo_camera),
-                            label: const Text('Take Photo'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              backgroundColor: cs.primary,
-                              foregroundColor: cs.onPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: _chooseFromGallery,
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Choose from Gallery'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),

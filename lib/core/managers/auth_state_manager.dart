@@ -228,7 +228,7 @@ class AuthStateManager extends ChangeNotifier {
                   'name': resolvedName,
                   'full_name': resolvedName,
                 },
-                if (resolvedEmail != null) 'email': resolvedEmail,
+                'email': ?resolvedEmail,
               },
             ),
           );

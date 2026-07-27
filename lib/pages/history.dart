@@ -95,6 +95,14 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
     );
   }
 
+  /// Centers [child] in the visible area above the floating dock.
+  Widget _dockAwareCenter({required Widget child}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+      child: Center(child: child),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,14 +133,14 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
         builder: (context, sessionManager, child) {
           if (sessionManager.isSessionsLoading &&
               sessionManager.sessions.isEmpty) {
-            return Center(child: CircularProgressIndicator());
+            return _dockAwareCenter(child: CircularProgressIndicator());
           }
 
           if (sessionManager.sessionsError != null &&
               sessionManager.sessions.isEmpty) {
-            return Center(
+            return _dockAwareCenter(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.error_outline, size: 48, color: Colors.grey),
                   SizedBox(height: 16),
@@ -182,9 +190,9 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
               // Body
               Expanded(
                 child: allSessions.isEmpty && !sessionManager.isSessionsLoading
-                    ? Center(
+                    ? _dockAwareCenter(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               _selectedFilter == 'All'
@@ -223,11 +231,11 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
                                 : null,
                           ),
                           child: ListView.builder(
-                            padding: const EdgeInsets.only(
+                            padding: EdgeInsets.only(
                               left: 16,
                               right: 16,
                               top: 8,
-                              bottom: 16,
+                              bottom: 16 + MediaQuery.paddingOf(context).bottom,
                             ),
                             itemCount:
                                 allSessions.length +
