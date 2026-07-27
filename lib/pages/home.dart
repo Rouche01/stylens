@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gostylens/widgets/floating_nav_bar.dart';
-import 'package:gostylens/widgets/start_conversation_fab.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
+import 'package:gostylens/widgets/floating_nav_bar.dart';
+import 'package:gostylens/widgets/satellite_action_button.dart';
 
 /// Bottom-nav shell hosting the Closet / Capture / History tab branches.
 ///
@@ -32,6 +32,9 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
   Widget build(BuildContext context) {
     final selectedIndex = widget.navigationShell.currentIndex;
     final dockBottom = FloatingNavBar.dockBottomInset(context);
+    final showSatellite = selectedIndex == _historyIndex;
+    // Only reserve for the full-width dock; the satellite is a corner overlay
+    // so list content can scroll underneath it.
     final reservedBottom = FloatingNavBar.contentBottomInset(context);
     final media = MediaQuery.of(context);
 
@@ -59,16 +62,33 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
               ),
             ),
           ),
+          Positioned(
+            right: SatelliteActionButton.sideInset,
+            bottom:
+                dockBottom +
+                FloatingNavBar.height +
+                SatelliteActionButton.gapAboveDock,
+            child: IgnorePointer(
+              ignoring: !showSatellite,
+              child: AnimatedScale(
+                scale: showSatellite ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 240),
+                curve: showSatellite
+                    ? Curves.easeOutBack
+                    : Curves.easeInCubic,
+                child: AnimatedOpacity(
+                  opacity: showSatellite ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: SatelliteActionButton(
+                    onPressed: () => startNewSessionAndNavigate(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-      floatingActionButton: selectedIndex == _historyIndex
-          ? Padding(
-              padding: EdgeInsets.only(bottom: reservedBottom),
-              child: StartConversationFab(
-                onPressed: () => startNewSessionAndNavigate(context),
-              ),
-            )
-          : null,
     );
   }
 }

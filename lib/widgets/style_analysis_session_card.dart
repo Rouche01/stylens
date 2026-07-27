@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
@@ -28,6 +29,11 @@ class SessionCard extends StatefulWidget {
 class _SessionCardState extends State<SessionCard> {
   final _popupKey = GlobalKey<PopupMenuButtonState>();
 
+  void _openActionsMenu() {
+    HapticFeedback.mediumImpact();
+    _popupKey.currentState?.showButtonMenu();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFav = widget.session.isFavorite && widget.showFavoriteIndicator;
@@ -43,15 +49,11 @@ class _SessionCardState extends State<SessionCard> {
       ),
       child: InkWell(
         onTap: widget.onTap,
-        onLongPress: () {
-          _popupKey.currentState?.showButtonMenu();
-        },
+        onLongPress: _openActionsMenu,
         borderRadius: BorderRadius.circular(8),
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onLongPress: () {
-            _popupKey.currentState?.showButtonMenu();
-          },
+          onLongPress: _openActionsMenu,
           child: Padding(
             padding: EdgeInsets.all(12),
             child: Row(

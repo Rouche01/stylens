@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:image_picker/image_picker.dart';
@@ -120,7 +121,11 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Scaffold(
       backgroundColor: cs.surfaceDim,
       body: Column(
         children: [
@@ -227,6 +232,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
           ),
         ],
       ),
+    ),
     );
   }
 }
