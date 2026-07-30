@@ -31,7 +31,7 @@ void main() {
       controller = AuthFlowController(
         client: _FakeSupabaseClient(goTrue),
         userState: userState,
-        minSplashDuration: Duration.zero,
+        splashFallbackDuration: Duration.zero,
       );
     });
 

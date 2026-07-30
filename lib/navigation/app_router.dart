@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
@@ -44,7 +45,10 @@ final _shellNavigatorHistoryKey = GlobalKey<NavigatorState>(
 
 /// Builds the declarative route table. Auth gating is handled by [redirect]
 /// driven by [auth] (also wired as `refreshListenable`).
-GoRouter createAppRouter(AuthFlowController auth) {
+GoRouter createAppRouter(
+  AuthFlowController auth, {
+  LottieComposition? splashComposition,
+}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
@@ -57,7 +61,10 @@ GoRouter createAppRouter(AuthFlowController auth) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const AuthLoadingScreen(),
+        builder: (context, state) => AuthLoadingScreen(
+          composition: splashComposition,
+          onRevealCompleted: auth.markSplashRevealCompleted,
+        ),
       ),
       GoRoute(
         path: AppRoutes.login,

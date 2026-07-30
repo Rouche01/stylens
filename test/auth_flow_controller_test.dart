@@ -4,9 +4,9 @@ import 'package:gostylens/navigation/auth_flow_controller.dart';
 
 void main() {
   group('deriveAuthStage', () {
-    test('returns booting before splash duration elapses', () {
+    test('returns booting before splash reveal completes', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: false,
+        splashRevealCompleted: false,
         authResolved: true,
         hasSession: true,
         hasUser: true,
@@ -18,7 +18,7 @@ void main() {
 
     test('returns booting before auth is resolved', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: false,
         hasSession: false,
         hasUser: false,
@@ -30,7 +30,7 @@ void main() {
 
     test('returns unauthenticated when session is absent', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: true,
         hasSession: false,
         hasUser: false,
@@ -42,7 +42,7 @@ void main() {
 
     test('returns userReady while refreshing with existing user', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: true,
         hasSession: true,
         hasUser: true,
@@ -54,7 +54,7 @@ void main() {
 
     test('returns userReady on refresh error with existing user', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: true,
         hasSession: true,
         hasUser: true,
@@ -66,7 +66,7 @@ void main() {
 
     test('returns onboarding when profile is missing', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: true,
         hasSession: true,
         hasUser: false,
@@ -78,7 +78,7 @@ void main() {
 
     test('returns error when initial profile fetch fails without user', () {
       final stage = deriveAuthStage(
-        minSplashDurationElapsed: true,
+        splashRevealCompleted: true,
         authResolved: true,
         hasSession: true,
         hasUser: false,

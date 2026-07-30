@@ -12,6 +12,7 @@ import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
+import 'package:lottie/lottie.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
+
+const _splashRevealAsset = 'assets/animations/gostylens-logo-reveal-v2.json';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -47,10 +50,20 @@ void main() async {
     // Set up singleton services
     await setupLocator();
 
+    LottieComposition? splashComposition;
+    try {
+      splashComposition = await AssetLottie(_splashRevealAsset).load();
+    } catch (e, st) {
+      debugPrint('Failed to preload splash Lottie: $e\n$st');
+    }
+
     // Build the auth state machine and the router before wiring deep links, so
     // out-of-tree navigation (deep links / push) always has a router to target.
     final authController = AuthFlowController()..start();
-    appRouter = createAppRouter(authController);
+    appRouter = createAppRouter(
+      authController,
+      splashComposition: splashComposition,
+    );
 
     locator<PushNotificationManager>().attachForegroundListener();
     locator<PushNotificationManager>().attachOpenedAppListener();
@@ -77,8 +90,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _splashRemoved = false;
-
   @override
   void initState() {
     super.initState();
@@ -86,17 +97,12 @@ class _MyAppState extends State<MyApp> {
     _onAuthStageChanged();
   }
 
-  /// Removes the native splash once we leave booting, and marks deep-link
-  /// navigation ready. Pending destinations are consumed by GoRouter redirect
-  /// when auth reaches userReady (auth is the router refreshListenable).
+  /// Marks deep-link navigation ready when auth reaches userReady.
+  /// Pending destinations are consumed by GoRouter redirect (auth is the
+  /// router refreshListenable). Native splash removal is owned by
+  /// [AuthLoadingScreen] once the logo-reveal is ready to paint.
   void _onAuthStageChanged() {
     final stage = widget.authController.stage;
-
-    if (!_splashRemoved && stage != AuthStage.booting) {
-      _splashRemoved = true;
-      FlutterNativeSplash.remove();
-    }
-
     locator<DeepLinkService>().setNavigationReady(stage == AuthStage.userReady);
   }
 

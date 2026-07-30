@@ -15,13 +15,13 @@ enum AuthStage { booting, unauthenticated, onboarding, userReady, error }
 
 @visibleForTesting
 AuthStage deriveAuthStage({
-  required bool minSplashDurationElapsed,
+  required bool splashRevealCompleted,
   required bool authResolved,
   required bool hasSession,
   required bool hasUser,
   required UserFetchStatus fetchStatus,
 }) {
-  if (!minSplashDurationElapsed || !authResolved) return AuthStage.booting;
+  if (!splashRevealCompleted || !authResolved) return AuthStage.booting;
   if (!hasSession) return AuthStage.unauthenticated;
 
   // Once a profile is loaded, keep Home visible through background refreshes
@@ -43,28 +43,28 @@ AuthStage deriveAuthStage({
   };
 }
 
-/// Owns the auth + profile + min-splash state machine and exposes the derived
+/// Owns the auth + profile + splash-reveal state machine and exposes the derived
 /// [stage]. It is wired as the GoRouter `refreshListenable`; all navigation
-/// (redirects, deep links, splash removal) is driven declaratively off [stage]
-/// by the router and `main`, so this controller performs no navigation itself.
+/// (redirects, deep links) is driven declaratively off [stage] by the router
+/// and `main`, so this controller performs no navigation itself.
 class AuthFlowController extends ChangeNotifier {
   AuthFlowController({
     SupabaseClient? client,
     AuthFlowUserState? userState,
-    Duration minSplashDuration = const Duration(milliseconds: 1200),
+    Duration splashFallbackDuration = const Duration(milliseconds: 2500),
   })  : _client = client ?? locator<SupabaseClient>(),
         _userState = userState ?? locator<UserStateManager>(),
-        _minSplashDuration = minSplashDuration;
+        _splashFallbackDuration = splashFallbackDuration;
 
   final SupabaseClient _client;
   final AuthFlowUserState _userState;
-  final Duration _minSplashDuration;
+  final Duration _splashFallbackDuration;
 
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _splashTimer;
   bool _disposed = false;
 
-  bool _minSplashDurationElapsed = false;
+  bool _splashRevealCompleted = false;
   bool _authResolved = false;
   Session? _session;
 
@@ -73,15 +73,21 @@ class AuthFlowController extends ChangeNotifier {
 
   ErrorData? get errorData => _userState.lastError;
 
-  /// Begins listening to auth + profile state and starts the min-splash timer.
+  /// Begins listening to auth + profile state and starts the splash safety timer.
   void start() {
     _session = _client.auth.currentSession;
     _authSubscription = _client.auth.onAuthStateChange.listen(_onAuthEvent);
     _userState.addListener(_evaluate);
-    _splashTimer = Timer(_minSplashDuration, () {
-      _minSplashDurationElapsed = true;
-      _evaluate();
-    });
+    _splashTimer = Timer(_splashFallbackDuration, markSplashRevealCompleted);
+    _evaluate();
+  }
+
+  /// Called when the boot logo-reveal has played once (or failed to load).
+  void markSplashRevealCompleted() {
+    if (_disposed || _splashRevealCompleted) return;
+    _splashRevealCompleted = true;
+    _splashTimer?.cancel();
+    _splashTimer = null;
     _evaluate();
   }
 
@@ -135,7 +141,7 @@ class AuthFlowController extends ChangeNotifier {
 
   AuthStage _computeStage() {
     return deriveAuthStage(
-      minSplashDurationElapsed: _minSplashDurationElapsed,
+      splashRevealCompleted: _splashRevealCompleted,
       authResolved: _authResolved,
       hasSession: _session != null,
       hasUser: _userState.currentUser != null,
