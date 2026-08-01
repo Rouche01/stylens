@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
@@ -50,6 +51,10 @@ Future<String> getCachedOrRegenerateUrl(String imageKey) async {
 class _ImageWithFallbackState extends State<ImageWithFallback> {
   RemoteImage? _currentRemoteImage;
   bool _hasRetried = false;
+  bool _imageReady = false;
+  bool _loadFailed = false;
+
+  static const _fadeDuration = Duration(milliseconds: 280);
 
   @override
   void initState() {
@@ -64,8 +69,18 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
       setState(() {
         _currentRemoteImage = widget.remoteImage;
         _hasRetried = false;
+        _imageReady = false;
+        _loadFailed = false;
       });
     }
+  }
+
+  void _markImageReady() {
+    if (_imageReady || !mounted) return;
+    setState(() {
+      _imageReady = true;
+      _loadFailed = false;
+    });
   }
 
   @override
@@ -88,30 +103,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
             _buildErrorWidget(context, error, stackTrace),
       );
     } else {
-      imageWidget = Image.network(
-        EnvConfig.resolvePlatformUrl(_currentRemoteImage!.url),
-        width: widget.width,
-        height: widget.height,
-        fit: widget.fit,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            width: widget.width,
-            height: widget.height,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) =>
-            _handleNetworkError(context, error, stackTrace),
-      );
+      imageWidget = _buildNetworkImage(context);
     }
 
     if (widget.borderRadius != null) {
@@ -119,6 +111,81 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     }
 
     return imageWidget;
+  }
+
+  Widget _buildNetworkImage(BuildContext context) {
+    final remote = _currentRemoteImage!;
+    final resolvedUrl = EnvConfig.resolvePlatformUrl(remote.url);
+
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Always under the photo: BlurHash or quiet surface — never replaced mid-load.
+          _buildPlaceholder(context, remote.blurHash),
+          // Fade the sharp image in only after a decoded frame exists.
+          AnimatedOpacity(
+            opacity: _imageReady ? 1 : 0,
+            duration: _fadeDuration,
+            curve: Curves.easeOut,
+            child: Image.network(
+              resolvedUrl,
+              key: ValueKey(resolvedUrl),
+              width: widget.width,
+              height: widget.height,
+              fit: widget.fit,
+              gaplessPlayback: true,
+              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                if (!_imageReady &&
+                    (wasSynchronouslyLoaded || frame != null)) {
+                  // Defer setState so we don't mark dirty during build.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _markImageReady();
+                  });
+                }
+                return child;
+              },
+              // Keep stack transparent on error so BlurHash stays visible while we retry.
+              errorBuilder: (context, error, stackTrace) {
+                _scheduleNetworkError(error, stackTrace);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          // Permanent failure only — faded in so it doesn't flash over the hash.
+          if (_loadFailed)
+            AnimatedOpacity(
+              opacity: 1,
+              duration: _fadeDuration,
+              child: _buildErrorOverlay(context),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _scheduleNetworkError(Object error, StackTrace? stackTrace) {
+    // errorBuilder runs during build — handle side effects after the frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _handleNetworkError(error, stackTrace);
+    });
+  }
+
+  Widget _buildPlaceholder(BuildContext context, String? blurHash) {
+    if (blurHash != null && blurHash.isNotEmpty) {
+      return BlurHash(
+        hash: blurHash,
+        imageFit: widget.fit,
+        duration: Duration.zero,
+      );
+    }
+
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    );
   }
 
   Widget _buildFallback(BuildContext context) {
@@ -133,12 +200,19 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     return _buildDefaultFallback(context);
   }
 
+  Widget _buildErrorOverlay(BuildContext context) {
+    if (widget.fallbackWidget != null) {
+      return widget.fallbackWidget!;
+    }
+    return _buildDefaultFallback(context);
+  }
+
   Widget _buildErrorWidget(
     BuildContext context,
     Object error,
     StackTrace? stackTrace,
   ) {
-    print('Error loading image: $error');
+    debugPrint('Error loading image: $error');
 
     if (widget.fallbackWidget != null) {
       return _buildFallback(context);
@@ -175,11 +249,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     );
   }
 
-  Widget _handleNetworkError(
-    BuildContext context,
-    Object error,
-    StackTrace? stackTrace,
-  ) {
+  void _handleNetworkError(Object error, StackTrace? stackTrace) {
     // Only retry once if error is 403
     if (!_hasRetried &&
         error is NetworkImageLoadException &&
@@ -197,29 +267,34 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
             .then((newUrl) {
               if (mounted) {
                 setState(() {
-                  _currentRemoteImage = RemoteImage(url: newUrl, key: imageKey);
+                  _imageReady = false;
+                  _loadFailed = false;
+                  _currentRemoteImage = (_currentRemoteImage ??
+                          RemoteImage(url: newUrl, key: imageKey))
+                      .copyWith(url: newUrl, key: imageKey);
                 });
               }
             })
             .catchError((e) {
               if (mounted) {
                 setState(() {
-                  // Mark as retried and reset remote image so it shows fallback
                   _hasRetried = true;
-                  _currentRemoteImage = null;
+                  _loadFailed = true;
+                  _imageReady = false;
                 });
               }
             });
-        // Show loading indicator while retrying
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Center(child: CircularProgressIndicator()),
-        );
+        return;
       }
     }
-    return _buildErrorWidget(context, error, stackTrace);
+
+    debugPrint('Error loading image: $error');
+    if (mounted) {
+      setState(() {
+        _loadFailed = true;
+        _imageReady = false;
+      });
+    }
   }
 
   String? _extractImageKey(String url) {

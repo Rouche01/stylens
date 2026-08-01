@@ -68,8 +68,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/GoogleSignIn-iOS.git",
       "state" : {
-        "revision" : "913b4005ea26aebe1c97d54e35ad82a515924c71",
-        "version" : "9.1.0"
+        "revision" : "08d8dcecafb575f98879ffdbb8302c1b9ad65d19",
+        "version" : "9.2.0"
       }
     },
     {
@@ -140,8 +140,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/PostHog/posthog-ios",
       "state" : {
-        "revision" : "750dc1cf8a06a9cf2e0dc8f1fe26c9c531a7da5b",
-        "version" : "3.60.0"
+        "revision" : "1c9b3178746c8102c854c2569047aedcfdec8a0c",
+        "version" : "3.69.0"
       }
     },
     {

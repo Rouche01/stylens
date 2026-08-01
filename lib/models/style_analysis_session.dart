@@ -30,6 +30,7 @@ class StyleAnalysisSession {
           ? RemoteImage.fromJson({
               'image_url': json['image_url'] ?? '',
               'image_key': json['image_key'] ?? '',
+              'image_blur_hash': json['image_blur_hash'],
             })
           : null,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at']),
@@ -46,6 +47,7 @@ class StyleAnalysisSession {
       'title': title,
       'image_url': remoteImage?.url,
       'image_key': remoteImage?.key,
+      'image_blur_hash': remoteImage?.blurHash,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
       'status': status,

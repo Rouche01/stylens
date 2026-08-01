@@ -9,6 +9,7 @@ import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
+import 'package:gostylens/utils/blur_hash_encoder.dart';
 
 mixin StyleAnalysisActions {
   /// Checks if the user has reached their free tier limit and shows paywall if needed.
@@ -78,7 +79,12 @@ mixin StyleAnalysisActions {
       );
 
       if (statusCode == 200) {
-        return RemoteImage(url: downloadUrl, key: returnedFilename);
+        final blurHash = await encodeBlurHashFromBytes(imageFileBytes);
+        return RemoteImage(
+          url: downloadUrl,
+          key: returnedFilename,
+          blurHash: blurHash,
+        );
       } else {
         debugPrint('❌ Upload failed: $statusCode');
         return null;

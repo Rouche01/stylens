@@ -39,6 +39,9 @@ dependencies:
   geolocator: ^13.0.4
   app_links: ^7.1.2
   go_router: ^17.3.0
+  flutter_blurhash: ^0.8.2
+  blurhash_dart: ^1.2.1
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:

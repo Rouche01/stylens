@@ -5,6 +5,7 @@ import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/app_image.dart';
+import 'package:gostylens/utils/blur_hash_encoder.dart';
 
 enum AssetUploadStatus { pending, uploading, success, failure }
 
@@ -72,16 +73,21 @@ class AssetUploadManager extends ChangeNotifier {
   }
 
   /// Reserves a RemoteImage object instantly (Fast JSON request).
-  /// Doesn't start the binary upload yet.
+  /// Encodes BlurHash from the local file in parallel with the upload-url call.
   Future<RemoteImage> prepareAsset(File file) async {
     final filename =
         'style_analysis_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
 
-    final responseData = await _assetApiService.getUploadUrl(filename);
+    final uploadUrlFuture = _assetApiService.getUploadUrl(filename);
+    final blurHashFuture = encodeBlurHashFromFile(file);
+
+    final responseData = await uploadUrlFuture;
+    final blurHash = await blurHashFuture;
 
     final remoteImage = RemoteImage(
       url: responseData.downloadUrl,
       key: responseData.filename,
+      blurHash: blurHash,
     );
 
     final task = AssetUploadTask(

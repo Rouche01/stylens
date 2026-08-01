@@ -50,10 +50,11 @@ class StyleAnalysisSessionMessage {
       // Backward compatibility for single image field
       images = [
         AppImage(
-          remoteImage: RemoteImage(
-            url: json['image_url'] ?? '',
-            key: json['image_key'] ?? '',
-          ),
+          remoteImage: RemoteImage.fromJson({
+            'image_url': json['image_url'] ?? '',
+            'image_key': json['image_key'] ?? '',
+            'blur_hash': json['blur_hash'] ?? json['blurHash'],
+          }),
         ),
       ];
     }
