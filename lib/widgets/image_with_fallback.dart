@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/services/signed_url_service.dart';
-import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/models/remote_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ImageWithFallback extends StatefulWidget {
   final File? imageFile;
@@ -26,25 +26,30 @@ class ImageWithFallback extends StatefulWidget {
     this.fallbackWidget,
   });
 
+  /// Authenticated Worker proxy URL for an R2 object key.
+  static String proxyUrlForKey(String key) {
+    final base = EnvConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    return '$base/assets/file?key=${Uri.encodeQueryComponent(key)}';
+  }
+
   @override
   State<ImageWithFallback> createState() => _ImageWithFallbackState();
 }
 
 class _ImageWithFallbackState extends State<ImageWithFallback> {
   RemoteImage? _currentRemoteImage;
-  bool _hasRetried = false;
+  bool _hasRetriedAuth = false;
   bool _imageReady = false;
   bool _loadFailed = false;
+  /// Bumped after token refresh so Image.network reloads with new headers.
+  int _authGeneration = 0;
 
   static const _fadeDuration = Duration(milliseconds: 280);
-
-  SignedUrlService get _signedUrls => locator<SignedUrlService>();
 
   @override
   void initState() {
     super.initState();
     _currentRemoteImage = widget.remoteImage;
-    _seedSignedUrlCache(_currentRemoteImage);
   }
 
   @override
@@ -53,18 +58,11 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     if (widget.remoteImage != oldWidget.remoteImage) {
       setState(() {
         _currentRemoteImage = widget.remoteImage;
-        _hasRetried = false;
+        _hasRetriedAuth = false;
         _imageReady = false;
         _loadFailed = false;
       });
-      _seedSignedUrlCache(_currentRemoteImage);
     }
-  }
-
-  void _seedSignedUrlCache(RemoteImage? remote) {
-    if (remote == null) return;
-    if (remote.key.isEmpty || remote.url.isEmpty) return;
-    _signedUrls.remember(remote.key, remote.url);
   }
 
   void _markImageReady() {
@@ -75,16 +73,31 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     });
   }
 
+  /// Prefer key → proxy URL so we never depend on stored R2 presigns.
+  String _displayUrl(RemoteImage remote) {
+    if (remote.key.isNotEmpty) {
+      return EnvConfig.resolvePlatformUrl(
+        ImageWithFallback.proxyUrlForKey(remote.key),
+      );
+    }
+    return EnvConfig.resolvePlatformUrl(remote.url);
+  }
+
+  Map<String, String>? _authHeaders() {
+    final token =
+        locator<SupabaseClient>().auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) return null;
+    return {'Authorization': 'Bearer $token'};
+  }
+
   @override
   Widget build(BuildContext context) {
-    // If no image source provided, show fallback immediately
     if (widget.imageFile == null && _currentRemoteImage == null) {
       return _buildFallback(context);
     }
 
     Widget imageWidget;
 
-    // Prioritize local file over URL for faster display
     if (widget.imageFile != null) {
       imageWidget = Image.file(
         widget.imageFile!,
@@ -107,7 +120,8 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
 
   Widget _buildNetworkImage(BuildContext context) {
     final remote = _currentRemoteImage!;
-    final resolvedUrl = EnvConfig.resolvePlatformUrl(remote.url);
+    final resolvedUrl = _displayUrl(remote);
+    final headers = _authHeaders();
 
     return SizedBox(
       width: widget.width,
@@ -115,19 +129,18 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Always under the photo: BlurHash or quiet surface — never replaced mid-load.
           _buildPlaceholder(context, remote.blurHash),
-          // Fade the sharp image in only after a decoded frame exists.
           AnimatedOpacity(
             opacity: _imageReady ? 1 : 0,
             duration: _fadeDuration,
             curve: Curves.easeOut,
             child: Image.network(
               resolvedUrl,
-              key: ValueKey(resolvedUrl),
+              key: ValueKey('$resolvedUrl#$_authGeneration'),
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              headers: headers,
               gaplessPlayback: true,
               frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
                 if (!_imageReady &&
@@ -237,42 +250,24 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     );
   }
 
-  void _handleNetworkError(Object error, StackTrace? stackTrace) {
-    if (!_hasRetried &&
+  Future<void> _handleNetworkError(Object error, StackTrace? stackTrace) async {
+    // Proxy uses Bearer auth — refresh JWT once on 401, then reload image.
+    if (!_hasRetriedAuth &&
         error is NetworkImageLoadException &&
-        error.statusCode == 403) {
-      _hasRetried = true;
-
-      final imageKey =
-          (_currentRemoteImage?.key != null &&
-              _currentRemoteImage!.key.isNotEmpty)
-          ? _currentRemoteImage!.key
-          : _extractImageKey(_currentRemoteImage?.url ?? '');
-
-      if (imageKey != null && imageKey.isNotEmpty) {
-        _signedUrls
-            .refresh(imageKey)
-            .then((newUrl) {
-              if (mounted) {
-                setState(() {
-                  _imageReady = false;
-                  _loadFailed = false;
-                  _currentRemoteImage = (_currentRemoteImage ??
-                          RemoteImage(url: newUrl, key: imageKey))
-                      .copyWith(url: newUrl, key: imageKey);
-                });
-              }
-            })
-            .catchError((e) {
-              debugPrint('Signed URL refresh failed: $e');
-              if (mounted) {
-                setState(() {
-                  _loadFailed = true;
-                  _imageReady = false;
-                });
-              }
-            });
+        error.statusCode == 401) {
+      _hasRetriedAuth = true;
+      try {
+        await locator<SupabaseClient>().auth.refreshSession();
+        if (mounted) {
+          setState(() {
+            _imageReady = false;
+            _loadFailed = false;
+            _authGeneration++;
+          });
+        }
         return;
+      } catch (e) {
+        debugPrint('Auth refresh for image failed: $e');
       }
     }
 
@@ -283,12 +278,5 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
         _imageReady = false;
       });
     }
-  }
-
-  String? _extractImageKey(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return null;
-    if (uri.pathSegments.isEmpty) return null;
-    return uri.pathSegments.last;
   }
 }
