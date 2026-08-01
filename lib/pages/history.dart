@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gostylens/constants/loading_transitions.dart';
+import 'package:gostylens/models/style_analysis_session.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:provider/provider.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/navigation/app_routes.dart';
+import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/style_analysis_session_card.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -14,14 +18,38 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
+  static const int _skeletonCardCount = 7;
+
   String _selectedFilter = 'All';
+
+  /// True until the first sessions fetch finishes — avoids empty-state flash
+  /// before [isSessionsLoading] becomes true.
+  bool _awaitingInitialSessions = true;
+
+  static List<StyleAnalysisSession> get _placeholderSessions {
+    final now = DateTime.now();
+    return List.generate(
+      _skeletonCardCount,
+      (index) => StyleAnalysisSession(
+        id: 'skeleton-$index',
+        userId: '',
+        title: 'Loading session title placeholder',
+        createdAt: now,
+        updatedAt: now.subtract(Duration(minutes: index + 1)),
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<StyleAnalysisSessionManager>().fetchSessions();
-    });
+    // Start sync so loading is set before the first Consumer build when possible.
+    context
+        .read<StyleAnalysisSessionManager>()
+        .fetchSessions()
+        .whenComplete(() {
+          if (mounted) setState(() => _awaitingInitialSessions = false);
+        });
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
@@ -48,8 +76,7 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
 
     final stale = await context.push<bool>(AppRoutes.session(sessionId));
 
-    if (mounted &&
-        (stale == true || sessionManager.sessionsListStale)) {
+    if (mounted && (stale == true || sessionManager.sessionsListStale)) {
       sessionManager.consumeSessionsListStale();
       await sessionManager.refreshSessionsPreservingPagination(silent: true);
     }
@@ -95,10 +122,16 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
     );
   }
 
+  /// Bottom padding so list / empty states clear the floating dock.
+  double get _listBottomPadding =>
+      16 + FloatingNavBar.contentBottomInset(context);
+
   /// Centers [child] in the visible area above the floating dock.
   Widget _dockAwareCenter({required Widget child}) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+      padding: EdgeInsets.only(
+        bottom: FloatingNavBar.contentBottomInset(context),
+      ),
       child: Center(child: child),
     );
   }
@@ -131,13 +164,9 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
       ),
       body: Consumer<StyleAnalysisSessionManager>(
         builder: (context, sessionManager, child) {
-          if (sessionManager.isSessionsLoading &&
-              sessionManager.sessions.isEmpty) {
-            return _dockAwareCenter(child: CircularProgressIndicator());
-          }
-
           if (sessionManager.sessionsError != null &&
-              sessionManager.sessions.isEmpty) {
+              sessionManager.sessions.isEmpty &&
+              !sessionManager.isSessionsLoading) {
             return _dockAwareCenter(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -167,6 +196,9 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
           }
 
           final allSessions = sessionManager.sessions;
+          final wantsSkeleton =
+              allSessions.isEmpty &&
+              (sessionManager.isSessionsLoading || _awaitingInitialSessions);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -189,95 +221,143 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
               ),
               // Body
               Expanded(
-                child: allSessions.isEmpty && !sessionManager.isSessionsLoading
-                    ? _dockAwareCenter(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _selectedFilter == 'All'
-                                  ? Icons.history
-                                  : Icons.favorite_border,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              _selectedFilter == 'All'
-                                  ? 'No style sessions yet'
-                                  : 'No favorites yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            if (_selectedFilter == 'All') ...[
-                              SizedBox(height: 8),
-                              Text(
-                                'Start by capturing an outfit!',
-                                style: TextStyle(color: Colors.grey[500]),
-                              ),
-                            ],
-                          ],
-                        ),
-                      )
-                    : NotificationListener<ScrollNotification>(
-                        onNotification: _handleScrollNotification,
-                        child: RefreshIndicator(
-                          onRefresh: () => sessionManager.fetchSessions(
-                            forceRefresh: true,
-                            isFavourite: _selectedFilter == 'Favorites'
-                                ? true
-                                : null,
-                          ),
-                          child: ListView.builder(
-                            padding: EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              top: 8,
-                              bottom: 16 + MediaQuery.paddingOf(context).bottom,
-                            ),
-                            itemCount:
-                                allSessions.length +
-                                (sessionManager.isLoadingMoreSessions ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index == allSessions.length) {
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
+                child: AnimatedSwitcher(
+                  duration: LoadingTransitions.duration,
+                  switchInCurve: LoadingTransitions.switchInCurve,
+                  switchOutCurve: LoadingTransitions.switchOutCurve,
+                  child: wantsSkeleton
+                      ? KeyedSubtree(
+                          key: const ValueKey('history-skeleton'),
+                          child: _buildSkeletonList(),
+                        )
+                      : allSessions.isEmpty
+                      ? KeyedSubtree(
+                          key: const ValueKey('history-empty'),
+                          child: _dockAwareCenter(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _selectedFilter == 'All'
+                                      ? Icons.history
+                                      : Icons.favorite_border,
+                                  size: 48,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  _selectedFilter == 'All'
+                                      ? 'No style sessions yet'
+                                      : 'No favorites yet',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey[600],
                                   ),
-                                );
-                              }
+                                ),
+                                if (_selectedFilter == 'All') ...[
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Start by capturing an outfit!',
+                                    style: TextStyle(color: Colors.grey[500]),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('history-list'),
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: _handleScrollNotification,
+                            child: RefreshIndicator(
+                              onRefresh: () => sessionManager.fetchSessions(
+                                forceRefresh: true,
+                                isFavourite: _selectedFilter == 'Favorites'
+                                    ? true
+                                    : null,
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.only(
+                                  left: 16,
+                                  right: 16,
+                                  top: 8,
+                                  bottom: _listBottomPadding,
+                                ),
+                                itemCount:
+                                    allSessions.length +
+                                    (sessionManager.isLoadingMoreSessions
+                                        ? 1
+                                        : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == allSessions.length) {
+                                    return Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
 
-                              final session = allSessions[index];
-                              final isSessionBusy = sessionManager
-                                  .isSessionBusy(session.id);
+                                  final session = allSessions[index];
+                                  final isSessionBusy = sessionManager
+                                      .isSessionBusy(session.id);
 
-                              return SessionCard(
-                                key: ValueKey(session.id),
-                                session: session,
-                                isBusy: isSessionBusy,
-                                showFavoriteIndicator:
-                                    _selectedFilter != 'Favorites',
-                                onTap: () => _openSession(session.id),
-                                onDelete: () =>
-                                    sessionManager.deleteSession(session.id),
-                              );
-                            },
+                                  return SessionCard(
+                                    key: ValueKey(session.id),
+                                    session: session,
+                                    isBusy: isSessionBusy,
+                                    showFavoriteIndicator:
+                                        _selectedFilter != 'Favorites',
+                                    onTap: () => _openSession(session.id),
+                                    onDelete: () => sessionManager
+                                        .deleteSession(session.id),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSkeletonList() {
+    final placeholders = _placeholderSessions;
+    return Skeletonizer(
+      enabled: true,
+      child: IgnorePointer(
+        child: ListView.builder(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 8,
+            bottom: _listBottomPadding,
+          ),
+          itemCount: placeholders.length,
+          itemBuilder: (context, index) {
+            final session = placeholders[index];
+            return SessionCard(
+              key: ValueKey(session.id),
+              session: session,
+              showFavoriteIndicator: _selectedFilter != 'Favorites',
+              onTap: () {},
+              onDelete: () {},
+            );
+          },
+        ),
       ),
     );
   }

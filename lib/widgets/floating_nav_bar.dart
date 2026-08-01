@@ -326,7 +326,8 @@ class _NavItemState extends State<_NavItem>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final activeColor = cs.primary;
-    final inactiveColor = Colors.white.withValues(alpha: 0.78);
+    // Mint closer to white for contrast on the dark glass dock.
+    final inactiveColor = Color.lerp(cs.secondary, Colors.white, 0.55)!;
     final colorDuration = widget.reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 220);

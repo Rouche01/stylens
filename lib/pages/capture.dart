@@ -12,6 +12,7 @@ import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/app_image.dart';
+import 'package:gostylens/widgets/floating_nav_bar.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({super.key});
@@ -161,7 +162,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
                 16,
                 0,
                 16,
-                16 + MediaQuery.paddingOf(context).bottom,
+                16 + FloatingNavBar.contentBottomInset(context),
               ),
               child: Container(
                 decoration: BoxDecoration(

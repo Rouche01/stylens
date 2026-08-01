@@ -5,6 +5,7 @@ import 'package:gostylens/widgets/animated_typing_dots.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:gostylens/widgets/session_actions_menu.dart';
 import 'package:gostylens/utils/time_utils.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class SessionCard extends StatefulWidget {
   final StyleAnalysisSession session;
@@ -62,20 +63,23 @@ class _SessionCardState extends State<SessionCard> {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    ImageWithFallback(
-                      remoteImage: widget.session.remoteImage,
+                    Skeleton.replace(
                       width: 60,
                       height: 60,
-                      fit: BoxFit.cover,
-                      borderRadius: BorderRadius.circular(8),
-                      fallbackWidget: Container(
+                      child: ImageWithFallback(
+                        remoteImage: widget.session.remoteImage,
                         width: 60,
                         height: 60,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[200],
+                        fit: BoxFit.cover,
+                        borderRadius: BorderRadius.circular(8),
+                        // Match ImageWithFallback's solid placeholder so the
+                        // thumb doesn't pop from icon → image after list paint.
+                        fallbackWidget: ColoredBox(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: const SizedBox(width: 60, height: 60),
                         ),
-                        child: Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
                     if (widget.isBusy)

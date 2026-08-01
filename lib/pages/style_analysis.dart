@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gostylens/constants/loading_transitions.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
@@ -21,6 +22,7 @@ import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/models/app_image.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class StyleAnalysisPage extends StatefulWidget {
   /// Set when opened via `/session/:id` so existing-session logic does not
@@ -42,6 +44,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   late StyleAnalysisSessionManager _sessionManager;
 
   static const double _loadMoreThreshold = 200.0;
+
+  /// True for existing sessions until the first messages fetch settles —
+  /// covers the gap after [select] clears messages before loading flips on.
+  late bool _awaitingInitialMessages;
 
   bool get _isNewSession =>
       widget.routeSessionId == null &&
@@ -65,6 +71,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   void initState() {
     super.initState();
     _sessionManager = context.read<StyleAnalysisSessionManager>();
+    _awaitingInitialMessages = !_isNewSession;
 
     _scrollController.addListener(_onScroll);
     _initializeSession();
@@ -132,6 +139,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       );
     } catch (e) {
       debugPrint('Error loading session: $e');
+    } finally {
+      if (mounted && _awaitingInitialMessages) {
+        setState(() => _awaitingInitialMessages = false);
+      }
     }
   }
 
@@ -403,12 +414,19 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
         Consumer<StyleAnalysisSessionManager>(
           builder: (context, sessionManager, child) {
             final session = sessionManager.selectedSession;
-            if (session == null) return const SizedBox.shrink();
+            final iconColor = Theme.of(context).colorScheme.primary;
+            // Reserve the trailing slot so the menu doesn't pop the AppBar.
+            if (session == null) {
+              return IconButton(
+                onPressed: null,
+                icon: Icon(Icons.more_vert, color: iconColor.withValues(alpha: 0)),
+              );
+            }
 
             return SessionActionsMenu(
               session: session,
               position: PopupMenuPosition.under,
-              iconColor: Theme.of(context).colorScheme.primary,
+              iconColor: iconColor,
             );
           },
         ),
@@ -419,20 +437,98 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   Widget _buildBody() {
     return Consumer<StyleAnalysisSessionManager>(
       builder: (context, sessionManager, child) {
-        if (sessionManager.isSelectedSessionLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        // Skeleton when empty and still loading/bootstrapping; cached threads
+        // keep messages non-empty so they stay visible during silent refresh.
+        final messages = sessionManager.selectedSessionMessages;
+        final wantsSkeleton =
+            !_isNewSession &&
+            messages.isEmpty &&
+            (sessionManager.isSelectedSessionLoading ||
+                _awaitingInitialMessages);
 
-        if (sessionManager.selectedSessionError != null && !_isNewSession) {
-          return ErrorDisplay(
-            title: 'Failed to load session',
-            message: sessionManager.selectedSessionError!,
-            onRetry: () => _loadExistingSession(forceRefresh: true),
+        final Widget body;
+        if (wantsSkeleton) {
+          body = KeyedSubtree(
+            key: const ValueKey('session-skeleton'),
+            child: _buildSkeletonChat(),
+          );
+        } else if (sessionManager.selectedSessionError != null &&
+            !_isNewSession) {
+          body = KeyedSubtree(
+            key: const ValueKey('session-error'),
+            child: ErrorDisplay(
+              title: 'Failed to load session',
+              message: sessionManager.selectedSessionError!,
+              onRetry: () => _loadExistingSession(forceRefresh: true),
+            ),
+          );
+        } else {
+          body = KeyedSubtree(
+            key: const ValueKey('session-chat'),
+            child: _buildChatInterface(sessionManager),
           );
         }
 
-        return _buildChatInterface(sessionManager);
+        return AnimatedSwitcher(
+          duration: LoadingTransitions.duration,
+          switchInCurve: LoadingTransitions.switchInCurve,
+          switchOutCurve: LoadingTransitions.switchOutCurve,
+          child: body,
+        );
       },
+    );
+  }
+
+  /// Lightweight chat chrome: real input + abstract bubble bones (no fake copy).
+  Widget _buildSkeletonChat() {
+    return Column(
+      children: [
+        Expanded(
+          child: Skeletonizer.zone(
+            child: IgnorePointer(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ListView(
+                  reverse: true,
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(16),
+                  children: const [
+                    // Newest at bottom (matches reverse chat list).
+                    _SkeletonChatBubble(
+                      alignment: Alignment.centerLeft,
+                      width: 168,
+                      height: 48,
+                    ),
+                    SizedBox(height: 12),
+                    _SkeletonChatBubble(
+                      alignment: Alignment.centerRight,
+                      width: 128,
+                      height: 40,
+                    ),
+                    SizedBox(height: 12),
+                    _SkeletonChatBubble(
+                      alignment: Alignment.centerRight,
+                      width: 180,
+                      height: 180,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        IgnorePointer(
+          child: MessageInput(
+            messageController: _messageController,
+            onSendMessage: () {},
+            isSendDisabled: true,
+            isTextFieldDisabled: true,
+            placeholder: UxMessages.styleAnalysisChatInputPlaceholder,
+            // Match loaded existing-session chrome (attach visible).
+            onAttachPressed: _isNewSession ? null : () {},
+          ),
+        ),
+      ],
     );
   }
 
@@ -552,6 +648,30 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SkeletonChatBubble extends StatelessWidget {
+  const _SkeletonChatBubble({
+    required this.alignment,
+    required this.width,
+    required this.height,
+  });
+
+  final Alignment alignment;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: Bone(
+        width: width,
+        height: height,
+        borderRadius: BorderRadius.circular(16),
       ),
     );
   }

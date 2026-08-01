@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
@@ -98,7 +99,7 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
                   16,
                   16,
                   16,
-                  16 + MediaQuery.paddingOf(context).bottom,
+                  16 + FloatingNavBar.contentBottomInset(context),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
