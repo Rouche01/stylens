@@ -2,14 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/services/api_service/index.dart';
+import 'package:gostylens/core/services/signed_url_service.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/core/config/env_config.dart';
-
-Future<String> regenerateImageUrl(String imageKey) async {
-  final assetApiService = locator<AssetApiService>();
-  return await assetApiService.getDownloadUrl(imageKey);
-}
 
 class ImageWithFallback extends StatefulWidget {
   final File? imageFile;
@@ -19,8 +14,6 @@ class ImageWithFallback extends StatefulWidget {
   final BoxFit fit;
   final BorderRadius? borderRadius;
   final Widget? fallbackWidget;
-
-  static final Map<String, String> _imageUrlCache = {};
 
   const ImageWithFallback({
     super.key,
@@ -37,17 +30,6 @@ class ImageWithFallback extends StatefulWidget {
   State<ImageWithFallback> createState() => _ImageWithFallbackState();
 }
 
-Future<String> getCachedOrRegenerateUrl(String imageKey) async {
-  if (ImageWithFallback._imageUrlCache.containsKey(imageKey)) {
-    return ImageWithFallback._imageUrlCache[imageKey]!;
-  }
-  final newUrl = await regenerateImageUrl(imageKey);
-  if (newUrl.isNotEmpty) {
-    ImageWithFallback._imageUrlCache[imageKey] = newUrl;
-  }
-  return newUrl;
-}
-
 class _ImageWithFallbackState extends State<ImageWithFallback> {
   RemoteImage? _currentRemoteImage;
   bool _hasRetried = false;
@@ -56,10 +38,13 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
 
   static const _fadeDuration = Duration(milliseconds: 280);
 
+  SignedUrlService get _signedUrls => locator<SignedUrlService>();
+
   @override
   void initState() {
     super.initState();
     _currentRemoteImage = widget.remoteImage;
+    _seedSignedUrlCache(_currentRemoteImage);
   }
 
   @override
@@ -72,7 +57,14 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
         _imageReady = false;
         _loadFailed = false;
       });
+      _seedSignedUrlCache(_currentRemoteImage);
     }
+  }
+
+  void _seedSignedUrlCache(RemoteImage? remote) {
+    if (remote == null) return;
+    if (remote.key.isEmpty || remote.url.isEmpty) return;
+    _signedUrls.remember(remote.key, remote.url);
   }
 
   void _markImageReady() {
@@ -140,21 +132,18 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
               frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
                 if (!_imageReady &&
                     (wasSynchronouslyLoaded || frame != null)) {
-                  // Defer setState so we don't mark dirty during build.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     _markImageReady();
                   });
                 }
                 return child;
               },
-              // Keep stack transparent on error so BlurHash stays visible while we retry.
               errorBuilder: (context, error, stackTrace) {
                 _scheduleNetworkError(error, stackTrace);
                 return const SizedBox.shrink();
               },
             ),
           ),
-          // Permanent failure only — faded in so it doesn't flash over the hash.
           if (_loadFailed)
             AnimatedOpacity(
               opacity: 1,
@@ -167,7 +156,6 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
   }
 
   void _scheduleNetworkError(Object error, StackTrace? stackTrace) {
-    // errorBuilder runs during build — handle side effects after the frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _handleNetworkError(error, stackTrace);
@@ -250,7 +238,6 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
   }
 
   void _handleNetworkError(Object error, StackTrace? stackTrace) {
-    // Only retry once if error is 403
     if (!_hasRetried &&
         error is NetworkImageLoadException &&
         error.statusCode == 403) {
@@ -262,8 +249,9 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
           ? _currentRemoteImage!.key
           : _extractImageKey(_currentRemoteImage?.url ?? '');
 
-      if (imageKey != null) {
-        getCachedOrRegenerateUrl(imageKey)
+      if (imageKey != null && imageKey.isNotEmpty) {
+        _signedUrls
+            .refresh(imageKey)
             .then((newUrl) {
               if (mounted) {
                 setState(() {
@@ -276,9 +264,9 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
               }
             })
             .catchError((e) {
+              debugPrint('Signed URL refresh failed: $e');
               if (mounted) {
                 setState(() {
-                  _hasRetried = true;
                   _loadFailed = true;
                   _imageReady = false;
                 });

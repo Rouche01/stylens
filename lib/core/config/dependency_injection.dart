@@ -27,6 +27,7 @@ import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
+import 'package:gostylens/core/services/signed_url_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
@@ -88,6 +89,9 @@ Future<void> setupLocator() async {
   // Register API Services as Lazy Singletons
   locator.registerLazySingleton<UserApiService>(() => UserApiService());
   locator.registerLazySingleton<AssetApiService>(() => AssetApiService());
+  locator.registerLazySingleton<SignedUrlService>(
+    () => SignedUrlService(locator<AssetApiService>()),
+  );
   locator.registerLazySingleton<SubscriptionApiService>(
     () => SubscriptionApiService(),
   );
