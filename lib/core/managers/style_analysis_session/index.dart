@@ -126,7 +126,14 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   void _onSessionsListActivity(String sessionId) {
     markSessionsListStale();
-    _sessionsSlice.bumpSessionActivity(sessionId);
+    final exists = sessions.any((s) => s.id == sessionId);
+    if (exists) {
+      _sessionsSlice.bumpSessionActivity(sessionId);
+    } else {
+      // New sessions are not in the list yet — bump is a no-op for unknown ids.
+      // Refresh immediately so History (and selectedSession lookup) see the card.
+      _sessionsSlice.refreshPreservingPagination(silent: true);
+    }
   }
 
   // ============================================================

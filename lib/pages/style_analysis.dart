@@ -352,7 +352,14 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        leaveSessionToHistory(context);
+      },
+      child: Scaffold(appBar: _buildAppBar(), body: _buildBody()),
+    );
   }
 
   ErrorAction _buildMessageErrorAction(MessageErrorType messageErrorType) {
@@ -404,10 +411,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () => popDetailOrGoHome(
-          context,
-          result: _sessionManager.sessionsListStale,
-        ),
+        onPressed: () => leaveSessionToHistory(context),
         color: Theme.of(context).colorScheme.primary,
       ),
       actions: [
