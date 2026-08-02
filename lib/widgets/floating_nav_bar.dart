@@ -136,7 +136,7 @@ class _FloatingNavBarState extends State<FloatingNavBar>
         borderRadius: BorderRadius.circular(FloatingNavBar._radius),
         boxShadow: [
           BoxShadow(
-            color: cs.primary.withValues(alpha: 0.35),
+            color: cs.primary.withValues(alpha: 0.28),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -145,7 +145,8 @@ class _FloatingNavBarState extends State<FloatingNavBar>
       child: ClipRRect(
         borderRadius: BorderRadius.circular(FloatingNavBar._radius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+          // Stronger frost so a lighter fill still keeps icons readable.
+          filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(FloatingNavBar._radius),
@@ -157,12 +158,12 @@ class _FloatingNavBarState extends State<FloatingNavBar>
                     cs.primary,
                     cs.secondary,
                     0.22,
-                  )!.withValues(alpha: 0.42),
-                  cs.primary.withValues(alpha: 0.50),
+                  )!.withValues(alpha: 0.28),
+                  cs.primary.withValues(alpha: 0.34),
                 ],
               ),
               border: Border.all(
-                color: cs.secondary.withValues(alpha: 0.28),
+                color: cs.secondary.withValues(alpha: 0.32),
                 width: 0.5,
               ),
             ),

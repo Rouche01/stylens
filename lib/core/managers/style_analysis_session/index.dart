@@ -531,7 +531,10 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
           _selectedSessionSlice.replaceLastBotMessage(finalText);
           _selectedSessionSlice.removeLoadingMessage();
         }
+        // Bump for immediate reorder; refresh picks up server-generated title.
         markSessionsListStale();
+        _sessionsSlice.bumpSessionActivity(id);
+        _sessionsSlice.refreshPreservingPagination(silent: true);
       },
       onError: (id, error) {
         if (_selectedSessionSlice.sessionId == id) {

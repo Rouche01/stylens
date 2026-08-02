@@ -74,6 +74,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     _awaitingInitialMessages = !_isNewSession;
 
     _scrollController.addListener(_onScroll);
+    _sessionManager.addListener(_syncRouteToSelectedSession);
     _initializeSession();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -86,12 +87,21 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
   @override
   void dispose() {
+    _sessionManager.removeListener(_syncRouteToSelectedSession);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _inputFocusNode.dispose();
     _saveStateAndDispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  /// Rewrites `/session` → `/session/:id` once the server id exists.
+  void _syncRouteToSelectedSession() {
+    if (!mounted) return;
+    final id = _sessionManager.selectedSessionId;
+    if (id == null || id.isEmpty) return;
+    replaceNewSessionRoute(context, id);
   }
 
   // ============================================================

@@ -32,3 +32,12 @@ void leaveSessionToHistory(BuildContext context) {
     sessionManager.refreshSessionsPreservingPagination(silent: true);
   }
 }
+
+/// After a new session is persisted, rewrite `/session` → `/session/:id` without
+/// remounting the chat (session routes share a stable [Page] key).
+void replaceNewSessionRoute(BuildContext context, String sessionId) {
+  if (sessionId.isEmpty) return;
+  final location = GoRouterState.of(context).matchedLocation;
+  if (location != AppRoutes.sessionNew) return;
+  context.replace(AppRoutes.session(sessionId));
+}

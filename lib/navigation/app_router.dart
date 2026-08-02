@@ -128,17 +128,24 @@ GoRouter createAppRouter(
       ),
       GoRoute(
         path: AppRoutes.sessionPattern,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id'];
           if (id != null && id.isNotEmpty) {
             locator<StyleAnalysisSessionManager>().setSelectedSessionId(id);
           }
-          return StyleAnalysisPage(routeSessionId: id);
+          // Stable key so `/session` → `/session/:id` replace keeps chat State.
+          return NoTransitionPage<void>(
+            key: const ValueKey('style_analysis_session'),
+            child: StyleAnalysisPage(routeSessionId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.sessionNew,
-        builder: (context, state) => const StyleAnalysisPage(),
+        pageBuilder: (context, state) => const NoTransitionPage<void>(
+          key: ValueKey('style_analysis_session'),
+          child: StyleAnalysisPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.paywall,
