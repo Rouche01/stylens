@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/slice_state_manager.dart';
+import 'package:gostylens/core/managers/stylist_openers_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/pagination_info.dart';
+import 'package:gostylens/models/api_responses/stylist_openers.dart';
 import 'package:gostylens/models/style_analysis_session_message.dart';
 import 'package:gostylens/models/style_analysis_session_message_error.dart';
 import 'package:gostylens/models/app_image.dart';
@@ -68,12 +70,24 @@ mixin SelectedSessionActions {
 
   // --- Actions Mixin Logic ---
   static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
-  static const _initialBotReplyWithImage =
-      UxMessages.initialStylistReplyWithImage;
-  static const _initialBotReplyWithoutImage1 =
-      UxMessages.initialStylistReplyWithoutImage1;
-  static const _initialBotReplyWithoutImage2 =
-      UxMessages.initialStylistReplyWithoutImage2;
+
+  Future<void> _warmStylistOpenersCache() async {
+    if (!locator.isRegistered<StylistOpenersManager>()) return;
+    try {
+      await locator<StylistOpenersManager>().warmCache();
+    } catch (e) {
+      debugPrint('Failed to warm stylist openers cache: $e');
+    }
+  }
+
+  String _pickOpener(StylistOpenerTag tag) {
+    if (!locator.isRegistered<StylistOpenersManager>()) {
+      return tag == StylistOpenerTag.withImage
+          ? UxMessages.initialStylistReplyWithImage
+          : UxMessages.initialStylistReplyWithoutImage1;
+    }
+    return locator<StylistOpenersManager>().pickOne(tag);
+  }
 
   // Pagination State
   PaginationInfo? paginationInfo;
@@ -394,17 +408,14 @@ mixin SelectedSessionActions {
   }
 
   Future<void> playEmptySessionIntro(int generation) async {
+    await _warmStylistOpenersCache();
+    final opener = _pickOpener(StylistOpenerTag.withoutImage);
+
     // [prepareEmptySession] already showed a loading bubble.
     await Future.delayed(const Duration(milliseconds: 1000));
     if (!isLocalBootstrapCurrent(generation)) return;
     removeLoadingMessage();
-    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
-
-    addLoadingMessage();
-    await Future.delayed(const Duration(milliseconds: 2000));
-    if (!isLocalBootstrapCurrent(generation)) return;
-    removeLoadingMessage();
-    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
+    addMessage(UserRole.assistant, text: opener);
   }
 
   Future<void> playOutfitSessionIntro(int generation) async {
@@ -438,11 +449,14 @@ mixin SelectedSessionActions {
 
   Future<void> _addInitialStylistResponse(int generation) async {
     if (!isLocalBootstrapCurrent(generation)) return;
+    await _warmStylistOpenersCache();
+    if (!isLocalBootstrapCurrent(generation)) return;
+    final reply = _pickOpener(StylistOpenerTag.withImage);
     addLoadingMessage();
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!isLocalBootstrapCurrent(generation)) return;
     removeLoadingMessage();
-    addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+    addMessage(UserRole.assistant, text: reply);
   }
 
   Future<void> submitInitialOutfit(

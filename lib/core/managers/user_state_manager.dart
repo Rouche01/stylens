@@ -8,6 +8,7 @@ import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
+import 'package:gostylens/core/managers/stylist_openers_manager.dart';
 import 'package:gostylens/models/user_state.dart';
 import 'package:gostylens/navigation/auth_flow_user_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
@@ -116,6 +117,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
         );
         // Initialize Push Notifications
         locator<PushNotificationManager>().initialize();
+        locator<StylistOpenersManager>().ensureFresh();
         onSuccess?.call(userData);
       } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
         _operationState = _operationState.copyWith(
@@ -196,6 +198,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
 
         // Initialize Push Notifications
         locator<PushNotificationManager>().initialize();
+        locator<StylistOpenersManager>().ensureFresh();
 
         // Refresh the session to ensure the user claim is updated
         await locator<supabase.SupabaseClient>().auth.refreshSession();

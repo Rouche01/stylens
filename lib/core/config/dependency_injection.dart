@@ -18,6 +18,7 @@ import 'package:gostylens/core/services/api_service/asset_api_service.dart';
 import 'package:gostylens/core/services/api_service/subscription_api_service.dart';
 import 'package:gostylens/core/services/api_service/style_analysis_api_service.dart';
 import 'package:gostylens/core/services/api_service/push_notification_api_service.dart';
+import 'package:gostylens/core/services/api_service/config_api_service.dart';
 
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -29,6 +30,7 @@ import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
+import 'package:gostylens/core/managers/stylist_openers_manager.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
@@ -97,6 +99,7 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<PushNotificationApiService>(
     () => PushNotificationApiService(),
   );
+  locator.registerLazySingleton<ConfigApiService>(() => ConfigApiService());
 
   // Setup Singletons
   final supabaseClient = Supabase.instance.client;
@@ -168,4 +171,7 @@ Future<void> setupLocator() async {
     () => PushNotificationManager(),
   );
   locator.registerLazySingleton<LocationManager>(() => LocationManager());
+  locator.registerLazySingleton<StylistOpenersManager>(
+    () => StylistOpenersManager(),
+  );
 }
