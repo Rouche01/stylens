@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:lottie/lottie.dart';
 
+/// Display size of the logo-reveal Lottie (composition is 1080×1080).
+const double _splashLottieSize = 300;
+
+/// On-screen width of the GoStylens wordmark inside [_splashLottieSize].
+///
+/// Wordmark path bounds span ~873 of 1080 composition units. Native splash
+/// `logo_splash.png` is sized so its @1x asset matches this width.
+const double _splashLogoWidth = _splashLottieSize * 873 / 1080;
+
 /// Branded full-screen loader shown while auth bootstrap completes.
 ///
 /// Plays the preloaded logo-reveal once, holds the last frame, and reports
@@ -88,11 +97,15 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
             ? Lottie(
                 composition: composition,
                 controller: controller,
-                width: 300,
-                height: 300,
+                width: _splashLottieSize,
+                height: _splashLottieSize,
                 fit: BoxFit.contain,
               )
-            : const SizedBox.shrink(),
+            : Image.asset(
+                'assets/imgs/logo_splash.png',
+                width: _splashLogoWidth,
+                fit: BoxFit.contain,
+              ),
       ),
     );
   }
