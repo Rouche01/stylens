@@ -37,6 +37,12 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: gender);
 
     userStateManager.createProfile(
+      onSuccess: (user, {required bool inviteApplied}) {
+        if (!mounted || !inviteApplied) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invite applied')),
+        );
+      },
       onError: (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -51,6 +57,12 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     userStateManager.updateRegistrationDraft(gender: Gender.unspecified);
 
     userStateManager.createProfile(
+      onSuccess: (user, {required bool inviteApplied}) {
+        if (!mounted || !inviteApplied) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invite applied')),
+        );
+      },
       onError: (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(

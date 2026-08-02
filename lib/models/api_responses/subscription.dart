@@ -9,6 +9,10 @@ class Subscription {
   final int? currentPeriodEnd;
   final bool hasReachedLimit;
   final SubscriptionLimits? limits;
+  final bool inTrial;
+  final int? trialEndsAt;
+  final int? periodStart;
+  final int? sessionUsage;
 
   const Subscription({
     required this.id,
@@ -21,6 +25,10 @@ class Subscription {
     this.currentPeriodEnd,
     required this.hasReachedLimit,
     this.limits,
+    this.inTrial = false,
+    this.trialEndsAt,
+    this.periodStart,
+    this.sessionUsage,
   });
 
   Subscription copyWith({
@@ -34,6 +42,10 @@ class Subscription {
     int? currentPeriodEnd,
     bool? hasReachedLimit,
     SubscriptionLimits? limits,
+    bool? inTrial,
+    int? trialEndsAt,
+    int? periodStart,
+    int? sessionUsage,
   }) {
     return Subscription(
       id: id ?? this.id,
@@ -47,6 +59,10 @@ class Subscription {
       currentPeriodEnd: currentPeriodEnd ?? this.currentPeriodEnd,
       hasReachedLimit: hasReachedLimit ?? this.hasReachedLimit,
       limits: limits ?? this.limits,
+      inTrial: inTrial ?? this.inTrial,
+      trialEndsAt: trialEndsAt ?? this.trialEndsAt,
+      periodStart: periodStart ?? this.periodStart,
+      sessionUsage: sessionUsage ?? this.sessionUsage,
     );
   }
 
@@ -64,6 +80,10 @@ class Subscription {
       limits: json['limits'] != null
           ? SubscriptionLimits.fromJson(json['limits'] as Map<String, dynamic>)
           : null,
+      inTrial: json['in_trial'] == true,
+      trialEndsAt: json['trial_ends_at'] as int?,
+      periodStart: json['period_start'] as int?,
+      sessionUsage: json['session_usage'] as int?,
     );
   }
 
@@ -79,6 +99,10 @@ class Subscription {
       'current_period_end': currentPeriodEnd,
       'has_reached_limit': hasReachedLimit,
       'limits': limits?.toJson(),
+      'in_trial': inTrial,
+      'trial_ends_at': trialEndsAt,
+      'period_start': periodStart,
+      'session_usage': sessionUsage,
     };
   }
 

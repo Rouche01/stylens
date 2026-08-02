@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/navigation/app_router.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('redirectForStage', () {
@@ -187,6 +189,42 @@ void main() {
       );
       expect(stashed?.target, DeepLinkTarget.session);
       expect(stashed?.sessionId, 's1');
+    });
+
+    test('gostylens://invite?code=X persists code and returns stage-neutral', () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = InviteCodeStore();
+      DeepLinkDestination? stashed;
+
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.unauthenticated,
+          Uri.parse('gostylens://invite?code=summer50'),
+          onStashPending: (d) => stashed = d,
+          inviteCodeStore: store,
+        ),
+        AppRoutes.login,
+      );
+      expect(stashed, isNull);
+      // Allow unawaited save to flush
+      await Future<void>.delayed(Duration.zero);
+      expect(await store.read(), 'SUMMER50');
+    });
+
+    test('gostylens://capture?code=X keeps capture destination and stores code', () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = InviteCodeStore();
+
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.userReady,
+          Uri.parse('gostylens://capture?code=VIP'),
+          inviteCodeStore: store,
+        ),
+        AppRoutes.capture,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(await store.read(), 'VIP');
     });
   });
 

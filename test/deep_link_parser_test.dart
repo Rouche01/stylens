@@ -35,6 +35,55 @@ void main() {
       expect(destination?.target, DeepLinkTarget.session);
       expect(destination?.sessionId, '42');
     });
+
+    test('invite-only hosts return null destination', () {
+      expect(
+        parser.parseUri(Uri.parse('gostylens://invite?code=SUMMER50')),
+        isNull,
+      );
+      expect(
+        parser.parseUri(Uri.parse('gostylens://open?dest=invite&code=ABC')),
+        isNull,
+      );
+      expect(
+        parser.parseUri(Uri.parse('gostylens:/invite?code=ABC')),
+        isNull,
+      );
+    });
+  });
+
+  group('extractInviteCode', () {
+    test('reads code query param and normalizes', () {
+      expect(
+        parser.extractInviteCode(
+          Uri.parse('gostylens://invite?code=summer50'),
+        ),
+        'SUMMER50',
+      );
+    });
+
+    test('accepts inviteCode alias', () {
+      expect(
+        parser.extractInviteCode(
+          Uri.parse('gostylens://capture?inviteCode=VIP'),
+        ),
+        'VIP',
+      );
+    });
+
+    test('reads code from invite path segment', () {
+      expect(
+        parser.extractInviteCode(Uri.parse('gostylens://invite/promo1')),
+        'PROMO1',
+      );
+    });
+
+    test('returns null when no code present', () {
+      expect(
+        parser.extractInviteCode(Uri.parse('gostylens://history')),
+        isNull,
+      );
+    });
   });
 
   group('parsePushData', () {
