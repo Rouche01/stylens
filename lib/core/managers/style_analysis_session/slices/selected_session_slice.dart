@@ -11,6 +11,9 @@ import 'package:gostylens/models/session_ui_state.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/style_analysis_session/actions/selected_session_actions.dart';
 import 'package:gostylens/core/managers/style_analysis_session/session_message_cache.dart';
+import 'package:gostylens/constants/ux_messages.dart';
+
+enum _PendingLocalIntro { none, empty, outfit }
 
 /// Manages operations for the currently selected session
 /// State is stored in the parent manager's _stateSlices map
@@ -43,6 +46,77 @@ class SelectedSessionSlice with SelectedSessionActions {
   final Map<String, SessionUIState> _uiStates = {};
   final SessionMessageCache _messageCache = SessionMessageCache();
 
+  /// Bumped when starting a new local session or releasing the active one so
+  /// in-flight empty/outfit bootstrap delays cannot append to a later session.
+  int _localBootstrapGeneration = 0;
+
+  /// Set by [prepareEmptySession] / [prepareOutfitSession]; consumed by
+  /// [playPendingLocalIntro] once the chat route is on screen.
+  _PendingLocalIntro _pendingLocalIntro = _PendingLocalIntro.none;
+
+  @override
+  int get localBootstrapGeneration => _localBootstrapGeneration;
+
+  @override
+  int beginLocalSessionBootstrap() {
+    _localBootstrapGeneration++;
+    _pendingLocalIntro = _PendingLocalIntro.none;
+    paginationInfo = null;
+    isLoadingMoreMessages = false;
+    _uiStates.remove('');
+    sliceStateManager.setSuccess(
+      SelectedStyleAnalysisSession(sessionId: null, messages: const []),
+    );
+    return _localBootstrapGeneration;
+  }
+
+  @override
+  bool isLocalBootstrapCurrent(int generation) =>
+      generation == _localBootstrapGeneration;
+
+  void _invalidateLocalBootstrap() {
+    _localBootstrapGeneration++;
+    _pendingLocalIntro = _PendingLocalIntro.none;
+  }
+
+  /// Sync reset for a History FAB / empty-chat start. Call [playPendingLocalIntro]
+  /// after navigating to `/session`.
+  void prepareEmptySession() {
+    beginLocalSessionBootstrap();
+    _pendingLocalIntro = _PendingLocalIntro.empty;
+    addLoadingMessage();
+  }
+
+  /// Sync reset + user outfit message for Capture. Call [playPendingLocalIntro]
+  /// after navigating to `/session`.
+  void prepareOutfitSession(List<AppImage> images) {
+    beginLocalSessionBootstrap();
+    _pendingLocalIntro = _PendingLocalIntro.outfit;
+    addMessage(
+      UserRole.user,
+      images: images,
+      text: UxMessages.initialOutfitPromptTextAugmentation,
+    );
+    addLoadingMessage();
+  }
+
+  /// Runs empty/outfit intro delays for a prepared local session. No-ops when
+  /// nothing is pending or the bootstrap generation was invalidated.
+  Future<void> playPendingLocalIntro() async {
+    final generation = _localBootstrapGeneration;
+    final pending = _pendingLocalIntro;
+    _pendingLocalIntro = _PendingLocalIntro.none;
+
+    switch (pending) {
+      case _PendingLocalIntro.empty:
+        await playEmptySessionIntro(generation);
+      case _PendingLocalIntro.outfit:
+        await playOutfitSessionIntro(generation);
+      case _PendingLocalIntro.none:
+        return;
+    }
+  }
+
   // --- Getters ---
   SelectedStyleAnalysisSession? get session => sliceStateManager.data;
   bool get isLoading => sliceStateManager.isLoading;
@@ -73,6 +147,7 @@ class SelectedSessionSlice with SelectedSessionActions {
       return;
     }
 
+    _invalidateLocalBootstrap();
     isLoadingMoreMessages = false;
     final cached = _messageCache.get(sessionId);
     if (cached != null && cached.messages.isNotEmpty) {
@@ -93,12 +168,14 @@ class SelectedSessionSlice with SelectedSessionActions {
   }
 
   void clear() {
+    _invalidateLocalBootstrap();
     paginationInfo = null;
     isLoadingMoreMessages = false;
     sliceStateManager.setInitial();
   }
 
   void releaseActiveSession({String? draftText}) {
+    _invalidateLocalBootstrap();
     if (draftText != null) saveDraftText(draftText);
     persistMessageCache();
     paginationInfo = null;

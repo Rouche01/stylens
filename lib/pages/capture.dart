@@ -46,12 +46,11 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
         // Step 2: Start the binary upload in background (Parallel/Non-awaited)
         context.read<AssetUploadManager>().uploadAssets([remoteImage.key]);
 
-        // Step 3: Initialize the session with the metadata and local file
-        context.read<StyleAnalysisSessionManager>().startSessionWithOutfit([
+        // Step 3: Prepare session sync, then navigate — intros play on-page.
+        context.read<StyleAnalysisSessionManager>().prepareOutfitSession([
           AppImage(localFile: imageFile, remoteImage: remoteImage),
         ]);
 
-        // Step 3: Navigate instantly
         context.push(AppRoutes.sessionNew);
 
         // Step 4: Analytics

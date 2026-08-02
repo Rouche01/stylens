@@ -51,14 +51,14 @@ mixin StyleAnalysisActions {
     return result == true;
   }
 
-  /// Initiates a new chat session after validating limits and navigates to the session page
+  /// Prepares an empty chat (sync), navigates immediately, intros play on-page.
   Future<void> startNewSessionAndNavigate(BuildContext context) async {
     final canProceed = await checkLimitsAndProceed(context);
     if (!canProceed) return;
 
     if (!context.mounted) return;
 
-    context.read<StyleAnalysisSessionManager>().startEmptySession();
+    context.read<StyleAnalysisSessionManager>().prepareEmptySession();
     context.push(AppRoutes.sessionNew);
   }
 

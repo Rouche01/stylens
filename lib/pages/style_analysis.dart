@@ -114,6 +114,9 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
 
       if (widget.routeSessionId != null || !_isNewSession) {
         _loadExistingSession();
+      } else {
+        // Prepared empty/outfit session: play delayed intros now that chat is visible.
+        await _sessionManager.playPendingLocalIntro();
       }
 
       if (_isNewSession && !_shouldShowInitialActionCard) {

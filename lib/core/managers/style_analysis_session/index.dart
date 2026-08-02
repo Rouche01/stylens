@@ -286,14 +286,26 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startSessionWithOutfit(List<AppImage> images) async {
-    await _selectedSessionSlice.startSessionWithOutfit(images);
+  /// Sync: clear prior local chat and show a loading bubble. Navigate to
+  /// `/session`, then call [playPendingLocalIntro].
+  void prepareEmptySession() {
+    clearOperationErrors();
+    _selectedSessionSlice.prepareEmptySession();
     notifyListeners();
   }
 
-  Future<void> startEmptySession() async {
+  /// Sync: clear prior local chat and show the outfit user message. Navigate to
+  /// `/session`, then call [playPendingLocalIntro].
+  void prepareOutfitSession(List<AppImage> images) {
     clearOperationErrors();
-    await _selectedSessionSlice.startEmptySession();
+    _selectedSessionSlice.prepareOutfitSession(images);
+    notifyListeners();
+  }
+
+  /// Async intros for a session prepared via [prepareEmptySession] /
+  /// [prepareOutfitSession]. Safe to call when nothing is pending.
+  Future<void> playPendingLocalIntro() async {
+    await _selectedSessionSlice.playPendingLocalIntro();
     notifyListeners();
   }
 

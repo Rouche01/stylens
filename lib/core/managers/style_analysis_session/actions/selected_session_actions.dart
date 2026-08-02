@@ -56,6 +56,16 @@ mixin SelectedSessionActions {
   bool hasCachedMessages(String sessionId);
   void persistMessageCache();
 
+  /// Clears the selected session and returns a generation token for local
+  /// bootstrap work (empty / outfit start). Stale async steps must no-op when
+  /// [isLocalBootstrapCurrent] is false.
+  int beginLocalSessionBootstrap();
+
+  bool isLocalBootstrapCurrent(int generation);
+
+  /// Generation of the active local bootstrap (or last invalidate).
+  int get localBootstrapGeneration;
+
   // --- Actions Mixin Logic ---
   static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
   static const _initialBotReplyWithImage =
@@ -383,54 +393,86 @@ mixin SelectedSessionActions {
     }
   }
 
-  Future<void> startSessionWithOutfit(List<AppImage> images) async {
-    await submitInitialOutfit(images);
-  }
-
-  Future<void> _addInitialStylistResponse() async {
-    addLoadingMessage();
-    await Future.delayed(const Duration(milliseconds: 1500));
+  Future<void> playEmptySessionIntro(int generation) async {
+    // [prepareEmptySession] already showed a loading bubble.
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!isLocalBootstrapCurrent(generation)) return;
     removeLoadingMessage();
-    addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
+
+    addLoadingMessage();
+    await Future.delayed(const Duration(milliseconds: 2000));
+    if (!isLocalBootstrapCurrent(generation)) return;
+    removeLoadingMessage();
+    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
   }
 
-  Future<void> submitInitialOutfit(List<AppImage> images) async {
-    addMessage(UserRole.user, images: images, text: _initialPrompt);
-    addLoadingMessage();
-    sliceStateManager.notify();
+  Future<void> playOutfitSessionIntro(int generation) async {
+    List<AppImage> outfitImages = const [];
+    for (final message in messages) {
+      if (message.isUserMessage &&
+          message.images != null &&
+          message.images!.isNotEmpty) {
+        outfitImages = message.images!;
+        break;
+      }
+    }
 
     try {
-      // 1. Ensure all assets are prepared and uploads started
       final updatedImages = await assetUploadManager.ensureAssetsPrepared(
-        images,
+        outfitImages,
       );
+      if (!isLocalBootstrapCurrent(generation)) return;
 
-      // 2. Update the UI with the final remote metadata (for status indicators)
       final allRemoteImages = updatedImages
           .map((i) => i.remoteImage)
           .whereType<RemoteImage>()
           .toList();
       updateLastUserMessage(remoteImages: allRemoteImages);
 
-      // 3. Finalize with the stylist's reply
-      await _addInitialStylistResponse();
+      await _addInitialStylistResponse(generation);
     } catch (e) {
-      debugPrint('Error in submitInitialOutfit: $e');
+      debugPrint('Error in playOutfitSessionIntro: $e');
     }
   }
 
-  Future<void> startEmptySession() async {
+  Future<void> _addInitialStylistResponse(int generation) async {
+    if (!isLocalBootstrapCurrent(generation)) return;
     addLoadingMessage();
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!isLocalBootstrapCurrent(generation)) return;
     removeLoadingMessage();
+    addMessage(UserRole.assistant, text: _initialBotReplyWithImage);
+  }
 
-    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage1);
+  Future<void> submitInitialOutfit(
+    List<AppImage> images, {
+    int? bootstrapGeneration,
+  }) async {
+    // In-chat action card: append outfit without resetting; cancel if leave /
+    // another local start invalidates [generation].
+    final generation = bootstrapGeneration ?? localBootstrapGeneration;
 
+    addMessage(UserRole.user, images: images, text: _initialPrompt);
     addLoadingMessage();
-    await Future.delayed(const Duration(milliseconds: 2000));
-    removeLoadingMessage();
+    sliceStateManager.notify();
 
-    addMessage(UserRole.assistant, text: _initialBotReplyWithoutImage2);
+    try {
+      final updatedImages = await assetUploadManager.ensureAssetsPrepared(
+        images,
+      );
+      if (!isLocalBootstrapCurrent(generation)) return;
+
+      final allRemoteImages = updatedImages
+          .map((i) => i.remoteImage)
+          .whereType<RemoteImage>()
+          .toList();
+      updateLastUserMessage(remoteImages: allRemoteImages);
+
+      await _addInitialStylistResponse(generation);
+    } catch (e) {
+      debugPrint('Error in submitInitialOutfit: $e');
+    }
   }
 
   void updateLastUserMessage({List<RemoteImage>? remoteImages}) {
