@@ -49,7 +49,7 @@ class MessageImageGallery extends StatelessWidget {
       onTap: () => FullScreenImagePreview.show(
         context,
         imageFile: imageFile,
-        imageUrl: remoteImage?.url,
+        remoteImage: remoteImage,
       ),
       child: Stack(
         children: [
@@ -59,6 +59,7 @@ class MessageImageGallery extends StatelessWidget {
             width: 200,
             height: 200,
             fit: BoxFit.cover,
+            alignment: ImageWithFallback.outfitCoverAlignment,
             borderRadius: BorderRadius.circular(8),
           ),
           // Only show upload status for fresh uploads (active session)
@@ -82,7 +83,7 @@ class MessageImageGallery extends StatelessWidget {
       onTap: () => FullScreenImagePreview.show(
         context,
         imageFile: imageFile,
-        imageUrl: remoteImage?.url,
+        remoteImage: remoteImage,
       ),
       child: Stack(
         children: [
@@ -92,6 +93,7 @@ class MessageImageGallery extends StatelessWidget {
             width: 100,
             height: 100,
             fit: BoxFit.cover,
+            alignment: ImageWithFallback.outfitCoverAlignment,
             borderRadius: BorderRadius.circular(8),
           ),
           // Only show upload status for fresh uploads (active session)

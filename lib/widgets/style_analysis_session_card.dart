@@ -71,6 +71,7 @@ class _SessionCardState extends State<SessionCard> {
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
+                        alignment: ImageWithFallback.outfitCoverAlignment,
                         borderRadius: BorderRadius.circular(8),
                         // Match ImageWithFallback's solid placeholder so the
                         // thumb doesn't pop from icon → image after list paint.

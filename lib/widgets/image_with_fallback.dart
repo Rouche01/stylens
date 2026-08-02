@@ -7,11 +7,15 @@ import 'package:gostylens/models/remote_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ImageWithFallback extends StatefulWidget {
+  /// Top-biased cover crop for full-body outfit shots (keeps faces in frame).
+  static const Alignment outfitCoverAlignment = Alignment(0, -0.45);
+
   final File? imageFile;
   final RemoteImage? remoteImage;
   final double width;
   final double height;
   final BoxFit fit;
+  final Alignment alignment;
   final BorderRadius? borderRadius;
   final Widget? fallbackWidget;
 
@@ -22,6 +26,7 @@ class ImageWithFallback extends StatefulWidget {
     this.width = 200,
     this.height = 200,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
     this.borderRadius,
     this.fallbackWidget,
   });
@@ -104,6 +109,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
+        alignment: widget.alignment,
         errorBuilder: (context, error, stackTrace) =>
             _buildErrorWidget(context, error, stackTrace),
       );
@@ -140,6 +146,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              alignment: widget.alignment,
               headers: headers,
               gaplessPlayback: true,
               frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {

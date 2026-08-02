@@ -5,30 +5,30 @@ import 'package:gostylens/models/remote_image.dart';
 
 class FullScreenImagePreview extends StatelessWidget {
   final File? imageFile;
-  final String? imageUrl;
+  final RemoteImage? remoteImage;
   final VoidCallback? onClose;
 
   const FullScreenImagePreview({
     super.key,
     this.imageFile,
-    this.imageUrl,
+    this.remoteImage,
     this.onClose,
   }) : assert(
-         imageFile != null || imageUrl != null,
-         'Either imageFile or imageUrl must be provided',
+         imageFile != null || remoteImage != null,
+         'Either imageFile or remoteImage must be provided',
        );
 
   static Future<void> show(
     BuildContext context, {
     File? imageFile,
-    String? imageUrl,
+    RemoteImage? remoteImage,
   }) {
     return showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.9),
       builder: (context) => FullScreenImagePreview(
         imageFile: imageFile,
-        imageUrl: imageUrl,
+        remoteImage: remoteImage,
         onClose: () => Navigator.pop(context),
       ),
     );
@@ -42,8 +42,7 @@ class FullScreenImagePreview extends StatelessWidget {
           child: InteractiveViewer(
             child: ImageWithFallback(
               imageFile: imageFile,
-              remoteImage:
-                  imageUrl != null ? RemoteImage(url: imageUrl!, key: '') : null,
+              remoteImage: remoteImage,
               fit: BoxFit.contain,
               width: double.infinity,
               height: double.infinity,
