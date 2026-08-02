@@ -31,6 +31,7 @@ import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
@@ -171,6 +172,7 @@ Future<void> setupLocator() async {
     () => PushNotificationManager(),
   );
   locator.registerLazySingleton<LocationManager>(() => LocationManager());
+  locator.registerLazySingleton<InviteCodeStore>(() => InviteCodeStore());
   locator.registerLazySingleton<StylistOpenersManager>(
     () => StylistOpenersManager(),
   );

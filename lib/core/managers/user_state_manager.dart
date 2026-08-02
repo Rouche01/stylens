@@ -6,6 +6,7 @@ import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
@@ -150,7 +151,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
 
   /// Creates a new user profile in the backend DB for the authenticated Supabase user.
   Future<void> createProfile({
-    void Function(User user)? onSuccess,
+    void Function(User user, {required bool inviteApplied})? onSuccess,
     void Function(String error)? onError,
   }) async {
     final supabaseUser = locator<supabase.SupabaseClient>().auth.currentUser;
@@ -174,15 +175,23 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       final emailToSave =
           _registrationDraft!.email?.trim() ?? supabaseUser.email?.trim();
 
+      final inviteStore = locator<InviteCodeStore>();
+      final inviteCode = await inviteStore.read();
+
       final response = await _userApiService.createUser(
         authId: supabaseUser.id,
         name: _registrationDraft!.name.trim(),
         gender: genderToSave.value,
         email: emailToSave,
+        inviteCode: inviteCode,
       );
       final userData = response.data;
 
       if (response.isSuccess && userData != null) {
+        final inviteApplied = inviteCode != null;
+        if (inviteApplied) {
+          await inviteStore.clear();
+        }
         _registrationDraft =
             null; // Clear the draft state after successful creation
         _currentUser = userData; // Save the newly created profile into memory
@@ -202,8 +211,9 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
 
         // Refresh the session to ensure the user claim is updated
         await locator<supabase.SupabaseClient>().auth.refreshSession();
-        onSuccess?.call(userData);
+        onSuccess?.call(userData, inviteApplied: inviteApplied);
       } else {
+        // Keep pending invite code so the user can edit and retry after a 400.
         onError?.call(
           response.error?.message ?? 'Failed to create user profile.',
         );

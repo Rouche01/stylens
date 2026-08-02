@@ -3,7 +3,10 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
+import 'dart:async';
+
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
@@ -198,8 +201,15 @@ String? redirectForDeepLinkUri(
   Uri uri, {
   DeepLinkParser? parser,
   void Function(DeepLinkDestination destination)? onStashPending,
+  InviteCodeStore? inviteCodeStore,
 }) {
   final linkParser = parser ?? DeepLinkParser();
+  final inviteCode = linkParser.extractInviteCode(uri);
+  if (inviteCode != null) {
+    final store = inviteCodeStore ?? locator<InviteCodeStore>();
+    unawaited(store.save(inviteCode));
+  }
+
   final destination = linkParser.parseUri(uri);
   final target = destination != null
       ? locationForDestination(destination)

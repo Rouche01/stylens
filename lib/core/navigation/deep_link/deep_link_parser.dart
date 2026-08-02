@@ -1,10 +1,13 @@
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/push_notification_types.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 
 class DeepLinkParser {
   static const supportedScheme = 'gostylens';
 
   /// Returns null when [uri] is not a GoStylens deep link (e.g. Google OAuth).
+  /// Invite-only links (`gostylens://invite?...`) return null so navigation
+  /// falls through to the stage-neutral route after the code is persisted.
   DeepLinkDestination? parseUri(Uri uri) {
     if (uri.scheme.toLowerCase() != supportedScheme) return null;
 
@@ -19,6 +22,10 @@ class DeepLinkParser {
           .toList();
     }
 
+    if (_isInviteOnly(host: host, pathSegments: pathSegments, dest: uri.queryParameters['dest'])) {
+      return null;
+    }
+
     return _parseLocation(
       host: host,
       pathSegments: pathSegments,
@@ -27,6 +34,35 @@ class DeepLinkParser {
         uri.queryParameters['session_id'] ?? uri.queryParameters['sessionId'],
       ),
     );
+  }
+
+  /// Extracts a normalized invite code from a GoStylens URI, if present.
+  String? extractInviteCode(Uri uri) {
+    if (uri.scheme.toLowerCase() != supportedScheme) return null;
+
+    final fromQuery = InviteCodeStore.normalize(
+      uri.queryParameters['code'] ?? uri.queryParameters['inviteCode'],
+    );
+    if (fromQuery != null) return fromQuery;
+
+    var host = uri.host.toLowerCase();
+    var pathSegments = List<String>.from(uri.pathSegments);
+    if (host.isEmpty && pathSegments.isEmpty && uri.path.isNotEmpty) {
+      pathSegments = uri.path
+          .split('/')
+          .where((segment) => segment.isNotEmpty)
+          .toList();
+      if (pathSegments.isNotEmpty) {
+        host = pathSegments.first.toLowerCase();
+        pathSegments = pathSegments.skip(1).toList();
+      }
+    }
+
+    if (host == 'invite' && pathSegments.isNotEmpty) {
+      return InviteCodeStore.normalize(pathSegments.first);
+    }
+
+    return null;
   }
 
   DeepLinkDestination parsePushData(Map<String, dynamic> data) {
@@ -68,6 +104,23 @@ class DeepLinkParser {
     if (raw == null) return null;
     final id = raw.toString().trim();
     return id.isEmpty ? null : id;
+  }
+
+  bool _isInviteOnly({
+    required String host,
+    required List<String> pathSegments,
+    required String? dest,
+  }) {
+    if (host.toLowerCase() == 'invite') return true;
+    if (host.toLowerCase() == 'open' && dest?.toLowerCase() == 'invite') {
+      return true;
+    }
+    if (host.isEmpty &&
+        pathSegments.isNotEmpty &&
+        pathSegments.first.toLowerCase() == 'invite') {
+      return true;
+    }
+    return false;
   }
 
   DeepLinkDestination _parseLocation({

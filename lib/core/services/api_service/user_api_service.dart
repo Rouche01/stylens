@@ -25,12 +25,14 @@ class UserApiService extends BaseApiService {
     required String name,
     required String? gender,
     String? email,
+    String? inviteCode,
   }) async {
     final requestBody = {
       'authId': authId,
       'name': name,
-      'gender': ?gender, 
+      'gender': ?gender,
       'email': ?email,
+      'inviteCode': ?inviteCode,
     };
 
     return post<User>(

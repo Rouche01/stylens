@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/invite_code_store.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
@@ -13,13 +15,16 @@ class DeepLinkService {
     AppLinks? appLinks,
     DeepLinkParser? parser,
     DeepLinkRouter? router,
+    InviteCodeStore? inviteCodeStore,
   })  : _appLinks = appLinks ?? AppLinks(),
         _parser = parser ?? DeepLinkParser(),
-        _router = router ?? DeepLinkRouter();
+        _router = router ?? DeepLinkRouter(),
+        _inviteCodeStore = inviteCodeStore;
 
   final AppLinks _appLinks;
   final DeepLinkParser _parser;
   final DeepLinkRouter _router;
+  final InviteCodeStore? _inviteCodeStore;
 
   StreamSubscription<Uri>? _linkSubscription;
   PendingDeepLink? _pending;
@@ -29,6 +34,9 @@ class DeepLinkService {
 
   @visibleForTesting
   bool get navigationReady => _navigationReady;
+
+  InviteCodeStore get _store =>
+      _inviteCodeStore ?? locator<InviteCodeStore>();
 
   /// Subscribes to warm-resume custom-scheme links. Cold-start links are handled
   /// by GoRouter's platform route provider and [redirectForDeepLinkUri].
@@ -71,6 +79,13 @@ class DeepLinkService {
   }
 
   void handlePushData(Map<String, dynamic> data) {
+    final explicitLink = data['link'] as String?;
+    if (explicitLink != null && explicitLink.isNotEmpty) {
+      final uri = Uri.tryParse(explicitLink);
+      if (uri != null) {
+        unawaited(_persistInviteFromUri(uri));
+      }
+    }
     final destination = _parser.parsePushData(data);
     _enqueueOrDispatch(destination);
   }
@@ -81,10 +96,17 @@ class DeepLinkService {
   }
 
   void _handleUri(Uri uri) {
+    unawaited(_persistInviteFromUri(uri));
     final destination = _parser.parseUri(uri);
     if (destination == null) return;
 
     _enqueueOrDispatch(destination);
+  }
+
+  Future<void> _persistInviteFromUri(Uri uri) async {
+    final code = _parser.extractInviteCode(uri);
+    if (code == null) return;
+    await _store.save(code);
   }
 
   void _enqueueOrDispatch(DeepLinkDestination destination) {
