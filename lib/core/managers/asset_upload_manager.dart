@@ -32,8 +32,12 @@ class AssetUploadTask {
 
 class AssetUploadManager extends ChangeNotifier {
   final AssetApiService _assetApiService = locator<AssetApiService>();
-  final AnalyticsService _analytics = locator<AnalyticsService>();
   final Map<String, AssetUploadTask> _tasks = {};
+
+  /// Resolved lazily so unit tests can construct this without registering analytics.
+  AnalyticsService? get _analytics => locator.isRegistered<AnalyticsService>()
+      ? locator<AnalyticsService>()
+      : null;
 
   List<AssetUploadTask> get tasks => _tasks.values.toList();
 
@@ -105,12 +109,12 @@ class AssetUploadManager extends ChangeNotifier {
       notifyListeners();
       return remoteImage;
     } catch (e, stackTrace) {
-      _analytics.captureException(
+      _analytics?.captureException(
         e,
         stackTrace: stackTrace,
         properties: {'context': 'asset_upload', 'stage': 'prepare'},
       );
-      _analytics.capture(
+      _analytics?.capture(
         'image_upload_failed',
         properties: {'stage': 'prepare'},
       );
@@ -142,14 +146,14 @@ class AssetUploadManager extends ChangeNotifier {
       if (statusCode == 200) {
         task.status = AssetUploadStatus.success;
         task.progress = 1.0;
-        _analytics.capture(
+        _analytics?.capture(
           'image_upload_succeeded',
           properties: {'stage': 'binary', 'asset_key': task.remoteImage.key},
         );
       } else {
         task.status = AssetUploadStatus.failure;
         task.error = 'Upload failed with status: $statusCode';
-        _analytics.capture(
+        _analytics?.capture(
           'image_upload_failed',
           properties: {
             'stage': 'binary',
@@ -157,7 +161,7 @@ class AssetUploadManager extends ChangeNotifier {
             'asset_key': task.remoteImage.key,
           },
         );
-        _analytics.captureException(
+        _analytics?.captureException(
           Exception(task.error),
           properties: {
             'context': 'asset_upload',
@@ -170,12 +174,12 @@ class AssetUploadManager extends ChangeNotifier {
       task.status = AssetUploadStatus.failure;
       task.error = e.toString();
       debugPrint('Background upload error: $e');
-      _analytics.captureException(
+      _analytics?.captureException(
         e,
         stackTrace: stackTrace,
         properties: {'context': 'asset_upload', 'stage': 'binary'},
       );
-      _analytics.capture(
+      _analytics?.capture(
         'image_upload_failed',
         properties: {
           'stage': 'binary',

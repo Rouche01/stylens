@@ -14,7 +14,11 @@ enum ContextMode { recent, all, last }
 class SessionStreamingSlice {
   final StyleAnalysisApiService _apiService;
   final void Function() _notifyListeners;
-  final AnalyticsService _analytics = locator<AnalyticsService>();
+
+  /// Resolved lazily so unit tests can construct this without registering analytics.
+  AnalyticsService? get _analytics => locator.isRegistered<AnalyticsService>()
+      ? locator<AnalyticsService>()
+      : null;
 
   SessionStreamingSlice({
     required StyleAnalysisApiService apiService,
@@ -65,7 +69,7 @@ class SessionStreamingSlice {
     try {
       _updateStatus(sessionId, SessionStreamingStatus.initiating);
       onInitiating();
-      _analytics.capture(
+      _analytics?.capture(
         'ai_stream_started',
         properties: {
           'session_id': sessionId,
@@ -115,7 +119,7 @@ class SessionStreamingSlice {
           SessionStreamingStatus.completed,
           finalChunk: accumulated,
         );
-        _analytics.capture(
+        _analytics?.capture(
           'ai_stream_completed',
           properties: {
             'session_id': sessionId,
@@ -127,7 +131,7 @@ class SessionStreamingSlice {
         print(
           'Streaming failed with status: ${response.statusCode} ${response.reasonPhrase}',
         );
-        _analytics.capture(
+        _analytics?.capture(
           'ai_stream_failed',
           properties: {
             'session_id': sessionId,
@@ -135,7 +139,7 @@ class SessionStreamingSlice {
             'error_type': 'http',
           },
         );
-        _analytics.captureException(
+        _analytics?.captureException(
           Exception(
             'Streaming failed with status: ${response.statusCode}',
           ),
@@ -150,14 +154,14 @@ class SessionStreamingSlice {
         onError(sessionId, error);
       }
     } catch (e, stackTrace) {
-      _analytics.capture(
+      _analytics?.capture(
         'ai_stream_failed',
         properties: {
           'session_id': sessionId,
           'error_type': e.runtimeType.toString(),
         },
       );
-      _analytics.captureException(
+      _analytics?.captureException(
         e,
         stackTrace: stackTrace,
         properties: {
