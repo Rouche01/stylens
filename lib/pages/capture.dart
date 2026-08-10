@@ -34,8 +34,9 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
 
   Future<void> _startStyleAnalysisSession(
     File imageFile,
-    String filename,
-  ) async {
+    String filename, {
+    required String source,
+  }) async {
     try {
       // Step 1: Reserve the key (Fast JSON request)
       final remoteImage = await context.read<AssetUploadManager>().prepareAsset(
@@ -56,11 +57,20 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
         // Step 4: Analytics
         locator<AnalyticsService>().capture(
           'image_capture_initiated',
-          properties: {'filename': filename, 'source': 'capture_page'},
+          properties: {
+            'filename': filename,
+            'source': 'capture_page',
+            'capture_source': source,
+          },
         );
       }
-    } catch (err) {
+    } catch (err, stackTrace) {
       debugPrint('Error starting session: $err');
+      locator<AnalyticsService>().captureException(
+        err,
+        stackTrace: stackTrace,
+        properties: {'context': 'image_prepare', 'source': source},
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to prepare image. Please try again.')),
@@ -70,8 +80,16 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   }
 
   Future<void> _takePhoto() async {
-    final canProceed = await checkLimitsAndProceed(context);
+    final canProceed = await checkLimitsAndProceed(
+      context,
+      source: 'capture',
+    );
     if (!canProceed) return;
+
+    locator<AnalyticsService>().capture(
+      'capture_source_selected',
+      properties: {'source': 'camera'},
+    );
 
     try {
       final XFile? photo = await _picker.pickImage(
@@ -82,9 +100,18 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
       );
 
       if (photo != null) {
-        _startStyleAnalysisSession(File(photo.path), photo.name);
+        _startStyleAnalysisSession(
+          File(photo.path),
+          photo.name,
+          source: 'camera',
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'image_prepare', 'source': 'camera'},
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -94,8 +121,16 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   }
 
   Future<void> _chooseFromGallery() async {
-    final canProceed = await checkLimitsAndProceed(context);
+    final canProceed = await checkLimitsAndProceed(
+      context,
+      source: 'capture',
+    );
     if (!canProceed) return;
+
+    locator<AnalyticsService>().capture(
+      'capture_source_selected',
+      properties: {'source': 'gallery'},
+    );
 
     try {
       final XFile? image = await _picker.pickImage(
@@ -106,9 +141,18 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
       );
 
       if (image != null) {
-        _startStyleAnalysisSession(File(image.path), image.name);
+        _startStyleAnalysisSession(
+          File(image.path),
+          image.name,
+          source: 'gallery',
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'image_prepare', 'source': 'gallery'},
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,

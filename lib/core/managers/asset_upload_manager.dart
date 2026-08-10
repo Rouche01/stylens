@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/app_image.dart';
@@ -31,6 +32,7 @@ class AssetUploadTask {
 
 class AssetUploadManager extends ChangeNotifier {
   final AssetApiService _assetApiService = locator<AssetApiService>();
+  final AnalyticsService _analytics = locator<AnalyticsService>();
   final Map<String, AssetUploadTask> _tasks = {};
 
   List<AssetUploadTask> get tasks => _tasks.values.toList();
@@ -78,29 +80,42 @@ class AssetUploadManager extends ChangeNotifier {
     final filename =
         'style_analysis_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
 
-    final uploadUrlFuture = _assetApiService.getUploadUrl(filename);
-    final blurHashFuture = encodeBlurHashFromFile(file);
+    try {
+      final uploadUrlFuture = _assetApiService.getUploadUrl(filename);
+      final blurHashFuture = encodeBlurHashFromFile(file);
 
-    final responseData = await uploadUrlFuture;
-    final blurHash = await blurHashFuture;
+      final responseData = await uploadUrlFuture;
+      final blurHash = await blurHashFuture;
 
-    final remoteImage = RemoteImage(
-      url: responseData.downloadUrl,
-      key: responseData.filename,
-      blurHash: blurHash,
-    );
+      final remoteImage = RemoteImage(
+        url: responseData.downloadUrl,
+        key: responseData.filename,
+        blurHash: blurHash,
+      );
 
-    final task = AssetUploadTask(
-      file: file,
-      filename: filename,
-      remoteImage: remoteImage,
-      uploadUrl: responseData.uploadUrl,
-    );
+      final task = AssetUploadTask(
+        file: file,
+        filename: filename,
+        remoteImage: remoteImage,
+        uploadUrl: responseData.uploadUrl,
+      );
 
-    _tasks[remoteImage.key] = task;
+      _tasks[remoteImage.key] = task;
 
-    notifyListeners();
-    return remoteImage;
+      notifyListeners();
+      return remoteImage;
+    } catch (e, stackTrace) {
+      _analytics.captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'asset_upload', 'stage': 'prepare'},
+      );
+      _analytics.capture(
+        'image_upload_failed',
+        properties: {'stage': 'prepare'},
+      );
+      rethrow;
+    }
   }
 
   /// Starts the binary uploads for the given keys in parallel.
@@ -127,14 +142,46 @@ class AssetUploadManager extends ChangeNotifier {
       if (statusCode == 200) {
         task.status = AssetUploadStatus.success;
         task.progress = 1.0;
+        _analytics.capture(
+          'image_upload_succeeded',
+          properties: {'stage': 'binary', 'asset_key': task.remoteImage.key},
+        );
       } else {
         task.status = AssetUploadStatus.failure;
         task.error = 'Upload failed with status: $statusCode';
+        _analytics.capture(
+          'image_upload_failed',
+          properties: {
+            'stage': 'binary',
+            'status_code': statusCode,
+            'asset_key': task.remoteImage.key,
+          },
+        );
+        _analytics.captureException(
+          Exception(task.error),
+          properties: {
+            'context': 'asset_upload',
+            'stage': 'binary',
+            'status_code': statusCode,
+          },
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       task.status = AssetUploadStatus.failure;
       task.error = e.toString();
       debugPrint('Background upload error: $e');
+      _analytics.captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'asset_upload', 'stage': 'binary'},
+      );
+      _analytics.capture(
+        'image_upload_failed',
+        properties: {
+          'stage': 'binary',
+          'asset_key': task.remoteImage.key,
+        },
+      );
     } finally {
       notifyListeners();
     }

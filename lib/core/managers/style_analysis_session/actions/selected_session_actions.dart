@@ -205,7 +205,15 @@ mixin SelectedSessionActions {
         );
       }
       return false;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {
+          'context': 'session_message_fetch',
+          'session_id': id,
+        },
+      );
       if (!silent || existing.isEmpty) {
         sliceStateManager.setError(
           e.toString(),
@@ -400,7 +408,15 @@ mixin SelectedSessionActions {
           },
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {
+          'context': 'session_message_send',
+          'session_id': sessionId ?? '',
+        },
+      );
       replaceLoadingWithError(
         StyleAnalysisSessionMessageError.fromRawError('Error: $e'),
       );
@@ -442,8 +458,13 @@ mixin SelectedSessionActions {
       updateLastUserMessage(remoteImages: allRemoteImages);
 
       await _addInitialStylistResponse(generation);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error in playOutfitSessionIntro: $e');
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'session_outfit_intro'},
+      );
     }
   }
 
@@ -484,8 +505,13 @@ mixin SelectedSessionActions {
       updateLastUserMessage(remoteImages: allRemoteImages);
 
       await _addInitialStylistResponse(generation);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error in submitInitialOutfit: $e');
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'session_submit_outfit'},
+      );
     }
   }
 

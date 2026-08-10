@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:gostylens/constants/ux_messages.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/session_streaming_state.dart';
 import 'package:gostylens/utils/streaming_utils.dart';
@@ -12,6 +14,7 @@ enum ContextMode { recent, all, last }
 class SessionStreamingSlice {
   final StyleAnalysisApiService _apiService;
   final void Function() _notifyListeners;
+  final AnalyticsService _analytics = locator<AnalyticsService>();
 
   SessionStreamingSlice({
     required StyleAnalysisApiService apiService,
@@ -62,6 +65,13 @@ class SessionStreamingSlice {
     try {
       _updateStatus(sessionId, SessionStreamingStatus.initiating);
       onInitiating();
+      _analytics.capture(
+        'ai_stream_started',
+        properties: {
+          'session_id': sessionId,
+          'context_mode': contextMode.name,
+        },
+      );
 
       final response = await _apiService.streamAssistantResponse(
         sessionId: sessionId,
@@ -105,16 +115,56 @@ class SessionStreamingSlice {
           SessionStreamingStatus.completed,
           finalChunk: accumulated,
         );
+        _analytics.capture(
+          'ai_stream_completed',
+          properties: {
+            'session_id': sessionId,
+            'response_length': accumulated.length,
+          },
+        );
         onCompleted(sessionId, accumulated);
       } else {
         print(
           'Streaming failed with status: ${response.statusCode} ${response.reasonPhrase}',
         );
+        _analytics.capture(
+          'ai_stream_failed',
+          properties: {
+            'session_id': sessionId,
+            'status_code': response.statusCode,
+            'error_type': 'http',
+          },
+        );
+        _analytics.captureException(
+          Exception(
+            'Streaming failed with status: ${response.statusCode}',
+          ),
+          properties: {
+            'context': 'ai_stream',
+            'session_id': sessionId,
+            'status_code': response.statusCode,
+          },
+        );
         final error = UxMessages.streamingFailed;
         _updateStatus(sessionId, SessionStreamingStatus.error, error: error);
         onError(sessionId, error);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _analytics.capture(
+        'ai_stream_failed',
+        properties: {
+          'session_id': sessionId,
+          'error_type': e.runtimeType.toString(),
+        },
+      );
+      _analytics.captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {
+          'context': 'ai_stream',
+          'session_id': sessionId,
+        },
+      );
       final error = UxMessages.streamingFailed;
       _updateStatus(sessionId, SessionStreamingStatus.error, error: error);
       onError(sessionId, error);

@@ -3,7 +3,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:provider/provider.dart';
 
@@ -28,16 +30,16 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     ),
   ];
 
-  void _onContinue() {
-    if (_selectedIndex == null) return;
-
-    final gender = _options[_selectedIndex!].gender;
-
+  void _finishOnboarding({required Gender gender, required bool skipped}) {
     final userStateManager = context.read<UserStateManager>();
     userStateManager.updateRegistrationDraft(gender: gender);
 
     userStateManager.createProfile(
       onSuccess: (user, {required bool inviteApplied}) {
+        locator<AnalyticsService>().capture(
+          'onboarding_completed',
+          properties: {'gender': gender.value, 'skipped': skipped},
+        );
         if (!mounted || !inviteApplied) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invite applied')),
@@ -52,24 +54,16 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     );
   }
 
-  void _onSkip() {
-    final userStateManager = context.read<UserStateManager>();
-    userStateManager.updateRegistrationDraft(gender: Gender.unspecified);
-
-    userStateManager.createProfile(
-      onSuccess: (user, {required bool inviteApplied}) {
-        if (!mounted || !inviteApplied) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invite applied')),
-        );
-      },
-      onError: (error) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      },
+  void _onContinue() {
+    if (_selectedIndex == null) return;
+    _finishOnboarding(
+      gender: _options[_selectedIndex!].gender,
+      skipped: false,
     );
+  }
+
+  void _onSkip() {
+    _finishOnboarding(gender: Gender.unspecified, skipped: true);
   }
 
   @override

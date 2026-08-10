@@ -335,7 +335,10 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
     void Function(File)? onImagePicked,
     bool? showLoading = true,
   }) async {
-    final canProceed = await checkLimitsAndProceed(context);
+    final canProceed = await checkLimitsAndProceed(
+      context,
+      source: 'style_analysis',
+    );
     if (!canProceed) return;
 
     try {

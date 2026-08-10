@@ -29,6 +29,24 @@ class AuthStateManager extends ChangeNotifier {
   String? _lastEmailSent;
   Timer? _otpResendTimer;
 
+  void _trackAuthSuccess({
+    required String userId,
+    required String method,
+    required bool isNewUser,
+    Map<String, Object>? userProperties,
+  }) {
+    final identifyProps = <String, Object>{
+      'auth_method': method,
+      ...?userProperties,
+      if (isNewUser) 'is_new_user': true,
+    };
+    _analyticsService.identify(userId, properties: identifyProps);
+    _analyticsService.capture(
+      'auth_succeeded',
+      properties: {'method': method, 'is_new_user': isNewUser},
+    );
+  }
+
   Future<void> initiateLoginWithOtp(
     String email, {
     void Function()? onSuccess,
@@ -51,6 +69,7 @@ class AuthStateManager extends ChangeNotifier {
       await supabase.auth.signInWithOtp(email: email);
       _lastEmailSent = email;
       _startResendOTPTimer();
+      _analyticsService.capture('auth_otp_requested');
       onSuccess?.call();
     } catch (e, stackTrace) {
       _analyticsService.captureException(e, stackTrace: stackTrace);
@@ -98,23 +117,21 @@ class AuthStateManager extends ChangeNotifier {
         );
 
         if (userResponse.isSuccess) {
-          // User exists, they are not new
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {'email': email, 'auth_method': 'otp'},
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'otp',
+            isNewUser: false,
+            userProperties: {'email': email},
           );
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404 ||
             userResponse.error?.code == 'NOT_FOUND' ||
             userResponse.error?.code == "STYLENS_USER_NOT_FOUND") {
-          // User explicitly not found, they are a brand new user
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {
-              'email': email,
-              'auth_method': 'otp',
-              'is_new_user': true,
-            },
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'otp',
+            isNewUser: true,
+            userProperties: {'email': email},
           );
           onSuccess?.call(true);
         } else {
@@ -176,6 +193,7 @@ class AuthStateManager extends ChangeNotifier {
       }
 
       await supabase.auth.signOut();
+      _analyticsService.capture('auth_logout');
       _analyticsService.reset();
       onSuccess?.call();
     } catch (e) {
@@ -192,6 +210,11 @@ class AuthStateManager extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
+
+    _analyticsService.capture(
+      'auth_social_started',
+      properties: {'provider': 'google'},
+    );
 
     try {
       final googleUser = await locator<GoogleSignIn>().authenticate();
@@ -240,25 +263,24 @@ class AuthStateManager extends ChangeNotifier {
         );
 
         if (userResponse.isSuccess) {
-          // User exists, they are not new
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'google',
+            isNewUser: false,
+            userProperties: {
               'email': resolvedEmail ?? '',
               'name': resolvedName ?? '',
-              'auth_method': 'google',
             },
           );
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404) {
-          // User explicitly not found, they are a brand new user
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'google',
+            isNewUser: true,
+            userProperties: {
               'email': resolvedEmail ?? '',
               'name': resolvedName ?? '',
-              'auth_method': 'google',
-              'is_new_user': true,
             },
           );
           onSuccess?.call(true, email: resolvedEmail, name: resolvedName);
@@ -299,6 +321,11 @@ class AuthStateManager extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
+
+    _analyticsService.capture(
+      'auth_social_started',
+      properties: {'provider': 'apple'},
+    );
 
     try {
       final rawNonce = supabase.auth.generateRawNonce();
@@ -364,25 +391,24 @@ class AuthStateManager extends ChangeNotifier {
         );
 
         if (userResponse.isSuccess) {
-          // User exists, they are not new
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'apple',
+            isNewUser: false,
+            userProperties: {
               'email': appleEmail ?? '',
               'name': resolvedName ?? '',
-              'auth_method': 'apple',
             },
           );
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404) {
-          // User explicitly not found, they are a brand new user
-          _analyticsService.identify(
-            response.user!.id,
-            properties: {
+          _trackAuthSuccess(
+            userId: response.user!.id,
+            method: 'apple',
+            isNewUser: true,
+            userProperties: {
               'email': appleEmail ?? '',
               'name': resolvedName ?? '',
-              'auth_method': 'apple',
-              'is_new_user': true,
             },
           );
           onSuccess?.call(true, email: appleEmail, name: resolvedName);

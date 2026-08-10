@@ -422,6 +422,13 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
   }
 
   Future<void> retryLastFailedAction({MessageErrorType? errorType}) async {
+    locator<AnalyticsService>().capture(
+      'session_retry_tapped',
+      properties: {
+        'error_type': errorType?.name ?? 'unknown',
+        'session_id': selectedSessionId ?? '',
+      },
+    );
     removeErrorMessageFromSelectedSession();
     final id = selectedSessionId;
 

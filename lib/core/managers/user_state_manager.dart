@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/user.dart';
@@ -96,6 +97,17 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       onError?.call('No authenticated user found.');
       return;
     }
+
+    // Re-identify on cold start / session restore so events attach to the user.
+    final identifyProps = <String, Object>{};
+    final email = supabaseUser.email;
+    if (email != null && email.isNotEmpty) {
+      identifyProps['email'] = email;
+    }
+    locator<AnalyticsService>().identify(
+      supabaseUser.id,
+      properties: identifyProps.isEmpty ? null : identifyProps,
+    );
 
     _operationState = _operationState.copyWith(
       fetchStatus: UserFetchStatus.loading,
@@ -214,11 +226,25 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
         onSuccess?.call(userData, inviteApplied: inviteApplied);
       } else {
         // Keep pending invite code so the user can edit and retry after a 400.
+        locator<AnalyticsService>().captureException(
+          Exception(
+            response.error?.message ?? 'Failed to create user profile.',
+          ),
+          properties: {
+            'context': 'onboarding_profile_create',
+            'error_code': response.error?.code ?? 'unknown',
+          },
+        );
         onError?.call(
           response.error?.message ?? 'Failed to create user profile.',
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      locator<AnalyticsService>().captureException(
+        e,
+        stackTrace: stackTrace,
+        properties: {'context': 'onboarding_profile_create'},
+      );
       onError?.call('Error creating user profile: $e');
     } finally {
       _operationState = _operationState.copyWith(isCreating: false);
@@ -282,6 +308,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       final response = await _userApiService.deleteUser(_currentUser!.id);
 
       if (response.isSuccess) {
+        locator<AnalyticsService>().capture('account_deleted');
         // AuthStateManager.signOut emits signedOut; AuthFlowController clears state.
         await locator<AuthStateManager>().logOut();
         onSuccess?.call();

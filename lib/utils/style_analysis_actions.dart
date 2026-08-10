@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/global_loader/index.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/navigation/app_routes.dart';
@@ -13,7 +14,10 @@ import 'package:gostylens/utils/blur_hash_encoder.dart';
 
 mixin StyleAnalysisActions {
   /// Checks if the user has reached their free tier limit and shows paywall if needed.
-  Future<bool> checkLimitsAndProceed(BuildContext context) async {
+  Future<bool> checkLimitsAndProceed(
+    BuildContext context, {
+    String source = 'unknown',
+  }) async {
     final subManager = context.read<SubscriptionManager>();
 
     if (subManager.subscription == null) {
@@ -46,6 +50,11 @@ mixin StyleAnalysisActions {
 
     if (!context.mounted) return false;
 
+    locator<AnalyticsService>().capture(
+      'paywall_triggered',
+      properties: {'reason': 'free_limit', 'source': source},
+    );
+
     final result = await context.push<bool>(AppRoutes.paywall);
 
     return result == true;
@@ -53,7 +62,10 @@ mixin StyleAnalysisActions {
 
   /// Prepares an empty chat (sync), navigates immediately, intros play on-page.
   Future<void> startNewSessionAndNavigate(BuildContext context) async {
-    final canProceed = await checkLimitsAndProceed(context);
+    final canProceed = await checkLimitsAndProceed(
+      context,
+      source: 'new_session',
+    );
     if (!canProceed) return;
 
     if (!context.mounted) return;

@@ -259,6 +259,18 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> purchasePackage(Package package) async {
+    final packageId = package.identifier;
+    final packageType = package.packageType.name;
+
+    await AnalyticsService().capture(
+      'purchase_started',
+      properties: {
+        'package': packageId,
+        'package_type': packageType,
+        'user_id': _currentUserId ?? 'unknown',
+      },
+    );
+
     try {
       _isLoading = true;
       notifyListeners();
@@ -271,10 +283,30 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       await _pushRevenueCatState();
       await syncSubscription();
 
-      return userHasCorePlan;
+      final completed = userHasCorePlan;
+      if (completed) {
+        await AnalyticsService().capture(
+          'purchase_completed',
+          properties: {
+            'package': packageId,
+            'package_type': packageType,
+            'user_id': _currentUserId ?? 'unknown',
+          },
+        );
+      }
+      return completed;
     } on PlatformException catch (e, st) {
       final errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
+        await AnalyticsService().capture(
+          'purchase_failed',
+          properties: {
+            'package': packageId,
+            'package_type': packageType,
+            'error_code': e.code,
+            'user_id': _currentUserId ?? 'unknown',
+          },
+        );
         await AnalyticsService().captureException(
           e,
           stackTrace: st,
@@ -308,7 +340,19 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       await _pushRevenueCatState();
       await syncSubscription();
 
-      return userHasCorePlan;
+      final restored = userHasCorePlan;
+      if (restored) {
+        await AnalyticsService().capture(
+          'purchase_restored',
+          properties: {'user_id': _currentUserId ?? 'unknown'},
+        );
+      } else {
+        await AnalyticsService().capture(
+          'purchase_restore_empty',
+          properties: {'user_id': _currentUserId ?? 'unknown'},
+        );
+      }
+      return restored;
     } on PlatformException catch (e, st) {
       await AnalyticsService().captureException(
         e,
