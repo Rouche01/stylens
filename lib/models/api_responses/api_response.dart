@@ -8,6 +8,28 @@ class ErrorData {
 
   ErrorData({required this.code, required this.message});
 
+  static const String _defaultFriendlyMessage =
+      'Oops! Something went wrong. If this persists, please contact support.';
+
+  static const Map<String, String> _friendlyMessagesByCode = {
+    'STYLENS_USER_NOT_FOUND':
+        'We couldn\'t find your profile. Please sign up to continue.',
+    'NOT_FOUND': 'We couldn\'t find what you\'re looking for. Please try again.',
+    'FREE_LIMIT_REACHED':
+        'Free limit reached. Please upgrade to a Core plan for unlimited sessions.',
+    'MESSAGE_LIMIT_REACHED':
+        'You have reached the message limit for this session.',
+    'IMAGE_LIMIT_REACHED':
+        'You have reached the image limit for this session.',
+    'SERVER_ERROR': 'Communication error with the server.',
+  };
+
+  static const Map<String, String> _friendlyTitlesByCode = {
+    'NETWORK_ERROR': 'Connection Lost',
+    'TIMEOUT_ERROR': 'Request Timed Out',
+    'FREE_LIMIT_REACHED': 'Limit Reached',
+  };
+
   factory ErrorData.fromJson(Map<String, dynamic> json) {
     return ErrorData(
       code: json['code'] as String,
@@ -15,40 +37,54 @@ class ErrorData {
     );
   }
 
+  String get normalizedCode => code.toUpperCase().trim();
+
+  bool get _isNgrokCode => normalizedCode.startsWith('ERR_NGROK');
+
+  bool get _isTransportMessageCode =>
+      normalizedCode == 'NETWORK_ERROR' || normalizedCode == 'TIMEOUT_ERROR';
+
   String toFriendlyMessage() {
-    // Ngrok down / Tunnel issues
-    if (code.startsWith('ERR_NGROK')) {
+    if (_isNgrokCode) {
       return 'The server is currently offline or the connection was lost. Please try again in a few moments.';
     }
 
-    // Network / Socket issues
-    if (code == 'NETWORK_ERROR' || code == 'TIMEOUT_ERROR') {
+    if (_isTransportMessageCode) {
       return message; // Already friendly
     }
 
-    // Backend specific errors (if you add more later)
-    if (code == 'STYLENS_USER_NOT_FOUND') {
-      return 'We couldn\'t find your profile. Please sign up to continue.';
+    final mappedMessage = _friendlyMessagesByCode[normalizedCode];
+    if (mappedMessage != null) {
+      return mappedMessage;
     }
 
-    // Default fallback - showing the original message if it's not a technical code
-    if (code == 'UNKNOWN' || code.isEmpty) {
+    if (normalizedCode.isEmpty || normalizedCode == 'UNKNOWN') {
+      if (message.isNotEmpty) return message;
+      return _defaultFriendlyMessage;
+    }
+
+    // For unmapped backend codes, keep output safe by default.
+    if (message.isEmpty) {
+      return _defaultFriendlyMessage;
+    }
+
+    final looksLikeTechnicalCode = RegExp(r'^[A-Z0-9_:-]{4,}$').hasMatch(message);
+    if (!looksLikeTechnicalCode) {
       return message;
     }
 
-    return 'Oops! Something went wrong. If this persists, please contact support.';
+    return _defaultFriendlyMessage;
   }
 
+  @override
+  String toString() => toFriendlyMessage();
+
   String toFriendlyTitle() {
-    if (code.startsWith('ERR_NGROK')) {
+    if (_isNgrokCode) {
       return 'Server Unavailable';
     }
-    if (code == 'NETWORK_ERROR') {
-      return 'Connection Lost';
-    }
-    if (code == 'TIMEOUT_ERROR') {
-      return 'Request Timed Out';
-    }
+    final mappedTitle = _friendlyTitlesByCode[normalizedCode];
+    if (mappedTitle != null) return mappedTitle;
     return 'Unable to Connect';
   }
 }
@@ -80,5 +116,5 @@ class ApiResponse<T> {
   bool get isSuccess =>
       (statusCode >= 200 && statusCode < 300) || statusCode == 304;
 
-  String get errorMessage => error?.message ?? 'Unknown error';
+  String get errorMessage => error?.toFriendlyMessage() ?? 'Unknown error';
 }

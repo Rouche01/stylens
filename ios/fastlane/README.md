@@ -45,7 +45,15 @@ Resize and frame raw screenshots locally with custom titles and background color
 [bundle exec] fastlane ios export_appstore_screenshots
 ```
 
-Export App Store Connect-ready 6.9 inch iPhone screenshots (1320x2868, no alpha)
+Export App Store Connect-ready iPhone screenshots (default 1284x2778 for 6.5 inch display, no alpha)
+
+### ios export_appstore_ipad_screenshots
+
+```sh
+[bundle exec] fastlane ios export_appstore_ipad_screenshots
+```
+
+Export App Store Connect-ready 13 inch iPad screenshots (default 2048x2732, no alpha)
 
 ### ios export_appstore_preview
 

@@ -21,7 +21,7 @@ class AssetApiService extends BaseApiService {
     if (response.isSuccess && response.data != null) {
       return response.data!;
     } else {
-      throw Exception(response.error ?? 'Failed to get upload URL');
+      throw response.error ?? Exception('Failed to get upload URL');
     }
   }
 

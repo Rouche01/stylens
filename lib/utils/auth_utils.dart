@@ -115,7 +115,7 @@ extension AuthRetryableFetchExceptionX on AuthRetryableFetchException {
 
 extension ErrorDataX on ErrorData {
   String? get friendlyMessage {
-    return message;
+    return toFriendlyMessage();
   }
 
   String? get technicalCode {

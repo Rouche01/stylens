@@ -1,9 +1,10 @@
 extension ExceptionFormat on String {
   String cleanException() {
-    if (startsWith('Exception: ')) {
-      return replaceFirst('Exception: ', '');
+    var result = this;
+    while (result.startsWith('Exception: ')) {
+      result = result.replaceFirst('Exception: ', '');
     }
-    return this;
+    return result;
   }
 
   String formatFreeLimitErrorMsg() {

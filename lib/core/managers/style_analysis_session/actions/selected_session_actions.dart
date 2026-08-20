@@ -14,6 +14,7 @@ import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/core/managers/style_analysis_session/slices/session_streaming_slice.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:gostylens/utils/api_utils.dart';
 
 /// Merges a fresh page-1 message fetch into [existing], replacing the head
 /// segment and retaining older pages already loaded beyond page 1.
@@ -126,7 +127,7 @@ mixin SelectedSessionActions {
             messages: response.data!.items,
           );
         }
-        throw Exception(response.error?.message ?? 'Failed to load messages');
+        throw response.error ?? Exception('Failed to load messages');
       },
       setDataOnError: (errorMessage) {
         return SelectedStyleAnalysisSession(
@@ -200,7 +201,7 @@ mixin SelectedSessionActions {
 
       if (!silent || existing.isEmpty) {
         sliceStateManager.setError(
-          response.error?.message ?? 'Failed to load messages',
+          response.error?.toFriendlyMessage() ?? 'Failed to load messages',
           retainData: existing.isNotEmpty,
         );
       }
@@ -216,7 +217,7 @@ mixin SelectedSessionActions {
       );
       if (!silent || existing.isEmpty) {
         sliceStateManager.setError(
-          e.toString(),
+          friendlyErrorMessage(e, fallback: 'Failed to load messages'),
           retainData: existing.isNotEmpty,
         );
       }
@@ -247,7 +248,7 @@ mixin SelectedSessionActions {
             messages: [...(currentData?.messages ?? []), ...olderMessages],
           );
         }
-        throw Exception(response.error ?? 'Failed to load more messages');
+        throw response.error ?? Exception('Failed to load more messages');
       },
       onError: (e) => 'Failed to load more messages: $e',
     );
@@ -292,7 +293,7 @@ mixin SelectedSessionActions {
             messages: currentData?.messages ?? [],
           );
         }
-        throw Exception(response.error ?? 'Failed to create session');
+        throw response.error ?? Exception('Failed to create session');
       },
       onError: (e) {
         onError?.call(e.toString());
@@ -332,7 +333,7 @@ mixin SelectedSessionActions {
           // Return current session state unchanged
           return currentData!;
         }
-        throw Exception(response.error ?? 'Failed to add message');
+        throw response.error ?? Exception('Failed to add message');
       },
       onError: (e) => 'Failed to add message: $e',
     );
@@ -418,7 +419,7 @@ mixin SelectedSessionActions {
         },
       );
       replaceLoadingWithError(
-        StyleAnalysisSessionMessageError.fromRawError('Error: $e'),
+        StyleAnalysisSessionMessageError.fromCaughtError(e),
       );
     }
   }

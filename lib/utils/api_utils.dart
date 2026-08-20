@@ -154,3 +154,20 @@ ErrorData parseApiError(ApiErrorInput input) {
 
   return ErrorData(code: 'UNKNOWN', message: input.defaultMessage);
 }
+
+/// User-facing text for a thrown API/session error.
+/// Unwraps [ErrorData] instead of interpolating `Instance of 'ErrorData'`.
+String friendlyErrorMessage(
+  Object error, {
+  String fallback = 'Something went wrong. Please try again.',
+}) {
+  if (error is ErrorData) {
+    return error.toFriendlyMessage();
+  }
+
+  final cleaned = error.toString().cleanException();
+  if (cleaned.isEmpty || cleaned == "Instance of 'ErrorData'") {
+    return fallback;
+  }
+  return cleaned;
+}

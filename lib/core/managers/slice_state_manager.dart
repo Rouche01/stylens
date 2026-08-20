@@ -1,5 +1,5 @@
 import 'package:gostylens/models/action_state.dart';
-import 'package:gostylens/utils/string_extensions.dart';
+import 'package:gostylens/utils/api_utils.dart';
 
 enum ActionType { initial, loading, success, error }
 
@@ -135,7 +135,7 @@ class SliceStateManager<T> {
       }
       return result;
     } catch (e) {
-      String errorMessage = e.toString().cleanException();
+      String errorMessage = friendlyErrorMessage(e);
       onError?.call(errorMessage);
 
       if (setDataOnError != null) {
