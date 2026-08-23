@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 /// Formats a DateTime into a friendly "time ago" string representation
 String formatTimeAgo(DateTime date) {
   final now = DateTime.now();
@@ -16,4 +18,22 @@ String formatTimeAgo(DateTime date) {
   } else {
     return '${date.day}/${date.month}/${date.year}';
   }
+}
+
+const _epochDatePattern = 'MMM d, yyyy';
+
+/// Formats an epoch timestamp in **milliseconds** (e.g. API `trial_ends_at`).
+String formatEpochMillis(int? epochMillis, {String nullLabel = '—'}) {
+  if (epochMillis == null) return nullLabel;
+  return DateFormat(_epochDatePattern).format(
+    DateTime.fromMillisecondsSinceEpoch(epochMillis),
+  );
+}
+
+/// Formats an epoch timestamp in **seconds** (e.g. RevenueCat `current_period_end`).
+String formatEpochSeconds(int? epochSeconds, {String nullLabel = '—'}) {
+  if (epochSeconds == null) return nullLabel;
+  return DateFormat(_epochDatePattern).format(
+    DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000),
+  );
 }

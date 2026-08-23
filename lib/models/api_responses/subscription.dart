@@ -109,6 +109,33 @@ class Subscription {
   bool get isFree => tier == 'free';
   bool get isCore =>
       tier == 'core' && (status == 'active' || status == 'cancelled');
+
+  /// Trial default and Core use `-1` for unlimited analysis sessions.
+  bool get hasUnlimitedSessions =>
+      isCore || limits?.sessionCountLimit == -1;
+
+  int get sessionsUsed => sessionUsage ?? 0;
+
+  /// `null` when sessions are unlimited.
+  int? get sessionsRemaining {
+    if (hasUnlimitedSessions) return null;
+    final limit = limits?.sessionCountLimit;
+    if (limit == null) return null;
+    final remaining = limit - sessionsUsed;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// Fraction of the session quota used, clamped to `[0, 1]`.
+  /// `null` when sessions are unlimited.
+  double? get sessionUsageProgress {
+    if (hasUnlimitedSessions) return null;
+    final limit = limits?.sessionCountLimit;
+    if (limit == null || limit <= 0) return null;
+    final progress = sessionsUsed / limit;
+    if (progress < 0) return 0.0;
+    if (progress > 1) return 1.0;
+    return progress;
+  }
 }
 
 class SubscriptionLimits {

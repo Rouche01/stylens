@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/navigation_helpers.dart';
+import 'package:gostylens/utils/time_utils.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
 class BillingPlanPage extends StatefulWidget {
   @override
@@ -19,12 +20,6 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SubscriptionManager>().syncSubscription();
     });
-  }
-
-  String _formatDate(int? epochSeconds) {
-    if (epochSeconds == null) return '—';
-    final date = DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000);
-    return DateFormat('MMM d, yyyy').format(date);
   }
 
   Widget _buildInfoRow(
@@ -55,7 +50,8 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                 value,
                 style: TextStyle(
                   fontSize: 15,
-                  color: valueColor ?? cs.primary.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                  color: valueColor ?? cs.primary.withValues(alpha: 0.8),
                 ),
               ),
               if (onCopy != null) ...[
@@ -65,12 +61,88 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                   child: Icon(
                     Icons.copy_rounded,
                     size: 16,
-                    color: cs.primary.withValues(alpha: 0.6),
+                    color: cs.primary.withValues(alpha: 0.75),
                   ),
                 ),
               ],
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionsLeftRow(
+    BuildContext context,
+    Subscription subscription,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final unlimited = subscription.hasUnlimitedSessions;
+    final limit = subscription.limits?.sessionCountLimit;
+    final progress = subscription.sessionUsageProgress;
+    final valueText = unlimited
+        ? 'Unlimited'
+        : '${subscription.sessionsUsed}/${limit ?? 0}';
+    final showTrialEnds =
+        subscription.inTrial && subscription.trialEndsAt != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Session Usage',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: cs.primary,
+                ),
+              ),
+              Text(
+                valueText,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: cs.primary.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: unlimited ? 0.0 : (progress ?? 0.0),
+              minHeight: 7,
+              backgroundColor: cs.primary.withValues(alpha: 0.16),
+              color: cs.primary.withValues(alpha: unlimited ? 0.35 : 0.9),
+            ),
+          ),
+          if (!unlimited) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Deleted sessions still count toward this limit.',
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.primary.withValues(alpha: 0.55),
+              ),
+            ),
+          ],
+          if (showTrialEnds) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Trial ends ${formatEpochMillis(subscription.trialEndsAt)}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: cs.primary.withValues(alpha: 0.65),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -84,7 +156,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.12)),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.22)),
       ),
       child: Column(
         children: [
@@ -95,7 +167,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                 height: 1,
                 indent: 20,
                 endIndent: 20,
-                color: cs.primary.withValues(alpha: 0.08),
+                color: cs.primary.withValues(alpha: 0.14),
               ),
           ],
         ],
@@ -154,22 +226,22 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                             label: 'Account Plan',
                             value: subManager.planDisplayName,
                           ),
+                          if (subscription?.limits != null)
+                            _buildSessionsLeftRow(context, subscription!),
                           if (isPro && subscription != null) ...[
-                            _buildInfoRow(
-                              context,
-                              label: 'Status',
-                              value: subscription.status == 'active'
-                                  ? 'Active'
-                                  : subscription.status[0].toUpperCase() +
-                                        subscription.status.substring(1),
-                              valueColor: subscription.status == 'active'
-                                  ? Colors.green
-                                  : null,
-                            ),
+                            if (subscription.status != 'active')
+                              _buildInfoRow(
+                                context,
+                                label: 'Status',
+                                value: subscription.status[0].toUpperCase() +
+                                    subscription.status.substring(1),
+                              ),
                             _buildInfoRow(
                               context,
                               label: 'Renewal Date',
-                              value: _formatDate(subscription.currentPeriodEnd),
+                              value: formatEpochSeconds(
+                                subscription.currentPeriodEnd,
+                              ),
                             ),
                             _buildInfoRow(
                               context,
@@ -192,42 +264,6 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                           ],
                         ],
                       ),
-                      if (subscription?.limits != null) ...[
-                        const SizedBox(height: 24),
-                        Text(
-                          'PLAN ENTITLEMENTS',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: cs.primary.withValues(alpha: 0.4),
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInfoCard(
-                          context,
-                          children: [
-                            _buildInfoRow(
-                              context,
-                              label: 'Analysis Sessions',
-                              value:
-                                  '${subscription!.limits!.sessionCountLimit}',
-                            ),
-                            _buildInfoRow(
-                              context,
-                              label: 'Messages / Session',
-                              value:
-                                  '${subscription.limits!.messagePerSessionLimit}',
-                            ),
-                            _buildInfoRow(
-                              context,
-                              label: 'Images / Session',
-                              value:
-                                  '${subscription.limits!.imagePerSessionLimit}',
-                            ),
-                          ],
-                        ),
-                      ],
                       const SizedBox(height: 20),
 
                       // Upgrade section (only for free users)
@@ -238,14 +274,14 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: cs.primary.withValues(alpha: 0.12),
+                              color: cs.primary.withValues(alpha: 0.22),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Want more from Stylens?',
+                                'Want more from GoStylens?',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -257,35 +293,31 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                                 'Upgrade for more usage and capabilities.',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: cs.primary.withValues(alpha: 0.7),
+                                  color: cs.primary.withValues(alpha: 0.8),
                                   height: 1.4,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              SizedBox(
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    context.push(AppRoutes.paywall);
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: cs.primary,
-                                    side: BorderSide(
-                                      color: cs.primary.withValues(alpha: 0.3),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 10,
-                                    ),
+                              FilledButton(
+                                onPressed: () {
+                                  context.push(AppRoutes.paywall);
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: cs.primary,
+                                  foregroundColor: cs.onPrimary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Text(
-                                    'Upgrade',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Upgrade to Core Plan',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
                                   ),
                                 ),
                               ),
