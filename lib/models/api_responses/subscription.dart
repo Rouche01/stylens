@@ -111,8 +111,7 @@ class Subscription {
       tier == 'core' && (status == 'active' || status == 'cancelled');
 
   /// Trial default and Core use `-1` for unlimited analysis sessions.
-  bool get hasUnlimitedSessions =>
-      isCore || limits?.sessionCountLimit == -1;
+  bool get hasUnlimitedSessions => isCore || limits?.sessionCountLimit == -1;
 
   int get sessionsUsed => sessionUsage ?? 0;
 
