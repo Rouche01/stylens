@@ -13,13 +13,14 @@ void main() {
       expect(redirectForStage(AuthStage.booting, AppRoutes.splash), isNull);
     });
 
-    test('unauthenticated allows login and its otp sub-route', () {
+    test('unauthenticated allows login, otp, and intro', () {
       expect(
         redirectForStage(AuthStage.unauthenticated, '/capture'),
         AppRoutes.login,
       );
       expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.login), isNull);
       expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.otp), isNull);
+      expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.intro), isNull);
     });
 
     test('onboarding allows both onboarding steps', () {
@@ -53,6 +54,10 @@ void main() {
       );
       expect(
         redirectForStage(AuthStage.userReady, AppRoutes.onboardingName),
+        AppRoutes.capture,
+      );
+      expect(
+        redirectForStage(AuthStage.userReady, AppRoutes.intro),
         AppRoutes.capture,
       );
       expect(
@@ -94,6 +99,65 @@ void main() {
     });
   });
 
+  group('redirectForIntro', () {
+    test('unauthenticated + incomplete sends non-intro to intro', () {
+      expect(
+        redirectForIntro(
+          stage: AuthStage.unauthenticated,
+          location: AppRoutes.login,
+          introCompleted: false,
+        ),
+        AppRoutes.intro,
+      );
+      expect(
+        redirectForIntro(
+          stage: AuthStage.unauthenticated,
+          location: AppRoutes.intro,
+          introCompleted: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('completed intro on intro route returns login', () {
+      expect(
+        redirectForIntro(
+          stage: AuthStage.unauthenticated,
+          location: AppRoutes.intro,
+          introCompleted: true,
+        ),
+        AppRoutes.login,
+      );
+      expect(
+        redirectForIntro(
+          stage: AuthStage.unauthenticated,
+          location: AppRoutes.login,
+          introCompleted: true,
+        ),
+        isNull,
+      );
+    });
+
+    test('non-unauthenticated stages ignore intro flag', () {
+      expect(
+        redirectForIntro(
+          stage: AuthStage.userReady,
+          location: AppRoutes.capture,
+          introCompleted: false,
+        ),
+        isNull,
+      );
+      expect(
+        redirectForIntro(
+          stage: AuthStage.booting,
+          location: AppRoutes.splash,
+          introCompleted: false,
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('redirectForDeepLinkUri', () {
     test('gostylens://history + userReady returns /history', () {
       expect(
@@ -124,6 +188,20 @@ void main() {
           onStashPending: (d) => stashed = d,
         ),
         AppRoutes.login,
+      );
+      expect(stashed?.target, DeepLinkTarget.billing);
+    });
+
+    test('gostylens://billing + unauthenticated + incomplete intro → /intro', () {
+      DeepLinkDestination? stashed;
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.unauthenticated,
+          Uri.parse('gostylens://billing'),
+          onStashPending: (d) => stashed = d,
+          introCompleted: false,
+        ),
+        AppRoutes.intro,
       );
       expect(stashed?.target, DeepLinkTarget.billing);
     });
@@ -234,6 +312,13 @@ void main() {
       expect(
         neutralLocationForStage(AuthStage.unauthenticated),
         AppRoutes.login,
+      );
+      expect(
+        neutralLocationForStage(
+          AuthStage.unauthenticated,
+          introCompleted: false,
+        ),
+        AppRoutes.intro,
       );
       expect(
         neutralLocationForStage(AuthStage.onboarding),

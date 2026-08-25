@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/intro_walkthrough_store.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
@@ -21,6 +22,7 @@ import 'package:gostylens/pages/closet.dart';
 import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/history.dart';
 import 'package:gostylens/pages/home.dart';
+import 'package:gostylens/pages/intro/intro_walkthrough_page.dart';
 import 'package:gostylens/pages/onboarding_gender.dart';
 import 'package:gostylens/pages/onboarding_name.dart';
 import 'package:gostylens/pages/otp_verification.dart';
@@ -68,6 +70,10 @@ GoRouter createAppRouter(
           composition: splashComposition,
           onRevealCompleted: auth.markSplashRevealCompleted,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.intro,
+        builder: (context, state) => const IntroWalkthroughPage(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -173,7 +179,11 @@ String? redirectForStage(AuthStage stage, String location) {
     case AuthStage.booting:
       return location == AppRoutes.splash ? null : AppRoutes.splash;
     case AuthStage.unauthenticated:
-      return location.startsWith(AppRoutes.login) ? null : AppRoutes.login;
+      if (location.startsWith(AppRoutes.login) ||
+          location == AppRoutes.intro) {
+        return null;
+      }
+      return AppRoutes.login;
     case AuthStage.onboarding:
       return location.startsWith(AppRoutes.onboarding)
           ? null
@@ -186,11 +196,26 @@ String? redirectForStage(AuthStage stage, String location) {
       if (location == AppRoutes.splash ||
           location.startsWith(AppRoutes.login) ||
           location.startsWith(AppRoutes.onboarding) ||
+          location == AppRoutes.intro ||
           location == AppRoutes.error) {
         return AppRoutes.capture;
       }
       return null;
   }
+}
+
+/// First-install intro gate. Runs after [redirectForStage]. Exposed for testing.
+@visibleForTesting
+String? redirectForIntro({
+  required AuthStage stage,
+  required String location,
+  required bool introCompleted,
+}) {
+  if (stage != AuthStage.unauthenticated) return null;
+  if (introCompleted) {
+    return location == AppRoutes.intro ? AppRoutes.login : null;
+  }
+  return location == AppRoutes.intro ? null : AppRoutes.intro;
 }
 
 /// Translates a platform `gostylens://` URI into an in-app location, applying
@@ -202,6 +227,7 @@ String? redirectForDeepLinkUri(
   DeepLinkParser? parser,
   void Function(DeepLinkDestination destination)? onStashPending,
   InviteCodeStore? inviteCodeStore,
+  bool introCompleted = true,
 }) {
   final linkParser = parser ?? DeepLinkParser();
   final inviteCode = linkParser.extractInviteCode(uri);
@@ -213,15 +239,32 @@ String? redirectForDeepLinkUri(
   final destination = linkParser.parseUri(uri);
   final target = destination != null
       ? locationForDestination(destination)
-      : neutralLocationForStage(stage);
+      : neutralLocationForStage(stage, introCompleted: introCompleted);
 
   final gated = redirectForStage(stage, target);
-  if (gated != null) {
+  final afterStage = gated ?? target;
+  final introGated = redirectForIntro(
+    stage: stage,
+    location: afterStage,
+    introCompleted: introCompleted,
+  );
+  final resolved = introGated ?? gated;
+
+  if (resolved != null) {
     if (destination != null) {
       onStashPending?.call(destination);
     }
-    final neutral = neutralLocationForStage(stage);
-    return redirectForStage(stage, neutral) ?? neutral;
+    final neutral = neutralLocationForStage(
+      stage,
+      introCompleted: introCompleted,
+    );
+    return redirectForIntro(
+          stage: stage,
+          location: redirectForStage(stage, neutral) ?? neutral,
+          introCompleted: introCompleted,
+        ) ??
+        redirectForStage(stage, neutral) ??
+        neutral;
   }
 
   // Redirect is always `go` semantics — detail routes must land on the shell
@@ -248,22 +291,38 @@ String? _redirect(AuthFlowController auth, GoRouterState state) {
     }
   }
 
+  final introCompleted = locator<IntroWalkthroughStore>().hasCompleted;
+
   if (state.uri.scheme == DeepLinkParser.supportedScheme) {
     return redirectForDeepLinkUri(
       auth.stage,
       state.uri,
       onStashPending: locator<DeepLinkService>().stashPendingDestination,
+      introCompleted: introCompleted,
     );
   }
-  return redirectForStage(auth.stage, state.matchedLocation);
+
+  final stageRedirect = redirectForStage(auth.stage, state.matchedLocation);
+  final afterStage = stageRedirect ?? state.matchedLocation;
+  final introRedirect = redirectForIntro(
+    stage: auth.stage,
+    location: afterStage,
+    introCompleted: introCompleted,
+  );
+  return introRedirect ?? stageRedirect;
 }
 
 /// A safe in-app location for the current [stage], used when a custom-scheme
 /// URI cannot be parsed or auth blocks the intended destination.
 @visibleForTesting
-String neutralLocationForStage(AuthStage stage) => switch (stage) {
+String neutralLocationForStage(
+  AuthStage stage, {
+  bool introCompleted = true,
+}) =>
+    switch (stage) {
       AuthStage.booting => AppRoutes.splash,
-      AuthStage.unauthenticated => AppRoutes.login,
+      AuthStage.unauthenticated =>
+        introCompleted ? AppRoutes.login : AppRoutes.intro,
       AuthStage.onboarding => AppRoutes.onboardingName,
       AuthStage.error => AppRoutes.error,
       AuthStage.userReady => AppRoutes.capture,

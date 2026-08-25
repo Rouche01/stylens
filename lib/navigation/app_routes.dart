@@ -8,6 +8,7 @@ class AppRoutes {
   const AppRoutes._();
 
   static const splash = '/splash';
+  static const intro = '/intro';
   static const login = '/login';
   static const otp = '/login/otp';
   static const onboarding = '/onboarding';
