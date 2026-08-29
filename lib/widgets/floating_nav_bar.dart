@@ -157,9 +157,9 @@ class _FloatingNavBarState extends State<FloatingNavBar>
                   Color.lerp(
                     cs.primary,
                     cs.secondary,
-                    0.22,
-                  )!.withValues(alpha: 0.28),
-                  cs.primary.withValues(alpha: 0.34),
+                    0.18,
+                  )!.withValues(alpha: 0.46),
+                  cs.primary.withValues(alpha: 0.55),
                 ],
               ),
               border: Border.all(
@@ -327,8 +327,11 @@ class _NavItemState extends State<_NavItem>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final activeColor = cs.primary;
-    // Mint closer to white for contrast on the dark glass dock.
-    final inactiveColor = Color.lerp(cs.secondary, Colors.white, 0.55)!;
+    final inactiveColor = Color.lerp(
+      cs.secondary,
+      Colors.white,
+      0.78,
+    )!.withValues(alpha: 0.88);
     final colorDuration = widget.reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 220);

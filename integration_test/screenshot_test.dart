@@ -78,7 +78,7 @@ void main() {
     await captureScreen(binding, 'screenshot_home');
 
     // Capture Gallery Picker
-    final Finder chooseFromGalleryBtn = find.text('Choose from Gallery');
+    final Finder chooseFromGalleryBtn = find.text('Choose from gallery');
     if (chooseFromGalleryBtn.evaluate().isNotEmpty) {
       await tester.tap(chooseFromGalleryBtn);
       await tester.pump(const Duration(seconds: 1));

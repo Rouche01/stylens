@@ -13,6 +13,7 @@ import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
+import 'package:gostylens/widgets/pose_video_backdrop.dart';
 
 class CapturePage extends StatefulWidget {
   const CapturePage({super.key});
@@ -80,10 +81,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   }
 
   Future<void> _takePhoto() async {
-    final canProceed = await checkLimitsAndProceed(
-      context,
-      source: 'capture',
-    );
+    final canProceed = await checkLimitsAndProceed(context, source: 'capture');
     if (!canProceed) return;
 
     locator<AnalyticsService>().capture(
@@ -121,10 +119,7 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   }
 
   Future<void> _chooseFromGallery() async {
-    final canProceed = await checkLimitsAndProceed(
-      context,
-      source: 'capture',
-    );
+    final canProceed = await checkLimitsAndProceed(context, source: 'capture');
     if (!canProceed) return;
 
     locator<AnalyticsService>().capture(
@@ -164,164 +159,250 @@ class _CapturePageState extends State<CapturePage> with StyleAnalysisActions {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final scrim = Color.alphaBlend(
+      Colors.black.withValues(alpha: 0.45),
+      cs.primary,
+    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
       ),
       child: Scaffold(
-      backgroundColor: cs.surfaceDim,
-      body: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-              child: Row(
-                children: [
-                  Image.asset('assets/imgs/logo_primary.png', height: 28),
-                  Consumer<SubscriptionManager>(
-                    builder: (context, subManager, _) {
-                      final subscription = subManager.subscription;
-                      final showUpgrade =
-                          !subManager.userHasCorePlan &&
-                          subscription != null &&
-                          !subscription.hasUnlimitedSessions;
+        backgroundColor: cs.surfaceDim,
+        body: Column(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+                child: Row(
+                  children: [
+                    Image.asset('assets/imgs/logo_primary.png', height: 28),
+                    Consumer<SubscriptionManager>(
+                      builder: (context, subManager, _) {
+                        final subscription = subManager.subscription;
+                        final showUpgrade =
+                            !subManager.userHasCorePlan &&
+                            subscription != null &&
+                            !subscription.hasUnlimitedSessions;
 
-                      if (!showUpgrade) return const SizedBox.shrink();
+                        if (!showUpgrade) return const SizedBox.shrink();
 
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 10),
-                        child: FilledButton(
-                          onPressed: () {
-                            context.push(AppRoutes.paywall);
-                          },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: cs.secondary.withValues(alpha: 0.55),
-                            foregroundColor: cs.primary,
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: FilledButton(
+                            onPressed: () {
+                              context.push(AppRoutes.paywall);
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: cs.secondary.withValues(
+                                alpha: 0.55,
+                              ),
+                              foregroundColor: cs.primary,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: cs.primary.withValues(alpha: 0.35),
+                                ),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: cs.primary.withValues(alpha: 0.35),
+                            child: const Text(
+                              'Upgrade',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                          child: const Text(
-                            'Upgrade',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                        );
+                      },
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        context.push(AppRoutes.profile);
+                      },
+                      icon: const Icon(Icons.account_circle_rounded),
+                      iconSize: 39,
+                      color: cs.primary,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                // Clear the floating dock while the Scaffold background extends under it.
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  16 + FloatingNavBar.contentBottomInset(context),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        const Positioned.fill(child: PoseVideoBackdrop()),
+                        Positioned.fill(
+                          child: ColoredBox(
+                            color: scrim.withValues(alpha: 0.66),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  scrim.withValues(alpha: 0.40),
+                                ],
+                                stops: const [0.48, 1.0],
+                              ),
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      context.push(AppRoutes.profile);
-                    },
-                    icon: const Icon(Icons.account_circle_rounded),
-                    iconSize: 39,
-                    color: cs.primary,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                          child: Column(
+                            children: [
+                              const Spacer(flex: 6),
+                              Text(
+                                'Strike a Pose!',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontFamily: 'ClashDisplay',
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 32,
+                                      height: 1.15,
+                                      letterSpacing: -0.4,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Share your outfit. I’ll tell you what works, and what to try next.",
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      height: 1.5,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const Spacer(flex: 2),
+                              _CaptureActionBar(
+                                onTakePhoto: _takePhoto,
+                                onChooseFromGallery: _chooseFromGallery,
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CaptureActionBar extends StatelessWidget {
+  const _CaptureActionBar({
+    required this.onTakePhoto,
+    required this.onChooseFromGallery,
+  });
+
+  final VoidCallback onTakePhoto;
+  final VoidCallback onChooseFromGallery;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: onTakePhoto,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.secondary,
+                foregroundColor: cs.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.camera_alt_outlined, color: cs.primary, size: 18),
+                  const SizedBox(width: 8),
+                  const Text('Take Photo'),
                 ],
               ),
             ),
           ),
-          Expanded(
-            child: Padding(
-              // Clear the floating dock while the Scaffold background extends under it.
-              padding: EdgeInsets.fromLTRB(
-                16,
-                0,
-                16,
-                16 + FloatingNavBar.contentBottomInset(context),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: cs.outline.withValues(alpha: 0.5),
-                    width: 1,
-                  ),
-                  color: cs.surfaceDim,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('📸', style: TextStyle(fontSize: 80)),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Strike a Pose!',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: cs.onSurface,
-                              fontFamily: 'ClashDisplay',
-                              fontWeight: FontWeight.w500,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "Let's see how your outfit fits the vibe and I'll drop a few tips to make it even more you.",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: cs.onSurface.withValues(alpha: 0.9),
-                          height: 1.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      ElevatedButton.icon(
-                        onPressed: _takePhoto,
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('Take Photo'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          backgroundColor: cs.primary,
-                          foregroundColor: cs.onPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: _chooseFromGallery,
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Choose from Gallery'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: onChooseFromGallery,
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            textStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-    ),
+          child: const Text('Choose from gallery'),
+        ),
+      ],
     );
   }
 }

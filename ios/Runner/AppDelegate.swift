@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 
@@ -7,6 +8,13 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Keep Music / podcasts playing. video_player's first init upgrades the
+    // session to playback; mixWithOthers must already be set so that upgrade
+    // does not pause other audio.
+    try? AVAudioSession.sharedInstance().setCategory(
+      .ambient,
+      options: .mixWithOthers
+    )
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
