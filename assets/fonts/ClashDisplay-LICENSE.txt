@@ -1,0 +1,15 @@
+Clash Display
+Copyright 2021 Indian Type Foundry. All rights reserved.
+Clash is a trademark of the Indian Type Foundry.
+
+These files are Clash Display (ITF 1.1): Regular, Medium, Semibold, Bold.
+
+License: ITF Free Font License (Fontshare), not SIL OFL.
+Official terms: https://www.fontshare.com/licenses/itf-ffl
+Download source: https://www.fontshare.com/fonts/clash-display
+
+Allowed: personal and commercial use, including embedding in a mobile app.
+Not allowed: modifying the font software, or redistributing the .otf files as a font download.
+
+If this copy did not come from Fontshare, re-download the family from the link above
+and replace these files so the license grant is directly from ITF.
