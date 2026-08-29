@@ -517,8 +517,16 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
 
   void clearAttachedImages() => _selectedSessionSlice.clearAttachedImages();
 
-  void disposeSelectedSession({String? messageInputText}) {
-    _selectedSessionSlice.releaseActiveSession(draftText: messageInputText);
+  void disposeSelectedSession({String? messageInputText, bool notify = true}) {
+    _selectedSessionSlice.releaseActiveSession(
+      draftText: messageInputText,
+      notify: notify,
+    );
+  }
+
+  /// Public notify after a silent [disposeSelectedSession] (`notify: false`).
+  void notifySessionListeners() {
+    notifyListeners();
   }
 
   // ============================================================

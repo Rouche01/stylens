@@ -254,11 +254,17 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   }
 
   void _saveStateAndDispose() {
-    // Must run synchronously. A post-frame release left local outfit messages
-    // in the manager while the next `/session` mount replayed intro / action
-    // card submit, stacking another copy of the initial outfit.
+    // Clear selected-session data now so a same-frame remount cannot replay
+    // the local outfit intro. Defer notify — GoRouter has the tree locked
+    // during this dispose (`going to /history`).
     final draftText = _messageController.text.trim();
-    _sessionManager.disposeSelectedSession(messageInputText: draftText);
+    _sessionManager.disposeSelectedSession(
+      messageInputText: draftText,
+      notify: false,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sessionManager.notifySessionListeners();
+    });
   }
 
   // ============================================================

@@ -174,13 +174,13 @@ class SelectedSessionSlice with SelectedSessionActions {
     sliceStateManager.setInitial();
   }
 
-  void releaseActiveSession({String? draftText}) {
+  void releaseActiveSession({String? draftText, bool notify = true}) {
     _invalidateLocalBootstrap();
     if (draftText != null) saveDraftText(draftText);
     persistMessageCache();
     paginationInfo = null;
     isLoadingMoreMessages = false;
-    sliceStateManager.setInitial();
+    sliceStateManager.setInitial(notify: notify);
   }
 
   @override
