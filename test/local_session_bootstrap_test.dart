@@ -14,6 +14,7 @@ import 'package:gostylens/models/app_image.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/models/selected_session.dart';
 import 'package:gostylens/models/style_analysis_session.dart';
+import 'package:gostylens/models/style_analysis_session_message.dart';
 
 void main() {
   group('SelectedSessionSlice local bootstrap races', () {
@@ -31,6 +32,15 @@ void main() {
         .where((m) => !m.isUserMessage && !m.isLoading)
         .map((m) => m.text)
         .toList();
+
+    int initialOutfitCount() => slice.messages
+        .where(
+          (m) =>
+              m.isUserMessage &&
+              (m.images?.isNotEmpty ?? false) &&
+              m.text == UxMessages.initialOutfitPromptTextAugmentation,
+        )
+        .length;
 
     setUp(() {
       final getIt = GetIt.instance;
@@ -153,6 +163,67 @@ void main() {
             assistantTexts(),
             isNot(contains(UxMessages.initialStylistReplyWithImage)),
           );
+        });
+      },
+    );
+
+    test(
+      'submitInitialOutfit does not stack when outfit text is not the default prompt',
+      () {
+        fakeAsync((async) {
+          slice.addMessage(
+            UserRole.user,
+            images: [outfitImage()],
+            text: 'Does this work for a wedding?',
+          );
+
+          slice.submitInitialOutfit([outfitImage()]);
+
+          async.elapse(const Duration(seconds: 5));
+          async.flushMicrotasks();
+
+          expect(
+            slice.messages
+                .where((m) => m.isUserMessage && (m.images?.isNotEmpty ?? false))
+                .length,
+            1,
+          );
+        });
+      },
+    );
+
+    test('submitInitialOutfit twice does not stack another outfit message', () {
+      fakeAsync((async) {
+        slice.submitInitialOutfit([outfitImage()]);
+        slice.submitInitialOutfit([outfitImage()]);
+
+        async.elapse(const Duration(seconds: 5));
+        async.flushMicrotasks();
+
+        expect(initialOutfitCount(), 1);
+        expect(
+          assistantTexts()
+              .where((t) => t == UxMessages.initialStylistReplyWithImage)
+              .length,
+          1,
+        );
+      });
+    });
+
+    test(
+      'prepareOutfitSession then submitInitialOutfit keeps a single outfit',
+      () {
+        fakeAsync((async) {
+          slice.prepareOutfitSession([outfitImage()]);
+          slice.playPendingLocalIntro();
+          async.elapse(const Duration(milliseconds: 200));
+
+          slice.submitInitialOutfit([outfitImage()]);
+
+          async.elapse(const Duration(seconds: 5));
+          async.flushMicrotasks();
+
+          expect(initialOutfitCount(), 1);
         });
       },
     );

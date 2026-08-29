@@ -57,9 +57,7 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   bool get _shouldShowInitialActionCard {
     final messages = _sessionManager.selectedSessionMessages;
     final hasUserImage = messages.any(
-      (m) =>
-          m.role == UserRole.user &&
-          (m.images?.any((img) => img.remoteImage != null) ?? false),
+      (m) => m.role == UserRole.user && (m.images?.isNotEmpty ?? false),
     );
 
     return _isNewSession &&
@@ -256,10 +254,11 @@ class _StyleAnalysisPageState extends State<StyleAnalysisPage>
   }
 
   void _saveStateAndDispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final draftText = _messageController.text.trim();
-      _sessionManager.disposeSelectedSession(messageInputText: draftText);
-    });
+    // Must run synchronously. A post-frame release left local outfit messages
+    // in the manager while the next `/session` mount replayed intro / action
+    // card submit, stacking another copy of the initial outfit.
+    final draftText = _messageController.text.trim();
+    _sessionManager.disposeSelectedSession(messageInputText: draftText);
   }
 
   // ============================================================

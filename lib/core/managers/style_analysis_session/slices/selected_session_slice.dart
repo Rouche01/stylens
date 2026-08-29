@@ -188,7 +188,7 @@ class SelectedSessionSlice with SelectedSessionActions {
     final id = sessionId;
     if (id == null || id.isEmpty) return;
 
-    final currentMessages = messages;
+    final currentMessages = messages.where((m) => !m.isLoading).toList();
     if (currentMessages.isEmpty) return;
 
     _messageCache.put(

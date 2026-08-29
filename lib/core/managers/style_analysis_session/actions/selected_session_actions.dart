@@ -23,11 +23,15 @@ List<StyleAnalysisSessionMessage> mergeMessagesPageOne(
   List<StyleAnalysisSessionMessage> existing,
   List<StyleAnalysisSessionMessage> freshPageOne,
 ) {
-  if (freshPageOne.isEmpty) return existing;
-  if (existing.isEmpty) return freshPageOne;
-  if (existing.length <= freshPageOne.length) return freshPageOne;
+  // Loading bubbles are local-only. Including them in the length-based head
+  // replace makes [loading, bot, outfit] look longer than server page 1, so the
+  // outfit is kept as a "tail" and duplicated on every refresh/reselect.
+  final stableExisting = existing.where((m) => !m.isLoading).toList();
+  if (freshPageOne.isEmpty) return stableExisting;
+  if (stableExisting.isEmpty) return freshPageOne;
+  if (stableExisting.length <= freshPageOne.length) return freshPageOne;
 
-  final tail = existing.sublist(freshPageOne.length);
+  final tail = stableExisting.sublist(freshPageOne.length);
   return [...freshPageOne, ...tail];
 }
 
@@ -71,6 +75,22 @@ mixin SelectedSessionActions {
 
   // --- Actions Mixin Logic ---
   static const _initialPrompt = UxMessages.initialOutfitPromptTextAugmentation;
+
+  bool _isInitialOutfitUserMessage(StyleAnalysisSessionMessage message) =>
+      message.isUserMessage && (message.images?.isNotEmpty ?? false);
+
+  bool get _hasInitialOutfitUserMessage =>
+      messages.any(_isInitialOutfitUserMessage);
+
+  /// True when a completed stylist line already sits newer than the initial
+  /// outfit (newest-first list), so a second intro must not stack another.
+  bool get _hasCompletedOutfitStylistReply {
+    final outfitIndex = messages.indexWhere(_isInitialOutfitUserMessage);
+    if (outfitIndex < 0) return false;
+    return messages
+        .take(outfitIndex)
+        .any((m) => m.isAssistantMessage && !m.isLoading && !m.isError);
+  }
 
   Future<void> _warmStylistOpenersCache() async {
     if (!locator.isRegistered<StylistOpenersManager>()) return;
@@ -471,12 +491,15 @@ mixin SelectedSessionActions {
 
   Future<void> _addInitialStylistResponse(int generation) async {
     if (!isLocalBootstrapCurrent(generation)) return;
+    if (_hasCompletedOutfitStylistReply) return;
     await _warmStylistOpenersCache();
     if (!isLocalBootstrapCurrent(generation)) return;
+    if (_hasCompletedOutfitStylistReply) return;
     final reply = _pickOpener(StylistOpenerTag.withImage);
     addLoadingMessage();
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!isLocalBootstrapCurrent(generation)) return;
+    if (_hasCompletedOutfitStylistReply) return;
     removeLoadingMessage();
     addMessage(UserRole.assistant, text: reply);
   }
@@ -489,9 +512,13 @@ mixin SelectedSessionActions {
     // another local start invalidates [generation].
     final generation = bootstrapGeneration ?? localBootstrapGeneration;
 
-    addMessage(UserRole.user, images: images, text: _initialPrompt);
-    addLoadingMessage();
-    sliceStateManager.notify();
+    // Re-opening a local `/session` (or a redelivered image pick) must not
+    // stack another copy of the initial outfit.
+    if (!_hasInitialOutfitUserMessage) {
+      addMessage(UserRole.user, images: images, text: _initialPrompt);
+      addLoadingMessage();
+      sliceStateManager.notify();
+    }
 
     try {
       final updatedImages = await assetUploadManager.ensureAssetsPrepared(

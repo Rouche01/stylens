@@ -42,6 +42,33 @@ void main() {
       expect(merged.first.text, 'new-head');
       expect(merged.last.timestamp, DateTime(2024, 1, 1));
     });
+
+    test('strips a leading loading bubble so the outfit is not kept as tail', () {
+      final outfit = StyleAnalysisSessionMessage(
+        timestamp: DateTime(2024, 1, 1),
+        role: UserRole.user,
+        text: 'outfit',
+      );
+      final bot = StyleAnalysisSessionMessage(
+        timestamp: DateTime(2024, 1, 2),
+        role: UserRole.assistant,
+        text: 'reply',
+      );
+      final loading = StyleAnalysisSessionMessage(
+        timestamp: DateTime(2024, 1, 3),
+        role: UserRole.assistant,
+        isLoading: true,
+      );
+
+      final merged = mergeMessagesPageOne(
+        [loading, bot, outfit],
+        [bot, outfit],
+      );
+
+      expect(merged.length, 2);
+      expect(merged.first.text, 'reply');
+      expect(merged.last.text, 'outfit');
+    });
   });
 
   group('SessionMessageCache', () {
