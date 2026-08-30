@@ -66,13 +66,57 @@ jobs:
 
             - name: Setup Environment Files
               env:
+                APP_ENV: ${{ github.event.inputs.env }}
                 ENV_STAGING_FILE: ${{ secrets.ENV_STAGING_FILE }}
+                ENV_PRODUCTION_FILE: ${{ secrets.ENV_PRODUCTION_FILE }}
                 STG_ANDROID_GOOGLE_SERVICE_JSON: ${{ secrets.STG_ANDROID_GOOGLE_SERVICE_JSON }}
+                PROD_ANDROID_GOOGLE_SERVICE_JSON: ${{ secrets.PROD_ANDROID_GOOGLE_SERVICE_JSON }}
               run: |
-                echo "$ENV_STAGING_FILE" > .env.staging
-                echo "$STG_ANDROID_GOOGLE_SERVICE_JSON" > android/app/google-services.json
+                set -euo pipefail
+
+                # Placeholder files so pubspec asset declarations always resolve.
                 touch .env.development
+                touch .env.staging
                 touch .env.production
+
+                case "$APP_ENV" in
+                  staging)
+                    echo "$ENV_STAGING_FILE" > .env.staging
+                    echo "$STG_ANDROID_GOOGLE_SERVICE_JSON" > android/app/google-services.json
+                    ;;
+                  production)
+                    if [ -z "${ENV_PRODUCTION_FILE:-}" ]; then
+                      echo "::error::ENV_PRODUCTION_FILE secret is empty. Add it, or deploy with env=staging."
+                      exit 1
+                    fi
+                    echo "$ENV_PRODUCTION_FILE" > .env.production
+                    if [ -n "${PROD_ANDROID_GOOGLE_SERVICE_JSON:-}" ]; then
+                      echo "$PROD_ANDROID_GOOGLE_SERVICE_JSON" > android/app/google-services.json
+                    else
+                      echo "$STG_ANDROID_GOOGLE_SERVICE_JSON" > android/app/google-services.json
+                    fi
+                    ;;
+                  *)
+                    echo "::error::Unsupported env '$APP_ENV' (expected staging or production)."
+                    exit 1
+                    ;;
+                esac
+
+                ENV_PATH=".env.$APP_ENV"
+                if [ ! -s "$ENV_PATH" ]; then
+                  echo "::error::$ENV_PATH is missing or empty — refusing to ship a build that will hang on splash."
+                  exit 1
+                fi
+                if ! grep -qE '^SUPABASE_URL=.+' "$ENV_PATH"; then
+                  echo "::error::$ENV_PATH has an empty SUPABASE_URL — check the GitHub secret for $APP_ENV."
+                  exit 1
+                fi
+                if [ ! -s android/app/google-services.json ]; then
+                  echo "::error::android/app/google-services.json is missing or empty."
+                  exit 1
+                fi
+
+                echo "Configured $ENV_PATH for Flutter (--dart-define=ENV=$APP_ENV)"
 
             - name: Get packages
               run: |

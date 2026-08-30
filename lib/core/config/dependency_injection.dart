@@ -49,19 +49,30 @@ Future<void> setupLocator() async {
     publishableKey: EnvConfig.supabaseAnonKey,
   );
 
-  // Initialize Google Sign In
+  // Initialize Google Sign In (must not block app launch forever on Play builds).
   final String? googleClientId = Platform.isIOS
       ? EnvConfig.googleOAuthIosClientId
       : null;
 
-  await GoogleSignIn.instance.initialize(
-    clientId: googleClientId,
-    serverClientId: EnvConfig.googleOAuthWebClientId,
-  );
+  try {
+    await GoogleSignIn.instance
+        .initialize(
+          clientId: googleClientId,
+          serverClientId: EnvConfig.googleOAuthWebClientId,
+        )
+        .timeout(const Duration(seconds: 8));
+  } catch (e, st) {
+    debugPrint('GoogleSignIn.initialize failed/timed out: $e\n$st');
+  }
 
-  // Register Analytics Service
+  // Register Analytics Service — PostHog network setup must not gate first frame.
   final analyticsService = AnalyticsService();
-  await analyticsService.init();
+  await analyticsService.init().timeout(
+    const Duration(seconds: 8),
+    onTimeout: () {
+      debugPrint('AnalyticsService.init timed out; continuing without PostHog');
+    },
+  );
   locator.registerSingleton<AnalyticsService>(analyticsService);
 
   // Initialize Hybrid Cache Store for Dio (Memory + Hive)

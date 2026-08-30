@@ -62,6 +62,7 @@ class AuthFlowController extends ChangeNotifier {
 
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _splashTimer;
+  Timer? _authFallbackTimer;
   bool _disposed = false;
 
   bool _splashRevealCompleted = false;
@@ -76,9 +77,31 @@ class AuthFlowController extends ChangeNotifier {
   /// Begins listening to auth + profile state and starts the splash safety timer.
   void start() {
     _session = _client.auth.currentSession;
-    _authSubscription = _client.auth.onAuthStateChange.listen(_onAuthEvent);
+    // Supabase docs: always attach onError — network/refresh failures are
+    // stream errors; without a handler they become unhandled zone crashes.
+    _authSubscription = _client.auth.onAuthStateChange.listen(
+      _onAuthEvent,
+      onError: _onAuthStreamError,
+    );
     _userState.addListener(_evaluate);
     _splashTimer = Timer(_splashFallbackDuration, markSplashRevealCompleted);
+    // If initialSession never arrives (missed replay / stream error), do not
+    // leave the branded splash route forever — currentSession is authoritative.
+    _authFallbackTimer = Timer(const Duration(seconds: 3), _resolveAuthFallback);
+    _evaluate();
+  }
+
+  void _onAuthStreamError(Object error, StackTrace stackTrace) {
+    debugPrint('AuthFlowController onAuthStateChange error: $error\n$stackTrace');
+    _resolveAuthFallback();
+  }
+
+  void _resolveAuthFallback() {
+    if (_disposed || _authResolved) return;
+    _authResolved = true;
+    _session = _client.auth.currentSession;
+    _authFallbackTimer?.cancel();
+    _authFallbackTimer = null;
     _evaluate();
   }
 
@@ -98,6 +121,8 @@ class AuthFlowController extends ChangeNotifier {
 
   void _onAuthEvent(AuthState data) {
     _authResolved = true;
+    _authFallbackTimer?.cancel();
+    _authFallbackTimer = null;
     _session = data.session;
     final event = data.event;
 
@@ -154,6 +179,7 @@ class AuthFlowController extends ChangeNotifier {
     _disposed = true;
     _authSubscription?.cancel();
     _splashTimer?.cancel();
+    _authFallbackTimer?.cancel();
     _userState.removeListener(_evaluate);
     super.dispose();
   }

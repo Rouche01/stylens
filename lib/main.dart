@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
@@ -24,56 +26,76 @@ import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 
 const _splashRevealAsset = 'assets/animations/gostylens-logo-reveal-v2.json';
 
+/// Hard ceiling for pre-[runApp] work. Native splash is preserved until
+/// [AuthLoadingScreen] paints; without a timeout a hung plugin init looks like
+/// a permanent splash freeze on Play Store installs.
+const _bootstrapTimeout = Duration(seconds: 25);
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
+  try {
+    final authController = await _bootstrap().timeout(_bootstrapTimeout);
+    runApp(MyApp(authController: authController));
+  } on TimeoutException {
+    FlutterNativeSplash.remove();
+    runApp(
+      const ErrorApp(
+        errorMessage:
+            'Startup timed out while initializing (Firebase / Sign-In / '
+            'analytics). Pull-to-refresh is not available — force-quit and '
+            'reopen, or install a newer build.',
+      ),
+    );
+  } catch (e) {
+    FlutterNativeSplash.remove();
+    runApp(ErrorApp(errorMessage: e.toString()));
+  }
+}
+
+Future<AuthFlowController> _bootstrap() async {
   // Warm up the SharedPreferences Pigeon channel before any plugin uses it.
   // On release builds, PostHog/Supabase call shared_preferences internally
   // during init — if the channel isn't established first, it throws a
   // PlatformException(channel-error) and crashes the app.
   await SharedPreferences.getInstance();
 
+  const String environment = String.fromEnvironment(
+    'ENV',
+    defaultValue: 'development',
+  );
+
+  await dotenv.load(fileName: ".env.$environment");
+  EnvConfig.init();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  registerFirebaseMessagingBackgroundHandler();
+
+  // Set up singleton services
+  await setupLocator();
+
+  LottieComposition? splashComposition;
   try {
-    const String environment = String.fromEnvironment(
-      'ENV',
-      defaultValue: 'development',
-    );
-
-    await dotenv.load(fileName: ".env.$environment");
-    EnvConfig.init();
-
-    // Initialize Firebase
-    await Firebase.initializeApp();
-    registerFirebaseMessagingBackgroundHandler();
-
-    // Set up singleton services
-    await setupLocator();
-
-    LottieComposition? splashComposition;
-    try {
-      splashComposition = await AssetLottie(_splashRevealAsset).load();
-    } catch (e, st) {
-      debugPrint('Failed to preload splash Lottie: $e\n$st');
-    }
-
-    // Build the auth state machine and the router before wiring deep links, so
-    // out-of-tree navigation (deep links / push) always has a router to target.
-    final authController = AuthFlowController()..start();
-    appRouter = createAppRouter(
-      authController,
-      splashComposition: splashComposition,
-    );
-
-    locator<PushNotificationManager>().attachForegroundListener();
-    locator<PushNotificationManager>().attachOpenedAppListener();
-    await locator<DeepLinkService>().initialize();
-
-    runApp(MyApp(authController: authController));
-  } catch (e) {
-    FlutterNativeSplash.remove();
-    runApp(ErrorApp(errorMessage: e.toString()));
+    splashComposition = await AssetLottie(_splashRevealAsset).load();
+  } catch (e, st) {
+    debugPrint('Failed to preload splash Lottie: $e\n$st');
   }
+
+  // Build the auth state machine and the router before wiring deep links, so
+  // out-of-tree navigation (deep links / push) always has a router to target.
+  final authController = AuthFlowController()..start();
+  appRouter = createAppRouter(
+    authController,
+    splashComposition: splashComposition,
+  );
+
+  locator<PushNotificationManager>().attachForegroundListener();
+  locator<PushNotificationManager>().attachOpenedAppListener();
+  await locator<DeepLinkService>().initialize();
+
+  return authController;
 }
 
 const Color darkGreen = Color(0xFF3D4A3D);
@@ -229,7 +251,19 @@ class ErrorApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        body: Center(child: Text('Failed to load environment: $errorMessage')),
+        backgroundColor: darkGreen,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'Failed to start:\n\n$errorMessage',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
