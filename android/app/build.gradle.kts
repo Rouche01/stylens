@@ -1,5 +1,7 @@
 import java.util.Properties
 import java.util.Base64
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -39,8 +41,7 @@ val posthogHost = envProperties.getProperty("POSTHOG_HOST")?.replace("\"", "") ?
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
@@ -53,10 +54,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
@@ -108,4 +105,11 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Flutter 3.44 auto-applies KGP when kotlin-android is omitted from plugins {}.
+// Pin Kotlin to the same bytecode target as compileOptions (Java 11).
+// Replace with kotlin { compilerOptions } after Flutter 3.47+ (Cursor plan: Android Built-in Kotlin).
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
 }
