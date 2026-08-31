@@ -95,15 +95,11 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
   }
 
   Future<void> _applyPlayback() async {
-    await _videoService.setPlayback(shouldPlay: _shouldPlay);
-
-    final controller = _videoService.controller;
-    if (_shouldPlay &&
-        controller != null &&
-        controller.value.isInitialized &&
-        controller.value.isPlaying) {
+    if (_shouldPlay && _videoService.isReady) {
       _hasShownVideo = true;
     }
+
+    await _videoService.setPlayback(shouldPlay: _shouldPlay);
 
     if (_shouldPlay) {
       _startLoopWatchdog();
@@ -153,7 +149,9 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
     final showVideoLayer =
         _videoService.isReady && controller != null && !_reduceMotion;
     final size = controller?.value.size;
-    final videoOpacity = showVideoLayer && _hasShownVideo ? 1.0 : 0.0;
+    final revealVideo =
+        showVideoLayer && (_hasShownVideo || _shouldPlay);
+    final videoOpacity = revealVideo ? 1.0 : 0.0;
 
     return RepaintBoundary(
       child: Stack(
