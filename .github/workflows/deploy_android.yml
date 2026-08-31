@@ -119,12 +119,7 @@ jobs:
                 echo "Configured $ENV_PATH for Flutter (--dart-define=ENV=$APP_ENV)"
 
             - name: Get packages
-              run: |
-                flutter pub get
-                # pub get writes GeneratedPluginRegistrant with dev-only plugins
-                # (integration_test). Fastlane builds via raw Gradle release, which
-                # does not compile those modules — delete so release inject skips them.
-                rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+              run: flutter pub get
 
             # v4.3.0
             - name: Cache Gradle

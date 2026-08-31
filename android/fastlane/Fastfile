@@ -25,21 +25,14 @@ platform :android do
     testers        = options[:testers]       || ""
     env            = options[:env]           || "staging"
 
-    # Inject the ENV dart-define so build.gradle picks up the right .env file
-    dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
-
-    scrub_dev_plugin_registrant!
-
-    # Build a signed release APK (AAB is required for Play Store only)
-    gradle(
-      task: "assemble",
-      build_type: "Release",
-      project_dir: "./",
-      properties: {
-        "dart-defines"        => dart_defines,
-        "versionCode"         => build_number.to_s,
-        "versionName"         => version.to_s,
-      }
+    # flutter build regenerates GeneratedPluginRegistrant in release mode
+    # (dev-only plugins like integration_test are excluded). Prefer this over
+    # raw Gradle assembleRelease, which can compile a stale registrant.
+    flutter_release_build!(
+      artifact: :apk,
+      env: env,
+      build_name: version.to_s,
+      build_number: build_number.to_s,
     )
 
     # Upload to Firebase App Distribution
@@ -67,23 +60,12 @@ platform :android do
     next_version_code = build_number.to_s.strip.empty? ? bump_version_code() : build_number.to_i
     UI.message("🔢 Using version code: #{next_version_code}")
 
-    dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
-
-    scrub_dev_plugin_registrant!
-
-    # Build a signed release AAB (required for Play Store uploads)
-    gradle(
-      task: "bundle",
-      build_type: "Release",
-      project_dir: "./",
-      flags: "-PversionCode=#{next_version_code}",
-      properties: {
-        "dart-defines"  => dart_defines,
-        "versionCode"   => next_version_code.to_s,
-      }
+    flutter_release_build!(
+      artifact: :appbundle,
+      env: env,
+      build_number: next_version_code.to_s,
     )
 
-    # Verify the AAB was built with the correct version code
     aab_path = "../build/app/outputs/bundle/release/app-release.aab"
     embedded_code = sh("aapt2 dump badging #{aab_path} 2>/dev/null | grep versionCode | grep -o \"versionCode='[^']*'\" | head -1 || echo 'aapt2 not available'", log: false).strip
     UI.message("✅ AAB embedded version info: #{embedded_code}")
@@ -91,7 +73,7 @@ platform :android do
     # Upload to Google Play
     upload_to_play_store(
       track: track,
-      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      aab: aab_path,
       json_key: "fastlane/play-store.json",
       release_status: "draft",
       version_codes_to_retain: [next_version_code],
@@ -107,10 +89,25 @@ platform :android do
   # Helpers
   # ---------------------------------------------------------------------------
 
-  # pub get can generate GeneratedPluginRegistrant.java with dev-only plugins
-  # (e.g. integration_test). Raw Gradle release builds do not compile those modules.
-  def scrub_dev_plugin_registrant!
-    sh("rm -f app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java", log: false)
+  # Builds a release APK or AAB via the Flutter CLI so plugin registration,
+  # dart-defines, and R8 setup follow Flutter's release pipeline.
+  def flutter_release_build!(artifact:, env:, build_number:, build_name: nil)
+    unless %i[apk appbundle].include?(artifact)
+      UI.user_error!("Unsupported Flutter artifact: #{artifact}")
+    end
+
+    cmd = [
+      "flutter", "build", artifact.to_s,
+      "--release",
+      "--dart-define=ENV=#{env}",
+      "--build-number=#{build_number}",
+    ]
+    cmd << "--build-name=#{build_name}" unless build_name.to_s.strip.empty?
+
+    UI.message("🛠️  #{cmd.join(' ')}")
+    Bundler.with_original_env do
+      sh("cd .. && #{cmd.join(' ')}")
+    end
   end
 
   # Returns the next versionCode by querying all tracks from Google Play
@@ -138,29 +135,6 @@ platform :android do
       UI.message("Next version code: #{next_code}")
       next_code
     end
-  end
-
-  # Builds a comma-separated dart-defines string with ENV= prepended.
-  # Merges with any pre-existing DART_DEFINES so other defines are preserved.
-  def build_dart_defines(env:, existing: nil)
-    require "base64"
-
-    new_define_b64 = Base64.strict_encode64("ENV=#{env}")
-
-    if existing.to_s.empty?
-      return new_define_b64
-    end
-
-    # Filter out any previous ENV= entries, then prepend the new one
-    filtered = existing.split(",").reject do |d|
-      begin
-        Base64.decode64(d).start_with?("ENV=")
-      rescue
-        false
-      end
-    end
-
-    ([new_define_b64] + filtered).join(",")
   end
 
   desc "Run integration tests to capture raw screenshots"
