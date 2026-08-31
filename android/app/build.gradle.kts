@@ -93,12 +93,9 @@ android {
         release {
             val releaseConfig = signingConfigs.findByName("release")
             signingConfig = releaseConfig ?: signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Minify + ProGuard: let the Flutter Gradle plugin configure R8 and
+            // inject flutter_proguard_rules.pro. App-specific keeps live in
+            // proguard-rules.pro (auto-appended when the file exists).
         }
     }
 }

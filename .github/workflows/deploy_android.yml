@@ -119,9 +119,7 @@ jobs:
                 echo "Configured $ENV_PATH for Flutter (--dart-define=ENV=$APP_ENV)"
 
             - name: Get packages
-              run: |
-                flutter pub get
-                rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+              run: flutter pub get
 
             # v4.3.0
             - name: Cache Gradle
