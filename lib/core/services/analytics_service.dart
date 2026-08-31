@@ -98,6 +98,20 @@ class AnalyticsService {
     );
   }
 
+  /// Fetches a feature flag value from PostHog.
+  ///
+  /// Prefer [FeatureFlagService.isEnabled] in app code — it supports local
+  /// debug/profile overrides.
+  Future<bool> fetchRemoteFeatureFlag(String key) async {
+    if (!isEnabled) return false;
+    try {
+      return await Posthog().isFeatureEnabled(key);
+    } catch (e) {
+      debugPrint('Failed to check feature flag "$key": $e');
+      return false;
+    }
+  }
+
   /// Reset the user (on logout)
   Future<void> reset() async {
     if (kDebugMode) {
