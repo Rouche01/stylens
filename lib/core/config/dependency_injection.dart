@@ -26,6 +26,7 @@ import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
+import 'package:gostylens/core/services/pose_video_service.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
 import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
@@ -78,6 +79,7 @@ Future<void> setupLocator() async {
   locator.registerSingleton<FeatureFlagService>(
     FeatureFlagService(analyticsService),
   );
+  locator.registerLazySingleton<PoseVideoService>(() => PoseVideoService());
 
   // Initialize Hybrid Cache Store for Dio (Memory + Hive)
   final cacheDir = await getApplicationDocumentsDirectory();

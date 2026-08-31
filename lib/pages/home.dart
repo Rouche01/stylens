@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/pose_video_service.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/satellite_action_button.dart';
@@ -18,14 +22,30 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
+  static const int _captureIndex = 1;
   static const int _historyIndex = 2;
 
-  void _onDestinationSelected(int index) {
-    widget.navigationShell.goBranch(
-      index,
-      // Re-tapping the active tab returns it to its initial route.
-      initialLocation: index == widget.navigationShell.currentIndex,
-    );
+  @override
+  void initState() {
+    super.initState();
+    unawaited(locator<PoseVideoService>().ensureInitialized());
+  }
+
+  Future<void> _onDestinationSelected(int index) async {
+    final shell = widget.navigationShell;
+    if (index == shell.currentIndex) {
+      shell.goBranch(index, initialLocation: true);
+      return;
+    }
+
+    final leavingCapture =
+        shell.currentIndex == _captureIndex && index != _captureIndex;
+    if (leavingCapture) {
+      await locator<PoseVideoService>().setPlayback(shouldPlay: false);
+    }
+
+    if (!mounted) return;
+    shell.goBranch(index);
   }
 
   @override
@@ -58,7 +78,9 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
               padding: EdgeInsets.fromLTRB(16, 0, 16, dockBottom),
               child: FloatingNavBar(
                 selectedIndex: selectedIndex,
-                onDestinationSelected: _onDestinationSelected,
+                onDestinationSelected: (index) {
+                  unawaited(_onDestinationSelected(index));
+                },
               ),
             ),
           ),

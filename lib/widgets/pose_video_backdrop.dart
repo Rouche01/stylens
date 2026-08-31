@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/services/pose_video_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:video_player/video_player.dart';
 
@@ -12,8 +15,8 @@ import 'package:video_player/video_player.dart';
 class PoseVideoBackdrop extends StatefulWidget {
   const PoseVideoBackdrop({super.key});
 
-  static const videoAsset = 'assets/videos/strike_a_pose.mp4';
-  static const posterAsset = 'assets/imgs/capture/strike_a_pose_poster.jpg';
+  static const videoAsset = PoseVideoService.videoAsset;
+  static const posterAsset = PoseVideoService.posterAsset;
 
   @override
   State<PoseVideoBackdrop> createState() => _PoseVideoBackdropState();
@@ -21,19 +24,25 @@ class PoseVideoBackdrop extends StatefulWidget {
 
 class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
     with WidgetsBindingObserver {
-  VideoPlayerController? _controller;
+  final PoseVideoService _videoService = locator<PoseVideoService>();
+
   GoRouter? _router;
   Timer? _loopTimer;
-  var _ready = false;
   var _tickersEnabled = true;
   var _reduceMotion = false;
-  var _restarting = false;
+  var _hasShownVideo = false;
+
+  static const _crossfadeDuration = Duration(milliseconds: 280);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initController();
+    unawaited(
+      _videoService.ensureInitialized().then((_) {
+        if (mounted) _syncPlayback();
+      }),
+    );
   }
 
   @override
@@ -62,39 +71,8 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
     _loopTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _router?.routerDelegate.removeListener(_syncPlayback);
-    _controller?.dispose();
-    _controller = null;
+    unawaited(_videoService.setPlayback(shouldPlay: false));
     super.dispose();
-  }
-
-  Future<void> _initController() async {
-    final controller = VideoPlayerController.asset(
-      PoseVideoBackdrop.videoAsset,
-      videoPlayerOptions: VideoPlayerOptions(
-        mixWithOthers: true,
-        preventsDisplaySleepDuringVideoPlayback: false,
-      ),
-    );
-    try {
-      await controller.initialize();
-      await controller.setVolume(0);
-      await controller.setLooping(true);
-    } catch (e, stackTrace) {
-      debugPrint('PoseVideoBackdrop failed to load: $e\n$stackTrace');
-      await controller.dispose();
-      return;
-    }
-
-    if (!mounted) {
-      await controller.dispose();
-      return;
-    }
-
-    setState(() {
-      _controller = controller;
-      _ready = true;
-    });
-    _syncPlayback();
   }
 
   /// Visible Capture tab with nothing pushed over the shell.
@@ -107,7 +85,7 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
   }
 
   bool get _shouldPlay {
-    if (!mounted || !_ready) return false;
+    if (!mounted || !_videoService.isReady) return false;
     if (_reduceMotion || !_tickersEnabled) return false;
     final lifecycle = WidgetsBinding.instance.lifecycleState;
     if (lifecycle != null && lifecycle != AppLifecycleState.resumed) {
@@ -116,43 +94,43 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
     return _isCaptureForeground;
   }
 
-  Future<void> _ensurePlaying() async {
-    if (_restarting) return;
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) return;
+  Future<void> _applyPlayback() async {
+    await _videoService.setPlayback(shouldPlay: _shouldPlay);
 
-    if (!_shouldPlay) {
+    final controller = _videoService.controller;
+    if (_shouldPlay &&
+        controller != null &&
+        controller.value.isInitialized &&
+        controller.value.isPlaying) {
+      _hasShownVideo = true;
+    }
+
+    if (_shouldPlay) {
+      _startLoopWatchdog();
+    } else {
       _stopLoopWatchdog();
-      if (controller.value.isPlaying) await controller.pause();
-      return;
     }
 
-    _startLoopWatchdog();
-    if (controller.value.isPlaying) return;
-
-    _restarting = true;
-    try {
-      if (controller.value.position > Duration.zero) {
-        await controller.seekTo(Duration.zero);
-      }
-      if (mounted && _shouldPlay) {
-        await controller.play();
-      }
-    } finally {
-      _restarting = false;
-    }
+    if (mounted) setState(() {});
   }
 
   void _syncPlayback() {
-    unawaited(_ensurePlaying());
+    if (_shouldPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_applyPlayback());
+      });
+      return;
+    }
+    unawaited(_applyPlayback());
   }
 
-  /// iOS `setLooping` can seek to 0 without `play()`. Only poll while Capture
-  /// is actually in the foreground.
+  /// iOS `setLooping` can stall without `play()`. Android relies on native loop.
   void _startLoopWatchdog() {
-    if (_loopTimer != null) return;
-    _loopTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      _ensurePlaying();
+    if (!Platform.isIOS || _loopTimer != null) return;
+    _loopTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_shouldPlay) {
+        unawaited(_videoService.setPlayback(shouldPlay: true));
+      }
     });
   }
 
@@ -171,34 +149,43 @@ class _PoseVideoBackdropState extends State<PoseVideoBackdrop>
       });
     }
 
-    final controller = _controller;
-    final showVideo = _ready && controller != null && !_reduceMotion;
+    final controller = _videoService.controller;
+    final showVideoLayer =
+        _videoService.isReady && controller != null && !_reduceMotion;
     final size = controller?.value.size;
+    final videoOpacity = showVideoLayer && _hasShownVideo ? 1.0 : 0.0;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            PoseVideoBackdrop.posterAsset,
-            fit: BoxFit.cover,
-            alignment: const Alignment(0, -0.2),
-          ),
-        ),
-        if (showVideo && size != null && size.width > 0 && size.height > 0)
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
           Positioned.fill(
-            child: FittedBox(
+            child: Image.asset(
+              PoseVideoService.posterAsset,
               fit: BoxFit.cover,
               alignment: const Alignment(0, -0.2),
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: size.width,
-                height: size.height,
-                child: IgnorePointer(child: VideoPlayer(controller)),
-              ),
             ),
           ),
-      ],
+          if (showVideoLayer && size != null && size.width > 0 && size.height > 0)
+            Positioned.fill(
+              child: AnimatedOpacity(
+                duration: _crossfadeDuration,
+                curve: Curves.easeOut,
+                opacity: videoOpacity,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  alignment: const Alignment(0, -0.2),
+                  clipBehavior: Clip.hardEdge,
+                  child: SizedBox(
+                    width: size.width,
+                    height: size.height,
+                    child: IgnorePointer(child: VideoPlayer(controller)),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

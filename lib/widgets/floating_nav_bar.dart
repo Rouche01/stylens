@@ -24,6 +24,10 @@ class FloatingNavBar extends StatefulWidget {
   /// Delay before the active-tab icon bounce so it lands with the sliding pill.
   static const Duration iconBounceDelay = Duration(milliseconds: 140);
 
+  /// Duration of the sliding pill when switching tabs — keep shell fades in sync.
+  static const Duration tabTransitionDuration = Duration(milliseconds: 320);
+  static const Curve tabTransitionCurve = Curves.easeOutCubic;
+
   static const _radius = 26.0;
   static const _inset = 5.0;
 
@@ -69,7 +73,7 @@ class FloatingNavBar extends StatefulWidget {
 
 class _FloatingNavBarState extends State<FloatingNavBar>
     with SingleTickerProviderStateMixin {
-  static const _slideDuration = Duration(milliseconds: 320);
+  static const _slideDuration = FloatingNavBar.tabTransitionDuration;
 
   late final AnimationController _slideController;
   late Animation<double> _indexAnimation;
@@ -108,7 +112,10 @@ class _FloatingNavBarState extends State<FloatingNavBar>
           begin: _fromIndex.toDouble(),
           end: widget.selectedIndex.toDouble(),
         ).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+          CurvedAnimation(
+            parent: _slideController,
+            curve: FloatingNavBar.tabTransitionCurve,
+          ),
         );
     _slideController.forward(from: 0);
   }
