@@ -28,6 +28,8 @@ platform :android do
     # Inject the ENV dart-define so build.gradle picks up the right .env file
     dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
 
+    scrub_dev_plugin_registrant!
+
     # Build a signed release APK (AAB is required for Play Store only)
     gradle(
       task: "assemble",
@@ -67,6 +69,8 @@ platform :android do
 
     dart_defines = build_dart_defines(env: env, existing: ENV["DART_DEFINES"])
 
+    scrub_dev_plugin_registrant!
+
     # Build a signed release AAB (required for Play Store uploads)
     gradle(
       task: "bundle",
@@ -102,6 +106,12 @@ platform :android do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
+
+  # pub get can generate GeneratedPluginRegistrant.java with dev-only plugins
+  # (e.g. integration_test). Raw Gradle release builds do not compile those modules.
+  def scrub_dev_plugin_registrant!
+    sh("rm -f app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java", log: false)
+  end
 
   # Returns the next versionCode by querying all tracks from Google Play
   # and incrementing the highest found by 1.
