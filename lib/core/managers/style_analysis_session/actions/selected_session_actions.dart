@@ -401,6 +401,12 @@ mixin SelectedSessionActions {
       String? finalSessionId = id;
       if (isNew) {
         finalSessionId = await create((message) => throw Exception(message));
+        if (finalSessionId != null) {
+          locator<AnalyticsService>().capture(
+            'style_analysis_session_created',
+            properties: {'session_id': finalSessionId},
+          );
+        }
       } else {
         final success = await addMessageRemote(
           UserRole.user,

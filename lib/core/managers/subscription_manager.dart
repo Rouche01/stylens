@@ -258,17 +258,32 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Store list price in the user's store currency, plus PostHog revenue fields.
+  /// [price_usd] is set only when the store currency is already USD — Apple/Google
+  /// do not provide a USD equivalent. Convert other currencies in PostHog
+  /// (`convertCurrency` or Revenue analytics reporting currency).
+  Map<String, Object> _purchaseAnalyticsProperties(Package package) {
+    final product = package.storeProduct;
+    final currency = product.currencyCode.toUpperCase();
+    final price = product.price;
+    return {
+      'package': package.identifier,
+      'package_type': package.packageType.name,
+      'user_id': _currentUserId ?? 'unknown',
+      'price': price,
+      'currency': currency,
+      'revenue': price,
+      'price_string': product.priceString,
+      if (currency == 'USD') 'price_usd': price,
+    };
+  }
+
   Future<bool> purchasePackage(Package package) async {
-    final packageId = package.identifier;
-    final packageType = package.packageType.name;
+    final purchaseProps = _purchaseAnalyticsProperties(package);
 
     await AnalyticsService().capture(
       'purchase_started',
-      properties: {
-        'package': packageId,
-        'package_type': packageType,
-        'user_id': _currentUserId ?? 'unknown',
-      },
+      properties: purchaseProps,
     );
 
     try {
@@ -287,11 +302,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       if (completed) {
         await AnalyticsService().capture(
           'purchase_completed',
-          properties: {
-            'package': packageId,
-            'package_type': packageType,
-            'user_id': _currentUserId ?? 'unknown',
-          },
+          properties: purchaseProps,
         );
       }
       return completed;
@@ -301,10 +312,8 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
         await AnalyticsService().capture(
           'purchase_failed',
           properties: {
-            'package': packageId,
-            'package_type': packageType,
+            ...purchaseProps,
             'error_code': e.code,
-            'user_id': _currentUserId ?? 'unknown',
           },
         );
         await AnalyticsService().captureException(
