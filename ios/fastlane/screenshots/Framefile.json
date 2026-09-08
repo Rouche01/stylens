@@ -13,45 +13,33 @@
   },
   "data": [
     {
-      "filter": "screenshot_auth",
-      "title": {
-        "text": "Meet your new\npersonal stylist"
-      }
-    },
-    {
-      "filter": "screenshot_home",
+      "filter": "screenshot_style_analysis_chat",
+      "background": "../background.png",
       "title": {
         "text": "Get an instant\nfit check"
       }
     },
     {
-      "filter": "screenshot_choose_gallery",
+      "filter": "screenshot_home",
+      "background": "../background-alt.png",
       "title": {
-        "text": "Upload fits\nfrom your gallery"
-      }
-    },
-    {
-      "filter": "screenshot_closet",
-      "title": {
-        "text": "Your wardrobe,\nauto-organized"
+        "color": "#3D4A3D",
+        "text": "Meet your new\npersonal stylist"
       }
     },
     {
       "filter": "screenshot_history",
+      "background": "../background.png",
       "title": {
-        "text": "Review your\npast styles"
+        "text": "Revisit your\nfit checks"
       }
     },
     {
-      "filter": "screenshot_style_analysis_chat",
+      "filter": "screenshot_camera_or_gallery",
+      "background": "../background-alt.png",
       "title": {
-        "text": "Get tailored\nstyle advice"
-      }
-    },
-    {
-      "filter": "screenshot_profile",
-      "title": {
-        "text": "Manage your settings\nand preferences"
+        "color": "#3D4A3D",
+        "text": "Add fits from\ncamera or gallery"
       }
     }
   ]
