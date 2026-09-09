@@ -304,6 +304,49 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(await store.read(), 'VIP');
     });
+
+    test('https://gostylens.app/history + userReady returns /history', () {
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.userReady,
+          Uri.parse('https://gostylens.app/history'),
+        ),
+        AppRoutes.history,
+      );
+    });
+
+    test('https://gostylens.app/session/s1 + userReady stashes and returns /history', () {
+      DeepLinkDestination? stashed;
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.userReady,
+          Uri.parse('https://gostylens.app/session/s1'),
+          onStashPending: (d) => stashed = d,
+        ),
+        AppRoutes.history,
+      );
+      expect(stashed?.target, DeepLinkTarget.session);
+      expect(stashed?.sessionId, 's1');
+    });
+
+    test('https://gostylens.app/invite?code=X persists code and returns stage-neutral', () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = InviteCodeStore();
+      DeepLinkDestination? stashed;
+
+      expect(
+        redirectForDeepLinkUri(
+          AuthStage.unauthenticated,
+          Uri.parse('https://gostylens.app/invite?code=summer50'),
+          onStashPending: (d) => stashed = d,
+          inviteCodeStore: store,
+        ),
+        AppRoutes.login,
+      );
+      expect(stashed, isNull);
+      await Future<void>.delayed(Duration.zero);
+      expect(await store.read(), 'SUMMER50');
+    });
   });
 
   group('neutralLocationForStage', () {

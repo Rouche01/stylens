@@ -5,30 +5,36 @@ import 'package:gostylens/core/managers/invite_code_store.dart';
 class DeepLinkParser {
   static const supportedScheme = 'gostylens';
 
+  /// HTTPS hosts claimed by Universal Links (iOS) and App Links (Android).
+  static const httpsHosts = {'gostylens.app', 'www.gostylens.app'};
+
+  /// Custom-scheme `gostylens://…` or HTTPS `https://gostylens.app/…`.
+  static bool isAppLink(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == supportedScheme) return true;
+    return scheme == 'https' && httpsHosts.contains(uri.host.toLowerCase());
+  }
+
   /// Returns null when [uri] is not a GoStylens deep link (e.g. Google OAuth).
-  /// Invite-only links (`gostylens://invite?...`) return null so navigation
-  /// falls through to the stage-neutral route after the code is persisted.
+  /// Invite-only links (`gostylens://invite?…` or `/invite`) return null so
+  /// navigation falls through to the stage-neutral route after the code is
+  /// persisted.
   DeepLinkDestination? parseUri(Uri uri) {
-    if (uri.scheme.toLowerCase() != supportedScheme) return null;
+    if (!isAppLink(uri)) return null;
 
-    var host = uri.host;
-    var pathSegments = List<String>.from(uri.pathSegments);
+    final parts = _decompose(uri);
 
-    // Some platforms emit gostylens:/history (path-only) instead of gostylens://history.
-    if (host.isEmpty && pathSegments.isEmpty && uri.path.isNotEmpty) {
-      pathSegments = uri.path
-          .split('/')
-          .where((segment) => segment.isNotEmpty)
-          .toList();
-    }
-
-    if (_isInviteOnly(host: host, pathSegments: pathSegments, dest: uri.queryParameters['dest'])) {
+    if (_isInviteOnly(
+      host: parts.host,
+      pathSegments: parts.pathSegments,
+      dest: uri.queryParameters['dest'],
+    )) {
       return null;
     }
 
     return _parseLocation(
-      host: host,
-      pathSegments: pathSegments,
+      host: parts.host,
+      pathSegments: parts.pathSegments,
       dest: uri.queryParameters['dest'],
       sessionId: _normalizeSessionId(
         uri.queryParameters['session_id'] ?? uri.queryParameters['sessionId'],
@@ -38,28 +44,16 @@ class DeepLinkParser {
 
   /// Extracts a normalized invite code from a GoStylens URI, if present.
   String? extractInviteCode(Uri uri) {
-    if (uri.scheme.toLowerCase() != supportedScheme) return null;
+    if (!isAppLink(uri)) return null;
 
     final fromQuery = InviteCodeStore.normalize(
       uri.queryParameters['code'] ?? uri.queryParameters['inviteCode'],
     );
     if (fromQuery != null) return fromQuery;
 
-    var host = uri.host.toLowerCase();
-    var pathSegments = List<String>.from(uri.pathSegments);
-    if (host.isEmpty && pathSegments.isEmpty && uri.path.isNotEmpty) {
-      pathSegments = uri.path
-          .split('/')
-          .where((segment) => segment.isNotEmpty)
-          .toList();
-      if (pathSegments.isNotEmpty) {
-        host = pathSegments.first.toLowerCase();
-        pathSegments = pathSegments.skip(1).toList();
-      }
-    }
-
-    if (host == 'invite' && pathSegments.isNotEmpty) {
-      return InviteCodeStore.normalize(pathSegments.first);
+    final parts = _decompose(uri);
+    if (parts.host == 'invite' && parts.pathSegments.isNotEmpty) {
+      return InviteCodeStore.normalize(parts.pathSegments.first);
     }
 
     return null;
@@ -100,6 +94,39 @@ class DeepLinkParser {
     return link is String && link.isNotEmpty;
   }
 
+  /// Maps custom-scheme hosts and HTTPS path prefixes onto the same
+  /// `(host, pathSegments)` shape used by [_parseLocation].
+  ///
+  /// `gostylens://session/abc` and `https://gostylens.app/session/abc` both
+  /// become `host=session`, `pathSegments=[abc]`.
+  ({String host, List<String> pathSegments}) _decompose(Uri uri) {
+    var host = '';
+    var pathSegments = <String>[];
+
+    if (uri.scheme.toLowerCase() == 'https') {
+      pathSegments =
+          uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    } else {
+      host = uri.host;
+      pathSegments = List<String>.from(uri.pathSegments);
+      // Some platforms emit gostylens:/history (path-only) instead of
+      // gostylens://history.
+      if (host.isEmpty && pathSegments.isEmpty && uri.path.isNotEmpty) {
+        pathSegments = uri.path
+            .split('/')
+            .where((segment) => segment.isNotEmpty)
+            .toList();
+      }
+    }
+
+    if (host.isEmpty && pathSegments.isNotEmpty) {
+      host = pathSegments.first;
+      pathSegments = pathSegments.skip(1).toList();
+    }
+
+    return (host: host.toLowerCase(), pathSegments: pathSegments);
+  }
+
   String? _normalizeSessionId(dynamic raw) {
     if (raw == null) return null;
     final id = raw.toString().trim();
@@ -111,8 +138,8 @@ class DeepLinkParser {
     required List<String> pathSegments,
     required String? dest,
   }) {
-    if (host.toLowerCase() == 'invite') return true;
-    if (host.toLowerCase() == 'open' && dest?.toLowerCase() == 'invite') {
+    if (host == 'invite') return true;
+    if (host == 'open' && dest?.toLowerCase() == 'invite') {
       return true;
     }
     if (host.isEmpty &&

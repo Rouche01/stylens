@@ -38,8 +38,9 @@ class DeepLinkService {
   InviteCodeStore get _store =>
       _inviteCodeStore ?? locator<InviteCodeStore>();
 
-  /// Subscribes to warm-resume custom-scheme links. Cold-start links are handled
-  /// by GoRouter's platform route provider and [redirectForDeepLinkUri].
+  /// Subscribes to warm-resume app links (`gostylens://` and
+  /// `https://gostylens.app/…`). Cold-start links are handled by GoRouter's
+  /// platform route provider and [redirectForDeepLinkUri].
   Future<void> initialize() async {
     _linkSubscription ??= _appLinks.uriLinkStream.listen(
       _handleUri,

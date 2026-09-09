@@ -218,8 +218,9 @@ String? redirectForIntro({
   return location == AppRoutes.intro ? null : AppRoutes.intro;
 }
 
-/// Translates a platform `gostylens://` URI into an in-app location, applying
-/// auth gating and stashing blocked destinations for later. Exposed for testing.
+/// Translates a platform `gostylens://` or `https://gostylens.app/…` URI into
+/// an in-app location, applying auth gating and stashing blocked destinations
+/// for later. Exposed for testing.
 @visibleForTesting
 String? redirectForDeepLinkUri(
   AuthStage stage,
@@ -293,7 +294,7 @@ String? _redirect(AuthFlowController auth, GoRouterState state) {
 
   final introCompleted = locator<IntroWalkthroughStore>().hasCompleted;
 
-  if (state.uri.scheme == DeepLinkParser.supportedScheme) {
+  if (DeepLinkParser.isAppLink(state.uri)) {
     return redirectForDeepLinkUri(
       auth.stage,
       state.uri,

@@ -50,6 +50,53 @@ void main() {
         isNull,
       );
     });
+
+    test('parses https://gostylens.app paths like the custom scheme', () {
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/history'))?.target,
+        DeepLinkTarget.history,
+      );
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/paywall'))?.target,
+        DeepLinkTarget.paywall,
+      );
+      expect(
+        parser.parseUri(
+          Uri.parse('https://gostylens.app/open?dest=billing'),
+        )?.target,
+        DeepLinkTarget.billing,
+      );
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/get'))?.target,
+        DeepLinkTarget.capture,
+      );
+      expect(
+        parser.parseUri(Uri.parse('https://www.gostylens.app/closet'))?.target,
+        DeepLinkTarget.closet,
+      );
+    });
+
+    test('parses https session id from path', () {
+      final destination = parser.parseUri(
+        Uri.parse('https://gostylens.app/session/abc'),
+      );
+      expect(destination?.target, DeepLinkTarget.session);
+      expect(destination?.sessionId, 'abc');
+    });
+
+    test('ignores https hosts that are not gostylens.app', () {
+      expect(
+        parser.parseUri(Uri.parse('https://example.com/history')),
+        isNull,
+      );
+    });
+
+    test('https invite-only paths return null destination', () {
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/invite?code=SUMMER50')),
+        isNull,
+      );
+    });
   });
 
   group('extractInviteCode', () {
@@ -82,6 +129,21 @@ void main() {
       expect(
         parser.extractInviteCode(Uri.parse('gostylens://history')),
         isNull,
+      );
+    });
+
+    test('reads https invite query and path codes', () {
+      expect(
+        parser.extractInviteCode(
+          Uri.parse('https://gostylens.app/invite?code=summer50'),
+        ),
+        'SUMMER50',
+      );
+      expect(
+        parser.extractInviteCode(
+          Uri.parse('https://gostylens.app/invite/promo1'),
+        ),
+        'PROMO1',
       );
     });
   });
