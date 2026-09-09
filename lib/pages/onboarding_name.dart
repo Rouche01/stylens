@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
 import 'package:gostylens/core/config/feature_flags.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
@@ -47,7 +47,7 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
   }
 
   Future<void> _loadPendingInviteCode() async {
-    final pending = await locator<InviteCodeStore>().read();
+    final pending = await locator<InviteCodeManager>().read();
     if (!mounted || pending == null) return;
     if (_inviteController.text.trim().isNotEmpty) return;
     _inviteController.text = pending;
@@ -88,7 +88,7 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
       name: _nameController.text.trim(),
     );
 
-    await locator<InviteCodeStore>().save(_inviteController.text);
+    await locator<InviteCodeManager>().save(_inviteController.text);
 
     if (!mounted) return;
     context.push(AppRoutes.onboardingGender);
@@ -114,7 +114,7 @@ class _OnboardingNamePageState extends State<OnboardingNamePage> {
                       children: [
                         const SizedBox(height: 8),
                         StepProgressBar(
-                          totalSteps: 2,
+                          totalSteps: 3,
                           currentStep: 1,
                           activeColor: Theme.of(context).colorScheme.primary,
                         ),

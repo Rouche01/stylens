@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:gostylens/widgets/step_progress_bar.dart';
-import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:provider/provider.dart';
 
@@ -30,37 +30,18 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
     ),
   ];
 
-  void _finishOnboarding({required Gender gender, required bool skipped}) {
-    final userStateManager = context.read<UserStateManager>();
-    userStateManager.updateRegistrationDraft(gender: gender);
-
-    userStateManager.createProfile(
-      onSuccess: (user, {required bool inviteApplied}) {
-        locator<AnalyticsService>().capture(
-          'onboarding_completed',
-          properties: {'gender': gender.value, 'skipped': skipped},
-        );
-        if (!mounted || !inviteApplied) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Invite applied')));
-      },
-      onError: (error) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      },
-    );
+  void _goToEmailStep({required Gender gender, required bool skipped}) {
+    context.read<UserStateManager>().updateRegistrationDraft(gender: gender);
+    context.push(AppRoutes.onboardingEmail, extra: skipped);
   }
 
   void _onContinue() {
     if (_selectedIndex == null) return;
-    _finishOnboarding(gender: _options[_selectedIndex!].gender, skipped: false);
+    _goToEmailStep(gender: _options[_selectedIndex!].gender, skipped: false);
   }
 
   void _onSkip() {
-    _finishOnboarding(gender: Gender.unspecified, skipped: true);
+    _goToEmailStep(gender: Gender.unspecified, skipped: true);
   }
 
   @override
@@ -93,7 +74,7 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: StepProgressBar(
-                                totalSteps: 2,
+                                totalSteps: 3,
                                 currentStep: 2,
                                 activeColor: Theme.of(
                                   context,
@@ -174,7 +155,6 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                             ),
                           );
                         }),
-                        // const SizedBox(height: 8),
                         Text(
                           'Gender helps us give better styling advice.',
                           style: TextStyle(
@@ -187,54 +167,30 @@ class _OnboardingGenderPageState extends State<OnboardingGenderPage> {
                           textAlign: TextAlign.left,
                         ),
                         const Spacer(),
-                        Consumer<UserStateManager>(
-                          builder: (context, userStateManager, child) {
-                            return Row(
-                              children: [
-                                Expanded(
-                                  flex: 1,
-                                  child: CustomOutlinedButton(
-                                    label: 'Skip',
-                                    onPressed:
-                                        userStateManager
-                                            .operationState
-                                            .isCreating
-                                        ? null
-                                        : _onSkip,
-                                    disabled: userStateManager
-                                        .operationState
-                                        .isCreating,
-                                  ),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: CustomOutlinedButton(
+                                label: 'Skip',
+                                onPressed: _onSkip,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: PrimaryButton(
+                                label: 'Continue',
+                                onPressed: _onContinue,
+                                disabled: _selectedIndex == null,
+                                icon: const Icon(
+                                  Icons.arrow_forward,
+                                  size: 20,
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  flex: 2,
-                                  child: PrimaryButton(
-                                    label: 'Finish',
-                                    onPressed:
-                                        userStateManager
-                                            .operationState
-                                            .isCreating
-                                        ? null
-                                        : _onContinue,
-                                    disabled:
-                                        _selectedIndex == null ||
-                                        userStateManager
-                                            .operationState
-                                            .isCreating,
-                                    isLoading: userStateManager
-                                        .operationState
-                                        .isCreating,
-                                    icon: const Icon(
-                                      Icons.arrow_forward,
-                                      size: 20,
-                                    ),
-                                    iconAlignment: IconAlignment.end,
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                                iconAlignment: IconAlignment.end,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -18,6 +18,7 @@ import 'slices/session_streaming_slice.dart';
 import 'slices/sessions_slice.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:gostylens/core/marketing_email/reask.dart';
 
 enum ManagerStateSliceName {
   sessions,
@@ -562,6 +563,9 @@ class StyleAnalysisSessionManager extends ChangeNotifier {
         markSessionsListStale();
         _sessionsSlice.bumpSessionActivity(id);
         _sessionsSlice.refreshPreservingPagination(silent: true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          MarketingEmailReask.maybePromptAfterFirstTip();
+        });
       },
       onError: (id, error) {
         if (_selectedSessionSlice.sessionId == id) {

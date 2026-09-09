@@ -5,34 +5,37 @@ import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 import 'package:gostylens/core/services/api_service/config_api_service.dart';
 import 'package:gostylens/models/api_responses/stylist_openers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class StylistOpenersManager with WidgetsBindingObserver {
   StylistOpenersManager({
     ConfigApiService? apiService,
+    LocalPrefsService? prefs,
     Random? random,
     Duration refreshInterval = const Duration(hours: 1),
     int recentIdsLimit = 15,
   }) : _apiServiceOverride = apiService,
+       _prefsOverride = prefs,
        _random = random ?? Random(),
        _refreshInterval = refreshInterval,
        _recentIdsLimit = recentIdsLimit {
     WidgetsBinding.instance.addObserver(this);
   }
 
-  static const _poolKey = 'stylist_openers_pool';
-  static const _checkedAtKey = 'stylist_openers_checked_at';
-  static const _recentIdsKey = 'stylist_openers_recent_ids';
-
   final ConfigApiService? _apiServiceOverride;
+  final LocalPrefsService? _prefsOverride;
   final Random _random;
   final Duration _refreshInterval;
   final int _recentIdsLimit;
 
   ConfigApiService get _apiService =>
       _apiServiceOverride ?? locator<ConfigApiService>();
+
+  LocalPrefsService get _prefs =>
+      _prefsOverride ?? locator<LocalPrefsService>();
 
   StylistOpenersPool? _pool;
   List<String> _recentIds = [];
@@ -192,8 +195,7 @@ class StylistOpenersManager with WidgetsBindingObserver {
 
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
-    final prefs = await SharedPreferences.getInstance();
-    final rawPool = prefs.getString(_poolKey);
+    final rawPool = _prefs.get(PrefKeys.stylistOpenersPool);
     if (rawPool != null && rawPool.isNotEmpty) {
       try {
         final decoded = jsonDecode(rawPool);
@@ -209,12 +211,12 @@ class StylistOpenersManager with WidgetsBindingObserver {
       }
     }
 
-    final checkedMs = prefs.getInt(_checkedAtKey);
+    final checkedMs = _prefs.get(PrefKeys.stylistOpenersCheckedAt);
     if (checkedMs != null) {
       _lastCheckedAt = DateTime.fromMillisecondsSinceEpoch(checkedMs);
     }
 
-    final recent = prefs.getStringList(_recentIdsKey);
+    final recent = _prefs.get(PrefKeys.stylistOpenersRecentIds);
     if (recent != null) {
       _recentIds = List<String>.from(recent);
     }
@@ -226,24 +228,27 @@ class StylistOpenersManager with WidgetsBindingObserver {
   Future<void> warmCache() => _ensureLoaded();
 
   Future<void> _persistAll() async {
-    final prefs = await SharedPreferences.getInstance();
     if (_pool != null) {
-      await prefs.setString(_poolKey, jsonEncode(_pool!.toJson()));
+      await _prefs.set(
+        PrefKeys.stylistOpenersPool,
+        jsonEncode(_pool!.toJson()),
+      );
     }
-    await _persistMeta(prefs: prefs);
-    await _persistRecentIds(prefs: prefs);
+    await _persistMeta();
+    await _persistRecentIds();
   }
 
-  Future<void> _persistMeta({SharedPreferences? prefs}) async {
-    final store = prefs ?? await SharedPreferences.getInstance();
+  Future<void> _persistMeta() async {
     if (_lastCheckedAt != null) {
-      await store.setInt(_checkedAtKey, _lastCheckedAt!.millisecondsSinceEpoch);
+      await _prefs.set(
+        PrefKeys.stylistOpenersCheckedAt,
+        _lastCheckedAt!.millisecondsSinceEpoch,
+      );
     }
   }
 
-  Future<void> _persistRecentIds({SharedPreferences? prefs}) async {
-    final store = prefs ?? await SharedPreferences.getInstance();
-    await store.setStringList(_recentIdsKey, _recentIds);
+  Future<void> _persistRecentIds() async {
+    await _prefs.set(PrefKeys.stylistOpenersRecentIds, _recentIds);
   }
 
   /// Test helper: seed in-memory pool without prefs/network.

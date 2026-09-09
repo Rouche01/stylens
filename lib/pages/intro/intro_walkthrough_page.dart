@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/managers/intro_walkthrough_store.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/pages/intro/chat_slide.dart';
@@ -74,7 +75,10 @@ class _IntroWalkthroughPageState extends State<IntroWalkthroughPage> {
     } else {
       await analytics.capture('intro_completed');
     }
-    await locator<IntroWalkthroughStore>().markCompleted();
+    await locator<LocalPrefsService>().set(
+      PrefKeys.introWalkthroughCompleted,
+      true,
+    );
     if (!mounted) return;
     context.go(AppRoutes.login);
   }

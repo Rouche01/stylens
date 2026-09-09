@@ -1,6 +1,6 @@
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/push_notification_types.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
 
 class DeepLinkParser {
   static const supportedScheme = 'gostylens';
@@ -46,14 +46,14 @@ class DeepLinkParser {
   String? extractInviteCode(Uri uri) {
     if (!isAppLink(uri)) return null;
 
-    final fromQuery = InviteCodeStore.normalize(
+    final fromQuery = InviteCodeManager.normalize(
       uri.queryParameters['code'] ?? uri.queryParameters['inviteCode'],
     );
     if (fromQuery != null) return fromQuery;
 
     final parts = _decompose(uri);
     if (parts.host == 'invite' && parts.pathSegments.isNotEmpty) {
-      return InviteCodeStore.normalize(parts.pathSegments.first);
+      return InviteCodeManager.normalize(parts.pathSegments.first);
     }
 
     return null;
@@ -104,8 +104,9 @@ class DeepLinkParser {
     var pathSegments = <String>[];
 
     if (uri.scheme.toLowerCase() == 'https') {
-      pathSegments =
-          uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+      pathSegments = uri.pathSegments
+          .where((segment) => segment.isNotEmpty)
+          .toList();
     } else {
       host = uri.host;
       pathSegments = List<String>.from(uri.pathSegments);
@@ -177,9 +178,7 @@ class DeepLinkParser {
 
     final first = pathSegments.first.toLowerCase();
     if (first == 'session') {
-      final id = pathSegments.length > 1
-          ? pathSegments[1]
-          : sessionId;
+      final id = pathSegments.length > 1 ? pathSegments[1] : sessionId;
       if (id != null && id.isNotEmpty) {
         return DeepLinkDestination.session(id);
       }
@@ -189,10 +188,7 @@ class DeepLinkParser {
     return _destinationFromName(first, sessionId: sessionId);
   }
 
-  DeepLinkDestination _destinationFromName(
-    String? name, {
-    String? sessionId,
-  }) {
+  DeepLinkDestination _destinationFromName(String? name, {String? sessionId}) {
     switch (name?.toLowerCase()) {
       case 'closet':
         return DeepLinkDestination.closet;

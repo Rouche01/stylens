@@ -3,11 +3,12 @@ import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:gostylens/models/api_responses/email_prefs.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
@@ -17,10 +18,11 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   final UserApiService _userApiService;
-  final SubscriptionManager _subscriptionManager =
+  SubscriptionManager get _subscriptionManager =>
       locator<SubscriptionManager>();
 
-  UserStateManager() : _userApiService = locator<UserApiService>();
+  UserStateManager({UserApiService? userApiService})
+    : _userApiService = userApiService ?? locator<UserApiService>();
 
   UserOperationState _operationState = const UserOperationState();
   @override
@@ -35,6 +37,12 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   ErrorData? _lastError;
   @override
   ErrorData? get lastError => _lastError;
+
+  EmailPrefs? _emailPrefs;
+  EmailPrefs? get emailPrefs => _emailPrefs;
+
+  bool _isUpdatingEmailPrefs = false;
+  bool get isUpdatingEmailPrefs => _isUpdatingEmailPrefs;
 
   // Registration Draft State
   User? _registrationDraft;
@@ -132,6 +140,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
         locator<PushNotificationManager>().initialize();
         locator<StylistOpenersManager>().ensureFresh();
         onSuccess?.call(userData);
+        fetchEmailPrefs();
       } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
         _operationState = _operationState.copyWith(
           fetchStatus: UserFetchStatus.onboarding,
@@ -187,8 +196,8 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       final emailToSave =
           _registrationDraft!.email?.trim() ?? supabaseUser.email?.trim();
 
-      final inviteStore = locator<InviteCodeStore>();
-      final inviteCode = await inviteStore.read();
+      final inviteManager = locator<InviteCodeManager>();
+      final inviteCode = await inviteManager.read();
 
       final response = await _userApiService.createUser(
         authId: supabaseUser.id,
@@ -202,7 +211,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       if (response.isSuccess && userData != null) {
         final inviteApplied = inviteCode != null;
         if (inviteApplied) {
-          await inviteStore.clear();
+          await inviteManager.clear();
         }
         _registrationDraft =
             null; // Clear the draft state after successful creation
@@ -248,6 +257,47 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       onError?.call('Error creating user profile: $e');
     } finally {
       _operationState = _operationState.copyWith(isCreating: false);
+      notifyListeners();
+    }
+  }
+
+  /// Loads marketing email prefs. Soft-fails; missing row is opted out.
+  Future<void> fetchEmailPrefs() async {
+    try {
+      final response = await _userApiService.getEmailPrefs();
+      if (response.isSuccess && response.data != null) {
+        _emailPrefs = response.data;
+        notifyListeners();
+      }
+    } catch (_) {
+      // Profile toggle can retry; do not surface as a hard user error.
+    }
+  }
+
+  /// PATCHes marketing opt-in. Optimistically updates, then reverts on failure.
+  Future<bool> setMarketingOptIn(bool value) async {
+    final previous = _emailPrefs;
+    _isUpdatingEmailPrefs = true;
+    _emailPrefs = (previous ?? EmailPrefs.optedOut).copyWith(
+      marketingOptIn: value,
+    );
+    notifyListeners();
+
+    try {
+      final response = await _userApiService.updateEmailPrefs(
+        marketingOptIn: value,
+      );
+      if (response.isSuccess && response.data != null) {
+        _emailPrefs = response.data;
+        return true;
+      }
+      _emailPrefs = previous;
+      return false;
+    } catch (_) {
+      _emailPrefs = previous;
+      return false;
+    } finally {
+      _isUpdatingEmailPrefs = false;
       notifyListeners();
     }
   }
@@ -328,6 +378,8 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   Future<void> clearState() async {
     _currentUser = null;
     _registrationDraft = null;
+    _emailPrefs = null;
+    _isUpdatingEmailPrefs = false;
     _operationState = const UserOperationState();
     _lastError = null;
     await _subscriptionManager.clearState();

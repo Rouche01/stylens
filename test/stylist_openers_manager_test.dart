@@ -3,14 +3,19 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gostylens/constants/ux_messages.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
 import 'package:gostylens/models/api_responses/stylist_openers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  late LocalPrefsService prefs;
+
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    prefs = LocalPrefsService(await SharedPreferences.getInstance());
+    await prefs.warm();
   });
 
   StylistOpenersManager managerWithPool(
@@ -18,7 +23,7 @@ void main() {
     List<String>? recentIds,
     int seed = 1,
   }) {
-    final manager = StylistOpenersManager(random: Random(seed));
+    final manager = StylistOpenersManager(random: Random(seed), prefs: prefs);
     manager.debugSetPool(
       StylistOpenersPool(version: 1, messages: messages),
       recentIds: recentIds,
@@ -28,7 +33,7 @@ void main() {
 
   group('StylistOpenersManager.pickTexts', () {
     test('falls back to UxMessages when pool is empty', () {
-      final manager = StylistOpenersManager(random: Random(1));
+      final manager = StylistOpenersManager(random: Random(1), prefs: prefs);
       manager.debugSetPool(const StylistOpenersPool(version: 0, messages: []));
 
       expect(

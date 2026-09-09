@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/primary_button.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -21,8 +23,6 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   bool _hasNotified = false;
   bool _justNotified = false;
-
-  static const _prefKey = 'closet_notified';
 
   final List<FaIconData> _clothingIcons = [
     FontAwesomeIcons.shirt,
@@ -51,10 +51,13 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadNotifiedState() async {
-    final prefs = await SharedPreferences.getInstance();
+    final notified = locator<LocalPrefsService>().getOr(
+      PrefKeys.closetNotified,
+      false,
+    );
     if (mounted) {
       setState(() {
-        _hasNotified = prefs.getBool(_prefKey) ?? false;
+        _hasNotified = notified;
       });
     }
   }
@@ -300,14 +303,13 @@ class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
 
                                       AnalyticsService().capture(
                                         'closet_notify_me',
-                                        properties: {
-                                          'email': ?email,
-                                        },
+                                        properties: {'email': ?email},
                                       );
 
-                                      final prefs =
-                                          await SharedPreferences.getInstance();
-                                      await prefs.setBool(_prefKey, true);
+                                      await locator<LocalPrefsService>().set(
+                                        PrefKeys.closetNotified,
+                                        true,
+                                      );
 
                                       if (mounted) {
                                         setState(() {

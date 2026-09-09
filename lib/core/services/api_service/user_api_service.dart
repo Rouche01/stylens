@@ -1,5 +1,6 @@
 import './base_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:gostylens/models/api_responses/email_prefs.dart';
 import 'package:gostylens/models/api_responses/user.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 
@@ -68,6 +69,29 @@ class UserApiService extends BaseApiService {
     return delete<void>(
       '/$userId',
       defaultErrorMessage: 'Failed to delete user',
+    );
+  }
+
+  Future<ApiResponse<EmailPrefs>> getEmailPrefs() async {
+    return get<EmailPrefs>(
+      '/me/email-prefs',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
+      fromJson: (data) => EmailPrefs.fromJson(data as Map<String, dynamic>),
+      defaultErrorMessage: 'Failed to load email preferences',
+    );
+  }
+
+  Future<ApiResponse<EmailPrefs>> updateEmailPrefs({
+    required bool marketingOptIn,
+  }) async {
+    return patch<EmailPrefs>(
+      '/me/email-prefs',
+      body: {'marketingOptIn': marketingOptIn},
+      fromJson: (data) => EmailPrefs.fromJson(data as Map<String, dynamic>),
+      defaultErrorMessage: 'Failed to update email preferences',
     );
   }
 }

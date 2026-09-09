@@ -1,10 +1,13 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 
 /// Persists a pending invite code from deep links / onboarding until profile create.
-class InviteCodeStore {
-  static const prefsKey = 'pending_invite_code';
+class InviteCodeManager {
+  InviteCodeManager({LocalPrefsService? prefs})
+    : _prefs = prefs ?? locator<LocalPrefsService>();
 
-  String? _cached;
+  final LocalPrefsService _prefs;
 
   /// Normalizes and stores [code]. Empty input clears the pending code.
   Future<void> save(String code) async {
@@ -13,22 +16,15 @@ class InviteCodeStore {
       await clear();
       return;
     }
-    _cached = normalized;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(prefsKey, normalized);
+    await _prefs.set(PrefKeys.pendingInviteCode, normalized);
   }
 
   Future<String?> read() async {
-    if (_cached != null && _cached!.isNotEmpty) return _cached;
-    final prefs = await SharedPreferences.getInstance();
-    _cached = prefs.getString(prefsKey);
-    return _cached;
+    return _prefs.get(PrefKeys.pendingInviteCode);
   }
 
   Future<void> clear() async {
-    _cached = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(prefsKey);
+    await _prefs.remove(PrefKeys.pendingInviteCode);
   }
 
   /// Trim + uppercase; returns null when empty.

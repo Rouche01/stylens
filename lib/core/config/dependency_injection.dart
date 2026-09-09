@@ -33,8 +33,9 @@ import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
-import 'package:gostylens/core/managers/intro_walkthrough_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
@@ -176,6 +177,11 @@ Future<void> setupLocator() async {
   // Setup Google Sign In
   locator.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn.instance);
 
+  final prefs = await SharedPreferences.getInstance();
+  final localPrefs = LocalPrefsService(prefs);
+  await localPrefs.warm();
+  locator.registerSingleton<LocalPrefsService>(localPrefs);
+
   // Register Managers as Lazy Singletons
   locator.registerLazySingleton<SubscriptionManager>(
     () => SubscriptionManager(),
@@ -190,10 +196,7 @@ Future<void> setupLocator() async {
     () => PushNotificationManager(),
   );
   locator.registerLazySingleton<LocationManager>(() => LocationManager());
-  locator.registerLazySingleton<InviteCodeStore>(() => InviteCodeStore());
-  final introStore = IntroWalkthroughStore();
-  await introStore.warm();
-  locator.registerSingleton<IntroWalkthroughStore>(introStore);
+  locator.registerLazySingleton<InviteCodeManager>(() => InviteCodeManager());
   locator.registerLazySingleton<StylistOpenersManager>(
     () => StylistOpenersManager(),
   );

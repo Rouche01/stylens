@@ -1,12 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
 import 'package:gostylens/navigation/app_router.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+Future<InviteCodeManager> inviteManagerForTest() async {
+  SharedPreferences.setMockInitialValues({});
+  final sp = await SharedPreferences.getInstance();
+  final prefs = LocalPrefsService(sp);
+  await prefs.warm();
+  return InviteCodeManager(prefs: prefs);
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('redirectForStage', () {
     test('booting always lands on splash', () {
       expect(redirectForStage(AuthStage.booting, '/capture'), AppRoutes.splash);
@@ -18,12 +29,21 @@ void main() {
         redirectForStage(AuthStage.unauthenticated, '/capture'),
         AppRoutes.login,
       );
-      expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.login), isNull);
-      expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.otp), isNull);
-      expect(redirectForStage(AuthStage.unauthenticated, AppRoutes.intro), isNull);
+      expect(
+        redirectForStage(AuthStage.unauthenticated, AppRoutes.login),
+        isNull,
+      );
+      expect(
+        redirectForStage(AuthStage.unauthenticated, AppRoutes.otp),
+        isNull,
+      );
+      expect(
+        redirectForStage(AuthStage.unauthenticated, AppRoutes.intro),
+        isNull,
+      );
     });
 
-    test('onboarding allows both onboarding steps', () {
+    test('onboarding allows all onboarding steps', () {
       expect(
         redirectForStage(AuthStage.onboarding, '/capture'),
         AppRoutes.onboardingName,
@@ -34,6 +54,10 @@ void main() {
       );
       expect(
         redirectForStage(AuthStage.onboarding, AppRoutes.onboardingGender),
+        isNull,
+      );
+      expect(
+        redirectForStage(AuthStage.onboarding, AppRoutes.onboardingEmail),
         isNull,
       );
     });
@@ -77,14 +101,29 @@ void main() {
 
   group('locationForDestination', () {
     test('maps tab destinations', () {
-      expect(locationForDestination(DeepLinkDestination.capture), AppRoutes.capture);
-      expect(locationForDestination(DeepLinkDestination.closet), AppRoutes.closet);
-      expect(locationForDestination(DeepLinkDestination.history), AppRoutes.history);
+      expect(
+        locationForDestination(DeepLinkDestination.capture),
+        AppRoutes.capture,
+      );
+      expect(
+        locationForDestination(DeepLinkDestination.closet),
+        AppRoutes.closet,
+      );
+      expect(
+        locationForDestination(DeepLinkDestination.history),
+        AppRoutes.history,
+      );
     });
 
     test('maps detail destinations', () {
-      expect(locationForDestination(DeepLinkDestination.paywall), AppRoutes.paywall);
-      expect(locationForDestination(DeepLinkDestination.billing), AppRoutes.billing);
+      expect(
+        locationForDestination(DeepLinkDestination.paywall),
+        AppRoutes.paywall,
+      );
+      expect(
+        locationForDestination(DeepLinkDestination.billing),
+        AppRoutes.billing,
+      );
     });
 
     test('maps session by id, falling back to capture when empty', () {
@@ -179,39 +218,42 @@ void main() {
       );
     });
 
-    test('gostylens://billing + unauthenticated stashes and returns /login', () {
-      DeepLinkDestination? stashed;
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.unauthenticated,
-          Uri.parse('gostylens://billing'),
-          onStashPending: (d) => stashed = d,
-        ),
-        AppRoutes.login,
-      );
-      expect(stashed?.target, DeepLinkTarget.billing);
-    });
+    test(
+      'gostylens://billing + unauthenticated stashes and returns /login',
+      () {
+        DeepLinkDestination? stashed;
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.unauthenticated,
+            Uri.parse('gostylens://billing'),
+            onStashPending: (d) => stashed = d,
+          ),
+          AppRoutes.login,
+        );
+        expect(stashed?.target, DeepLinkTarget.billing);
+      },
+    );
 
-    test('gostylens://billing + unauthenticated + incomplete intro → /intro', () {
-      DeepLinkDestination? stashed;
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.unauthenticated,
-          Uri.parse('gostylens://billing'),
-          onStashPending: (d) => stashed = d,
-          introCompleted: false,
-        ),
-        AppRoutes.intro,
-      );
-      expect(stashed?.target, DeepLinkTarget.billing);
-    });
+    test(
+      'gostylens://billing + unauthenticated + incomplete intro → /intro',
+      () {
+        DeepLinkDestination? stashed;
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.unauthenticated,
+            Uri.parse('gostylens://billing'),
+            onStashPending: (d) => stashed = d,
+            introCompleted: false,
+          ),
+          AppRoutes.intro,
+        );
+        expect(stashed?.target, DeepLinkTarget.billing);
+      },
+    );
 
     test('gostylens:// empty host + userReady returns /capture', () {
       expect(
-        redirectForDeepLinkUri(
-          AuthStage.userReady,
-          Uri.parse('gostylens://'),
-        ),
+        redirectForDeepLinkUri(AuthStage.userReady, Uri.parse('gostylens://')),
         AppRoutes.capture,
       );
     });
@@ -269,41 +311,45 @@ void main() {
       expect(stashed?.sessionId, 's1');
     });
 
-    test('gostylens://invite?code=X persists code and returns stage-neutral', () async {
-      SharedPreferences.setMockInitialValues({});
-      final store = InviteCodeStore();
-      DeepLinkDestination? stashed;
+    test(
+      'gostylens://invite?code=X persists code and returns stage-neutral',
+      () async {
+        final manager = await inviteManagerForTest();
+        DeepLinkDestination? stashed;
 
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.unauthenticated,
-          Uri.parse('gostylens://invite?code=summer50'),
-          onStashPending: (d) => stashed = d,
-          inviteCodeStore: store,
-        ),
-        AppRoutes.login,
-      );
-      expect(stashed, isNull);
-      // Allow unawaited save to flush
-      await Future<void>.delayed(Duration.zero);
-      expect(await store.read(), 'SUMMER50');
-    });
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.unauthenticated,
+            Uri.parse('gostylens://invite?code=summer50'),
+            onStashPending: (d) => stashed = d,
+            inviteCodeManager: manager,
+          ),
+          AppRoutes.login,
+        );
+        expect(stashed, isNull);
+        // Allow unawaited save to flush
+        await Future<void>.delayed(Duration.zero);
+        expect(await manager.read(), 'SUMMER50');
+      },
+    );
 
-    test('gostylens://capture?code=X keeps capture destination and stores code', () async {
-      SharedPreferences.setMockInitialValues({});
-      final store = InviteCodeStore();
+    test(
+      'gostylens://capture?code=X keeps capture destination and stores code',
+      () async {
+        final manager = await inviteManagerForTest();
 
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.userReady,
-          Uri.parse('gostylens://capture?code=VIP'),
-          inviteCodeStore: store,
-        ),
-        AppRoutes.capture,
-      );
-      await Future<void>.delayed(Duration.zero);
-      expect(await store.read(), 'VIP');
-    });
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.userReady,
+            Uri.parse('gostylens://capture?code=VIP'),
+            inviteCodeManager: manager,
+          ),
+          AppRoutes.capture,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(await manager.read(), 'VIP');
+      },
+    );
 
     test('https://gostylens.app/history + userReady returns /history', () {
       expect(
@@ -315,38 +361,43 @@ void main() {
       );
     });
 
-    test('https://gostylens.app/session/s1 + userReady stashes and returns /history', () {
-      DeepLinkDestination? stashed;
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.userReady,
-          Uri.parse('https://gostylens.app/session/s1'),
-          onStashPending: (d) => stashed = d,
-        ),
-        AppRoutes.history,
-      );
-      expect(stashed?.target, DeepLinkTarget.session);
-      expect(stashed?.sessionId, 's1');
-    });
+    test(
+      'https://gostylens.app/session/s1 + userReady stashes and returns /history',
+      () {
+        DeepLinkDestination? stashed;
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.userReady,
+            Uri.parse('https://gostylens.app/session/s1'),
+            onStashPending: (d) => stashed = d,
+          ),
+          AppRoutes.history,
+        );
+        expect(stashed?.target, DeepLinkTarget.session);
+        expect(stashed?.sessionId, 's1');
+      },
+    );
 
-    test('https://gostylens.app/invite?code=X persists code and returns stage-neutral', () async {
-      SharedPreferences.setMockInitialValues({});
-      final store = InviteCodeStore();
-      DeepLinkDestination? stashed;
+    test(
+      'https://gostylens.app/invite?code=X persists code and returns stage-neutral',
+      () async {
+        final manager = await inviteManagerForTest();
+        DeepLinkDestination? stashed;
 
-      expect(
-        redirectForDeepLinkUri(
-          AuthStage.unauthenticated,
-          Uri.parse('https://gostylens.app/invite?code=summer50'),
-          onStashPending: (d) => stashed = d,
-          inviteCodeStore: store,
-        ),
-        AppRoutes.login,
-      );
-      expect(stashed, isNull);
-      await Future<void>.delayed(Duration.zero);
-      expect(await store.read(), 'SUMMER50');
-    });
+        expect(
+          redirectForDeepLinkUri(
+            AuthStage.unauthenticated,
+            Uri.parse('https://gostylens.app/invite?code=summer50'),
+            onStashPending: (d) => stashed = d,
+            inviteCodeManager: manager,
+          ),
+          AppRoutes.login,
+        );
+        expect(stashed, isNull);
+        await Future<void>.delayed(Duration.zero);
+        expect(await manager.read(), 'SUMMER50');
+      },
+    );
   });
 
   group('neutralLocationForStage', () {
@@ -404,7 +455,10 @@ void main() {
     });
 
     test('semanticShellForLocation', () {
-      expect(semanticShellForLocation(AppRoutes.session('x')), AppRoutes.history);
+      expect(
+        semanticShellForLocation(AppRoutes.session('x')),
+        AppRoutes.history,
+      );
       expect(semanticShellForLocation(AppRoutes.paywall), AppRoutes.capture);
       expect(semanticShellForLocation(AppRoutes.billing), AppRoutes.capture);
     });

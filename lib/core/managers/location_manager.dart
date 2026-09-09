@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 
 enum LocationAccessResult {
   granted,
@@ -10,39 +12,32 @@ enum LocationAccessResult {
 }
 
 class GeoCoordinates {
-  const GeoCoordinates({
-    required this.latitude,
-    required this.longitude,
-  });
+  const GeoCoordinates({required this.latitude, required this.longitude});
 
   final double latitude;
   final double longitude;
 }
 
 class LocationManager {
-  static const _explainerShownKey = 'location_explainer_shown';
-  static const _userDeclinedKey = 'location_user_declined';
-  static const _cachedLatKey = 'location_cached_lat';
-  static const _cachedLngKey = 'location_cached_lng';
-  static const _cachedAtKey = 'location_cached_at';
+  LocationManager({LocalPrefsService? prefs})
+    : _prefs = prefs ?? locator<LocalPrefsService>();
+
+  final LocalPrefsService _prefs;
   static const _cacheTtl = Duration(minutes: 30);
 
   Future<bool> hasShownExplainer() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_explainerShownKey) ?? false;
+    return _prefs.getOr(PrefKeys.locationExplainerShown, false);
   }
 
   Future<void> markExplainerShown({required bool userDeclined}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_explainerShownKey, true);
+    await _prefs.set(PrefKeys.locationExplainerShown, true);
     if (userDeclined) {
-      await prefs.setBool(_userDeclinedKey, true);
+      await _prefs.set(PrefKeys.locationUserDeclined, true);
     }
   }
 
   Future<bool> _hasUserDeclined() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_userDeclinedKey) ?? false;
+    return _prefs.getOr(PrefKeys.locationUserDeclined, false);
   }
 
   Future<bool> hasPermission() async {
@@ -85,7 +80,7 @@ class LocationManager {
   Future<GeoCoordinates?> getCurrentPosition() async {
     if (!await hasPermission()) return null;
 
-    final cached = await _readCachedCoordinates();
+    final cached = _readCachedCoordinates();
     if (cached != null) return cached;
 
     if (!await Geolocator.isLocationServiceEnabled()) return null;
@@ -108,11 +103,10 @@ class LocationManager {
     }
   }
 
-  Future<GeoCoordinates?> _readCachedCoordinates() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lat = prefs.getDouble(_cachedLatKey);
-    final lng = prefs.getDouble(_cachedLngKey);
-    final cachedAtMs = prefs.getInt(_cachedAtKey);
+  GeoCoordinates? _readCachedCoordinates() {
+    final lat = _prefs.get(PrefKeys.locationCachedLat);
+    final lng = _prefs.get(PrefKeys.locationCachedLng);
+    final cachedAtMs = _prefs.get(PrefKeys.locationCachedAt);
     if (lat == null || lng == null || cachedAtMs == null) return null;
 
     final cachedAt = DateTime.fromMillisecondsSinceEpoch(cachedAtMs);
@@ -122,10 +116,12 @@ class LocationManager {
   }
 
   Future<void> _cacheCoordinates(GeoCoordinates coordinates) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_cachedLatKey, coordinates.latitude);
-    await prefs.setDouble(_cachedLngKey, coordinates.longitude);
-    await prefs.setInt(_cachedAtKey, DateTime.now().millisecondsSinceEpoch);
+    await _prefs.set(PrefKeys.locationCachedLat, coordinates.latitude);
+    await _prefs.set(PrefKeys.locationCachedLng, coordinates.longitude);
+    await _prefs.set(
+      PrefKeys.locationCachedAt,
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Future<bool> openSettings() {

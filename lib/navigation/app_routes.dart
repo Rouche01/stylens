@@ -14,6 +14,7 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const onboardingName = '/onboarding/name';
   static const onboardingGender = '/onboarding/gender';
+  static const onboardingEmail = '/onboarding/email';
   static const error = '/error';
 
   // Tab (shell branch) locations.

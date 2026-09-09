@@ -6,8 +6,9 @@ import 'package:lottie/lottie.dart';
 import 'dart:async';
 
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
-import 'package:gostylens/core/managers/intro_walkthrough_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/prefs/pref_keys.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
@@ -23,6 +24,7 @@ import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/history.dart';
 import 'package:gostylens/pages/home.dart';
 import 'package:gostylens/pages/intro/intro_walkthrough_page.dart';
+import 'package:gostylens/pages/onboarding_email.dart';
 import 'package:gostylens/pages/onboarding_gender.dart';
 import 'package:gostylens/pages/onboarding_name.dart';
 import 'package:gostylens/pages/otp_verification.dart';
@@ -96,11 +98,13 @@ GoRouter createAppRouter(
         builder: (context, state) => const OnboardingGenderPage(),
       ),
       GoRoute(
+        path: AppRoutes.onboardingEmail,
+        builder: (context, state) => const OnboardingEmailPage(),
+      ),
+      GoRoute(
         path: AppRoutes.error,
-        builder: (context, state) => AuthErrorView(
-          error: auth.errorData,
-          onRetry: auth.retry,
-        ),
+        builder: (context, state) =>
+            AuthErrorView(error: auth.errorData, onRetry: auth.retry),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
@@ -179,8 +183,7 @@ String? redirectForStage(AuthStage stage, String location) {
     case AuthStage.booting:
       return location == AppRoutes.splash ? null : AppRoutes.splash;
     case AuthStage.unauthenticated:
-      if (location.startsWith(AppRoutes.login) ||
-          location == AppRoutes.intro) {
+      if (location.startsWith(AppRoutes.login) || location == AppRoutes.intro) {
         return null;
       }
       return AppRoutes.login;
@@ -227,14 +230,14 @@ String? redirectForDeepLinkUri(
   Uri uri, {
   DeepLinkParser? parser,
   void Function(DeepLinkDestination destination)? onStashPending,
-  InviteCodeStore? inviteCodeStore,
+  InviteCodeManager? inviteCodeManager,
   bool introCompleted = true,
 }) {
   final linkParser = parser ?? DeepLinkParser();
   final inviteCode = linkParser.extractInviteCode(uri);
   if (inviteCode != null) {
-    final store = inviteCodeStore ?? locator<InviteCodeStore>();
-    unawaited(store.save(inviteCode));
+    final manager = inviteCodeManager ?? locator<InviteCodeManager>();
+    unawaited(manager.save(inviteCode));
   }
 
   final destination = linkParser.parseUri(uri);
@@ -292,7 +295,10 @@ String? _redirect(AuthFlowController auth, GoRouterState state) {
     }
   }
 
-  final introCompleted = locator<IntroWalkthroughStore>().hasCompleted;
+  final introCompleted = locator<LocalPrefsService>().getOr(
+    PrefKeys.introWalkthroughCompleted,
+    false,
+  );
 
   if (DeepLinkParser.isAppLink(state.uri)) {
     return redirectForDeepLinkUri(
@@ -316,10 +322,7 @@ String? _redirect(AuthFlowController auth, GoRouterState state) {
 /// A safe in-app location for the current [stage], used when a custom-scheme
 /// URI cannot be parsed or auth blocks the intended destination.
 @visibleForTesting
-String neutralLocationForStage(
-  AuthStage stage, {
-  bool introCompleted = true,
-}) =>
+String neutralLocationForStage(AuthStage stage, {bool introCompleted = true}) =>
     switch (stage) {
       AuthStage.booting => AppRoutes.splash,
       AuthStage.unauthenticated =>
@@ -330,8 +333,7 @@ String neutralLocationForStage(
     };
 
 /// Current top-of-stack location, usable outside the widget tree.
-String currentLocation() =>
-    appRouter.routerDelegate.state.matchedLocation;
+String currentLocation() => appRouter.routerDelegate.state.matchedLocation;
 
 /// Whether the chat (style analysis) screen is currently on top.
 bool isOnSessionRoute() => isSessionLocation(currentLocation());
@@ -359,7 +361,6 @@ bool isViewingSession(String sessionId) {
   return matchesViewingSession(
     location: currentLocation(),
     sessionId: sessionId,
-    managerSessionId:
-        locator<StyleAnalysisSessionManager>().selectedSessionId,
+    managerSessionId: locator<StyleAnalysisSessionManager>().selectedSessionId,
   );
 }

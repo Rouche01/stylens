@@ -1,15 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/constants/links.dart';
+import 'package:gostylens/constants/ux_messages.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/marketing_email/consent.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/profile_edit_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ProfileMenuPage extends StatelessWidget {
+class ProfileMenuPage extends StatefulWidget {
   const ProfileMenuPage({super.key});
+
+  @override
+  State<ProfileMenuPage> createState() => _ProfileMenuPageState();
+}
+
+class _ProfileMenuPageState extends State<ProfileMenuPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<UserStateManager>().fetchEmailPrefs();
+    });
+  }
 
   Future<void> _logout(BuildContext context) async {
     final authState = context.read<AuthStateManager>();
@@ -22,6 +40,26 @@ class ProfileMenuPage extends StatelessWidget {
           ).showSnackBar(SnackBar(content: Text('Logout failed: $error')));
         }
       },
+    );
+  }
+
+  Future<void> _onMarketingEmailChanged(
+    BuildContext context,
+    UserStateManager userState,
+    bool value,
+  ) async {
+    final ok = await userState.setMarketingOptIn(value);
+    if (!ok) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(UxMessages.marketingEmailUpdateFailed)),
+        );
+      }
+      return;
+    }
+    locator<AnalyticsService>().capture(
+      value ? 'marketing_email_opt_in' : 'marketing_email_declined',
+      properties: {'source': MarketingEmailConsent.sourceProfile},
     );
   }
 
@@ -247,6 +285,21 @@ class ProfileMenuPage extends StatelessWidget {
                       onTap: () {
                         context.push(AppRoutes.billing);
                       },
+                    ),
+                    _MenuItem(
+                      icon: Icons.mail_outline,
+                      label: UxMessages.marketingEmailProfileLabel,
+                      onTap: null,
+                      trailing: Switch(
+                        value: userState.emailPrefs?.marketingOptIn ?? false,
+                        onChanged: userState.isUpdatingEmailPrefs
+                            ? null
+                            : (value) => _onMarketingEmailChanged(
+                                context,
+                                userState,
+                                value,
+                              ),
+                      ),
                     ),
                   ],
                 ),

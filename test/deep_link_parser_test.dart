@@ -76,6 +76,21 @@ void main() {
       );
     });
 
+    test('https://gostylens.app root and /capture open Capture', () {
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app'))?.target,
+        DeepLinkTarget.capture,
+      );
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/'))?.target,
+        DeepLinkTarget.capture,
+      );
+      expect(
+        parser.parseUri(Uri.parse('https://gostylens.app/capture'))?.target,
+        DeepLinkTarget.capture,
+      );
+    });
+
     test('parses https session id from path', () {
       final destination = parser.parseUri(
         Uri.parse('https://gostylens.app/session/abc'),

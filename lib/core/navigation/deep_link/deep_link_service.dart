@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
-import 'package:gostylens/core/managers/invite_code_store.dart';
+import 'package:gostylens/core/managers/invite_code_manager.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_router.dart';
@@ -15,16 +15,16 @@ class DeepLinkService {
     AppLinks? appLinks,
     DeepLinkParser? parser,
     DeepLinkRouter? router,
-    InviteCodeStore? inviteCodeStore,
-  })  : _appLinks = appLinks ?? AppLinks(),
-        _parser = parser ?? DeepLinkParser(),
-        _router = router ?? DeepLinkRouter(),
-        _inviteCodeStore = inviteCodeStore;
+    InviteCodeManager? inviteCodeManager,
+  }) : _appLinks = appLinks ?? AppLinks(),
+       _parser = parser ?? DeepLinkParser(),
+       _router = router ?? DeepLinkRouter(),
+       _inviteCodeManager = inviteCodeManager;
 
   final AppLinks _appLinks;
   final DeepLinkParser _parser;
   final DeepLinkRouter _router;
-  final InviteCodeStore? _inviteCodeStore;
+  final InviteCodeManager? _inviteCodeManager;
 
   StreamSubscription<Uri>? _linkSubscription;
   PendingDeepLink? _pending;
@@ -35,8 +35,8 @@ class DeepLinkService {
   @visibleForTesting
   bool get navigationReady => _navigationReady;
 
-  InviteCodeStore get _store =>
-      _inviteCodeStore ?? locator<InviteCodeStore>();
+  InviteCodeManager get _manager =>
+      _inviteCodeManager ?? locator<InviteCodeManager>();
 
   /// Subscribes to warm-resume app links (`gostylens://` and
   /// `https://gostylens.app/…`). Cold-start links are handled by GoRouter's
@@ -107,7 +107,7 @@ class DeepLinkService {
   Future<void> _persistInviteFromUri(Uri uri) async {
     final code = _parser.extractInviteCode(uri);
     if (code == null) return;
-    await _store.save(code);
+    await _manager.save(code);
   }
 
   void _enqueueOrDispatch(DeepLinkDestination destination) {
