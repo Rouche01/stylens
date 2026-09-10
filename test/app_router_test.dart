@@ -93,6 +93,10 @@ void main() {
       expect(redirectForStage(AuthStage.userReady, AppRoutes.closet), isNull);
       expect(redirectForStage(AuthStage.userReady, AppRoutes.billing), isNull);
       expect(
+        redirectForStage(AuthStage.userReady, AppRoutes.profileNotifications),
+        isNull,
+      );
+      expect(
         redirectForStage(AuthStage.userReady, AppRoutes.session('abc')),
         isNull,
       );

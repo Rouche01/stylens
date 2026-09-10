@@ -44,12 +44,12 @@ abstract class UxMessages {
       'Location services are turned off on this device.';
 
   // --- Marketing email consent ---
-  static const String marketingEmailTitle = 'Get fit-check tips by email';
+  // Shared by onboarding + post-activation re-ask sheet — keep copy valid in both contexts.
+  static const String marketingEmailTitle = 'Want style tips by email?';
   static const String marketingEmailBody =
-      'Occasional tips to help you get your first fit check. You can change this anytime in Profile.';
-  static const String marketingEmailYes = 'Yes';
+      'Occasional fit-check nudges, nothing spammy. Change anytime in Profile.';
+  static const String marketingEmailYes = 'Yes, email me';
   static const String marketingEmailNotNow = 'Not now';
-  static const String marketingEmailProfileLabel = 'Fit-check tips by email';
   static const String marketingEmailUpdateFailed =
       'Couldn\'t update email preference. Try again.';
 }

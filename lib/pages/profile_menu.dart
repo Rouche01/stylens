@@ -1,33 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/constants/links.dart';
-import 'package:gostylens/constants/ux_messages.dart';
-import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
-import 'package:gostylens/core/marketing_email/consent.dart';
-import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/profile_edit_sheet.dart';
+import 'package:gostylens/widgets/settings_menu_group.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ProfileMenuPage extends StatefulWidget {
+class ProfileMenuPage extends StatelessWidget {
   const ProfileMenuPage({super.key});
-
-  @override
-  State<ProfileMenuPage> createState() => _ProfileMenuPageState();
-}
-
-class _ProfileMenuPageState extends State<ProfileMenuPage> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<UserStateManager>().fetchEmailPrefs();
-    });
-  }
 
   Future<void> _logout(BuildContext context) async {
     final authState = context.read<AuthStateManager>();
@@ -40,26 +23,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
           ).showSnackBar(SnackBar(content: Text('Logout failed: $error')));
         }
       },
-    );
-  }
-
-  Future<void> _onMarketingEmailChanged(
-    BuildContext context,
-    UserStateManager userState,
-    bool value,
-  ) async {
-    final ok = await userState.setMarketingOptIn(value);
-    if (!ok) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(UxMessages.marketingEmailUpdateFailed)),
-        );
-      }
-      return;
-    }
-    locator<AnalyticsService>().capture(
-      value ? 'marketing_email_opt_in' : 'marketing_email_declined',
-      properties: {'source': MarketingEmailConsent.sourceProfile},
     );
   }
 
@@ -141,64 +104,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
     );
   }
 
-  Widget _buildMenuGroup(
-    BuildContext context, {
-    required List<_MenuItem> items,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < items.length; i++) ...[
-            Material(
-              color: Colors.transparent,
-              child: ListTile(
-                leading: Icon(
-                  items[i].icon,
-                  color: items[i].color ?? cs.primary.withValues(alpha: 0.7),
-                  size: 22,
-                ),
-                title: Text(
-                  items[i].label,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: items[i].color ?? cs.primary,
-                  ),
-                ),
-                trailing:
-                    items[i].trailing ??
-                    Icon(
-                      Icons.chevron_right,
-                      color: cs.primary.withValues(alpha: 0.3),
-                      size: 20,
-                    ),
-                onTap: items[i].onTap,
-                dense: true,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            if (i < items.length - 1)
-              Divider(
-                height: 1,
-                indent: 16,
-                endIndent: 16,
-                color: cs.primary.withValues(alpha: 0.06),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -237,7 +142,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
             child: Column(
               children: [
                 const SizedBox(height: 24),
-                // Profile Avatar
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: cs.secondary.withValues(alpha: 0.4),
@@ -248,7 +152,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Display Name
                 Text(
                   displayName,
                   style: TextStyle(
@@ -270,46 +173,34 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                 ],
                 const SizedBox(height: 32),
 
-                // Group 1: Account
-                _buildMenuGroup(
-                  context,
+                SettingsMenuGroup(
                   items: [
-                    _MenuItem(
+                    SettingsMenuItem(
                       icon: Icons.person_outline,
                       label: 'Profile',
                       onTap: () => _showProfileEditSheet(context),
                     ),
-                    _MenuItem(
+                    SettingsMenuItem(
                       icon: Icons.credit_card,
                       label: 'Billing / Plan',
                       onTap: () {
                         context.push(AppRoutes.billing);
                       },
                     ),
-                    _MenuItem(
-                      icon: Icons.mail_outline,
-                      label: UxMessages.marketingEmailProfileLabel,
-                      onTap: null,
-                      trailing: Switch(
-                        value: userState.emailPrefs?.marketingOptIn ?? false,
-                        onChanged: userState.isUpdatingEmailPrefs
-                            ? null
-                            : (value) => _onMarketingEmailChanged(
-                                context,
-                                userState,
-                                value,
-                              ),
-                      ),
+                    SettingsMenuItem(
+                      icon: Icons.notifications_outlined,
+                      label: 'Notifications',
+                      onTap: () {
+                        context.push(AppRoutes.profileNotifications);
+                      },
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Group 2: Support & Legal
-                _buildMenuGroup(
-                  context,
+                SettingsMenuGroup(
                   items: [
-                    _MenuItem(
+                    SettingsMenuItem(
                       icon: Icons.help_outline,
                       label: 'Support & FAQs',
                       onTap: () => launchUrl(
@@ -317,7 +208,7 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                         mode: LaunchMode.inAppBrowserView,
                       ),
                     ),
-                    _MenuItem(
+                    SettingsMenuItem(
                       icon: Icons.description_outlined,
                       label: 'Terms & Conditions',
                       onTap: () => launchUrl(
@@ -325,7 +216,7 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                         mode: LaunchMode.inAppBrowserView,
                       ),
                     ),
-                    _MenuItem(
+                    SettingsMenuItem(
                       icon: Icons.shield_outlined,
                       label: 'Privacy Policy',
                       onTap: () => launchUrl(
@@ -337,20 +228,18 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Group 3: Logout
                 Consumer<AuthStateManager>(
                   builder: (context, authStateManager, _) {
-                    return _buildMenuGroup(
-                      context,
+                    return SettingsMenuGroup(
                       items: [
-                        _MenuItem(
+                        SettingsMenuItem(
                           icon: Icons.delete_outline,
                           label: 'Delete account',
                           color: Colors.redAccent,
                           onTap: () =>
                               _showDeleteAccountDialog(context, userState),
                         ),
-                        _MenuItem(
+                        SettingsMenuItem(
                           icon: Icons.logout,
                           label: authStateManager.isLoading
                               ? 'Logging out...'
@@ -382,20 +271,4 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
       ),
     );
   }
-}
-
-class _MenuItem {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color? color;
-  final Widget? trailing;
-
-  const _MenuItem({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.color,
-    this.trailing,
-  });
 }

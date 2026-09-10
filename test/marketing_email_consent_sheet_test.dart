@@ -45,4 +45,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(second, isFalse);
   });
+
+  testWidgets('dismisses keyboard before showing', (tester) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return Column(
+                children: [
+                  Focus(focusNode: focusNode, child: const SizedBox.shrink()),
+                  TextButton(
+                    onPressed: () => MarketingEmailConsentSheet.show(context),
+                    child: const Text('open'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    focusNode.requestFocus();
+    await tester.pump();
+    expect(focusNode.hasFocus, isTrue);
+
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    expect(focusNode.hasFocus, isFalse);
+
+    await tester.pumpAndSettle();
+    expect(find.text(UxMessages.marketingEmailTitle), findsOneWidget);
+  });
+
+  testWidgets('waits for keyboard inset to clear before showing', (
+    tester,
+  ) async {
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            return TextButton(
+              onPressed: () => MarketingEmailConsentSheet.show(context),
+              child: const Text('open'),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    expect(find.text(UxMessages.marketingEmailTitle), findsNothing);
+
+    tester.view.viewInsets = FakeViewPadding.zero;
+    await tester.pumpAndSettle();
+    expect(find.text(UxMessages.marketingEmailTitle), findsOneWidget);
+  });
 }

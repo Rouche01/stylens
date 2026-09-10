@@ -24,6 +24,7 @@ import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/history.dart';
 import 'package:gostylens/pages/home.dart';
 import 'package:gostylens/pages/intro/intro_walkthrough_page.dart';
+import 'package:gostylens/pages/notifications_settings.dart';
 import 'package:gostylens/pages/onboarding_email.dart';
 import 'package:gostylens/pages/onboarding_gender.dart';
 import 'package:gostylens/pages/onboarding_name.dart';
@@ -171,6 +172,12 @@ GoRouter createAppRouter(
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileMenuPage(),
+        routes: [
+          GoRoute(
+            path: 'notifications',
+            builder: (context, state) => const NotificationsSettingsPage(),
+          ),
+        ],
       ),
     ],
   );

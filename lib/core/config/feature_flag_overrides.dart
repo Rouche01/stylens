@@ -13,5 +13,6 @@ abstract final class FeatureFlagOverrides {
   static const Map<String, bool> debugAndProfile = {
     // see feature_flags.dart
     FeatureFlags.onboardingInviteCode: true,
+    FeatureFlags.marketingEmailNudgeOnFirstTip: true,
   };
 }

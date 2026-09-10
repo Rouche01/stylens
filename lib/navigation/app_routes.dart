@@ -28,6 +28,7 @@ class AppRoutes {
   static const paywall = '/paywall';
   static const billing = '/billing';
   static const profile = '/profile';
+  static const profileNotifications = '/profile/notifications';
 
   static String session(String id) => '/session/$id';
 
@@ -51,7 +52,8 @@ String locationForDestination(DeepLinkDestination destination) {
 }
 
 /// Whether [location] targets one of the bottom-nav tab branches.
-bool isTabLocation(String location) => AppRoutes.tabLocations.contains(location);
+bool isTabLocation(String location) =>
+    AppRoutes.tabLocations.contains(location);
 
 /// Whether [location] is the new-session route or an existing-session route.
 bool isSessionLocation(String location) =>
@@ -69,12 +71,11 @@ String? sessionIdFromLocation(String location) {
 /// Full-screen routes that must be [GoRouter.push]ed over the tab shell, never
 /// reached via redirect `go` (which would leave nothing to pop back to).
 bool isPushDetailTarget(DeepLinkTarget target) => switch (target) {
-      DeepLinkTarget.paywall ||
-      DeepLinkTarget.billing ||
-      DeepLinkTarget.session =>
-        true,
-      _ => false,
-    };
+  DeepLinkTarget.paywall ||
+  DeepLinkTarget.billing ||
+  DeepLinkTarget.session => true,
+  _ => false,
+};
 
 bool isPushDetailLocation(String location) =>
     location == AppRoutes.paywall ||
@@ -83,10 +84,10 @@ bool isPushDetailLocation(String location) =>
 
 /// Natural parent tab for a push-detail deep link — mirrors normal in-app paths.
 String semanticShellFor(DeepLinkTarget target) => switch (target) {
-      DeepLinkTarget.session => AppRoutes.history,
-      DeepLinkTarget.paywall || DeepLinkTarget.billing => AppRoutes.capture,
-      _ => AppRoutes.capture,
-    };
+  DeepLinkTarget.session => AppRoutes.history,
+  DeepLinkTarget.paywall || DeepLinkTarget.billing => AppRoutes.capture,
+  _ => AppRoutes.capture,
+};
 
 /// [semanticShellFor] derived from a push-detail location string.
 String semanticShellForLocation(String location) {

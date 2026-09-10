@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/foreground_notification_handler.dart';
+import 'package:gostylens/core/managers/push_messaging.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 
@@ -19,9 +20,25 @@ void registerFirebaseMessagingBackgroundHandler() {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 }
 
-class PushNotificationManager {
-  final PushNotificationApiService _apiService;
-  final ForegroundNotificationHandler _foregroundHandler;
+class PushNotificationManager extends ChangeNotifier {
+  PushNotificationManager({
+    ForegroundNotificationHandler? foregroundHandler,
+    PushNotificationApiService? apiService,
+    PushMessaging? messaging,
+  }) : _apiServiceOverride = apiService,
+       _foregroundHandlerOverride = foregroundHandler,
+       _messaging = messaging ?? PushMessaging();
+
+  final PushNotificationApiService? _apiServiceOverride;
+  final ForegroundNotificationHandler? _foregroundHandlerOverride;
+  final PushMessaging _messaging;
+
+  PushNotificationApiService get _apiService =>
+      _apiServiceOverride ?? locator<PushNotificationApiService>();
+
+  ForegroundNotificationHandler get _foregroundHandler =>
+      _foregroundHandlerOverride ?? locator<ForegroundNotificationHandler>();
+
   bool _permissionRequested = false;
   bool _notificationsAuthorized = false;
   String? _currentToken;
@@ -30,11 +47,11 @@ class PushNotificationManager {
   StreamSubscription<String>? _tokenRefreshSubscription;
   bool _initialMessageHandled = false;
 
-  PushNotificationManager({
-    ForegroundNotificationHandler? foregroundHandler,
-  })  : _apiService = locator<PushNotificationApiService>(),
-        _foregroundHandler =
-            foregroundHandler ?? locator<ForegroundNotificationHandler>();
+  bool get isAuthorized => _notificationsAuthorized;
+
+  static bool isGranted(AuthorizationStatus status) =>
+      status == AuthorizationStatus.authorized ||
+      status == AuthorizationStatus.provisional;
 
   /// Attaches the foreground listener once. Safe to call from [main].
   void attachForegroundListener() {
@@ -76,45 +93,16 @@ class PushNotificationManager {
     attachForegroundListener();
 
     try {
-      final messaging = FirebaseMessaging.instance;
-
       if (!_permissionRequested) {
-        final settings = await messaging.requestPermission(
-          alert: true,
-          announcement: false,
-          badge: true,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: true,
-        );
-
+        final status = await _messaging.requestPermission();
         _permissionRequested = true;
-        _notificationsAuthorized =
-            settings.authorizationStatus == AuthorizationStatus.authorized ||
-            settings.authorizationStatus == AuthorizationStatus.provisional;
-
+        _setAuthorized(isGranted(status));
         if (kDebugMode) {
-          print('User granted permission: ${settings.authorizationStatus}');
+          print('User granted permission: $status');
         }
       }
 
-      if (!_notificationsAuthorized) return;
-
-      // Use in-app snackbars in foreground instead of the system banner.
-      await messaging.setForegroundNotificationPresentationOptions(
-        alert: false,
-        badge: true,
-        sound: false,
-      );
-
-      final token = await messaging.getToken();
-      if (token != null) {
-        await _registerToken(token);
-      }
-
-      _tokenRefreshSubscription ??=
-          messaging.onTokenRefresh.listen(_registerToken);
+      await refreshAuthorization();
     } catch (e) {
       if (kDebugMode) {
         print('Error initializing push notifications: $e');
@@ -122,7 +110,63 @@ class PushNotificationManager {
     }
   }
 
+  /// Re-reads OS authorization. Unregisters the FCM token when unauthorized.
+  Future<void> refreshAuthorization() async {
+    try {
+      final status = await _messaging.authorizationStatus();
+      _setAuthorized(isGranted(status));
+      if (!_notificationsAuthorized) {
+        await unregisterToken();
+        return;
+      }
+
+      await _messaging.configureForegroundPresentation();
+      final token = await _messaging.getToken();
+      if (token != null) {
+        await _registerToken(token);
+      }
+      _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen(
+        _registerToken,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error refreshing push authorization: $e');
+      }
+    }
+  }
+
+  /// Turns notifications on or off via OS permission.
+  ///
+  /// On: request permission, or open Settings if already denied.
+  /// Off: open Settings (the app cannot revoke OS permission).
+  Future<void> setEnabled(bool value) async {
+    if (value) {
+      final status = await _messaging.authorizationStatus();
+      if (status == AuthorizationStatus.denied) {
+        await _messaging.openAppNotificationSettings();
+        return;
+      }
+      if (!isGranted(status)) {
+        final next = await _messaging.requestPermission();
+        _permissionRequested = true;
+        _setAuthorized(isGranted(next));
+        if (!_notificationsAuthorized) return;
+      }
+      await refreshAuthorization();
+      return;
+    }
+
+    await _messaging.openAppNotificationSettings();
+  }
+
+  void _setAuthorized(bool authorized) {
+    if (_notificationsAuthorized == authorized) return;
+    _notificationsAuthorized = authorized;
+    notifyListeners();
+  }
+
   Future<void> _registerToken(String token) async {
+    if (!_notificationsAuthorized) return;
     if (_currentToken == token) return;
 
     try {
@@ -150,7 +194,7 @@ class PushNotificationManager {
   }
 
   Future<void> unregisterToken() async {
-    final tokenToDelete = _currentToken ?? await FirebaseMessaging.instance.getToken();
+    final tokenToDelete = _currentToken ?? await _messaging.getToken();
     if (tokenToDelete == null) return;
 
     try {
@@ -162,7 +206,9 @@ class PushNotificationManager {
         _currentToken = null;
       } else {
         if (kDebugMode) {
-          print('Failed to delete push token from backend: ${response.error?.message}');
+          print(
+            'Failed to delete push token from backend: ${response.error?.message}',
+          );
         }
       }
     } catch (e) {
