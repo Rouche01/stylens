@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stylens — Closet grid preview</title>
+    <link
+      rel="stylesheet"
+      href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,600&display=swap"
+    />
+    <style>
+      :root {
+        --green: #3d4a3d;
+        --lime: #b8e994;
+        --mist: #e8f5e8;
+        --cream: #f6faf4;
+        --ink: #2c352c;
+        --gap: 8px;
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: Satoshi, Metropolis, system-ui, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, #d7ecd4 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 100%, #cfe8c8 0%, transparent 50%),
+          #dfe9dc;
+        color: var(--ink);
+      }
+
+      .page {
+        display: grid;
+        grid-template-columns: minmax(240px, 320px) auto;
+        gap: 48px;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 40px 32px;
+      }
+
+      .chrome h1 {
+        font-family: "Clash Display", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        color: var(--green);
+      }
+
+      .chrome p {
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #5a675a;
+        max-width: 32ch;
+      }
+
+      .chrome .note {
+        margin-top: 18px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #7a8a7a;
+      }
+
+      .col-toggle {
+        display: flex;
+        gap: 8px;
+        margin-top: 22px;
+      }
+
+      .col-toggle button {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+        background: #fff;
+        color: var(--green);
+        cursor: pointer;
+      }
+
+      .col-toggle button[aria-pressed="true"] {
+        background: var(--green);
+        color: var(--lime);
+        border-color: var(--green);
+      }
+
+      .phone {
+        width: 390px;
+        height: 844px;
+        background: var(--mist);
+        border-radius: 48px;
+        padding: 12px;
+        box-shadow:
+          0 0 0 10px #2a332a,
+          0 40px 80px rgba(61, 74, 61, 0.28);
+        position: relative;
+      }
+
+      .phone-screen {
+        height: 100%;
+        border-radius: 38px;
+        overflow: hidden;
+        background: var(--mist);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .status {
+        flex: none;
+        height: 52px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 28px 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--green);
+      }
+
+      .island {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        width: 118px;
+        height: 34px;
+        transform: translateX(-50%);
+        background: #1c221c;
+        border-radius: 20px;
+      }
+
+      .app {
+        flex: 1;
+        overflow: auto;
+        padding: 8px 16px 108px;
+        scrollbar-width: none;
+      }
+
+      .app::-webkit-scrollbar {
+        display: none;
+      }
+
+      .title {
+        font-family: "Clash Display", sans-serif;
+        font-size: 34px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: var(--green);
+        margin: 4px 0 16px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .search {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fff;
+        border: 1px solid color-mix(in srgb, var(--green) 18%, transparent);
+        border-radius: 999px;
+        padding: 0 14px;
+        height: 42px;
+      }
+
+      .search svg {
+        flex: none;
+        color: #7a8a7a;
+      }
+
+      .search input {
+        border: 0;
+        outline: 0;
+        width: 100%;
+        background: transparent;
+        font: 500 14px/1 Satoshi, sans-serif;
+        color: var(--ink);
+      }
+
+      .search input::placeholder {
+        color: #8a9a8a;
+      }
+
+      .view-wrap {
+        position: relative;
+        flex: none;
+      }
+
+      .view-btn {
+        height: 42px;
+        padding: 0 14px 0 16px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--green) 18%, transparent);
+        background: var(--green);
+        color: var(--lime);
+        font: 600 13px/1 Satoshi, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        min-width: 118px;
+        justify-content: space-between;
+      }
+
+      .menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        background: #fff;
+        border-radius: 14px;
+        min-width: 160px;
+        padding: 6px;
+        z-index: 4;
+        box-shadow: 0 12px 32px rgba(61, 74, 61, 0.18);
+        border: 1px solid color-mix(in srgb, var(--green) 12%, transparent);
+      }
+
+      .menu.open {
+        display: block;
+      }
+
+      .menu button {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font: 600 13px/1 Satoshi, sans-serif;
+        color: var(--green);
+        cursor: pointer;
+      }
+
+      .menu button[aria-checked="true"],
+      .menu button:hover {
+        background: var(--mist);
+      }
+
+      .section {
+        font-family: "Clash Display", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--green);
+        letter-spacing: -0.02em;
+      }
+
+      .masonry,
+      .cat-grid {
+        display: grid;
+        gap: var(--gap);
+        align-items: start;
+      }
+
+      /* Categories: one grid, headers span the full row, tiles flow
+         left-to-right. Tiny per-section masonries left empty columns. */
+      .cat-grid .section {
+        grid-column: 1 / -1;
+        margin: 12px 0 2px;
+      }
+
+      .cat-grid .section:first-child {
+        margin-top: 0;
+      }
+
+      .masonry.cols-2,
+      .cat-grid.cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .masonry.cols-3,
+      .cat-grid.cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap);
+      }
+
+      .tile {
+        position: relative;
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: #d5e4d4;
+        isolation: isolate;
+      }
+
+      .tile img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: var(--ratio);
+        object-fit: cover;
+      }
+
+      .tile figcaption {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 28px 10px 9px;
+        background: linear-gradient(
+          transparent,
+          color-mix(in srgb, var(--green) 72%, black)
+        );
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      .empty {
+        text-align: center;
+        padding: 48px 16px;
+        color: #6a7a6a;
+        font-size: 14px;
+      }
+
+      .dock {
+        position: absolute;
+        left: 20px;
+        right: 20px;
+        bottom: 18px;
+        height: 64px;
+        border-radius: 26px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: center;
+        padding: 5px;
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--green) 82%, var(--lime)) 0%,
+          color-mix(in srgb, var(--green) 92%, black) 100%
+        );
+        box-shadow: 0 8px 24px rgba(61, 74, 61, 0.28);
+      }
+
+      .dock span {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 10px;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .dock span.active {
+        color: var(--green);
+        background: color-mix(in srgb, var(--lime) 92%, white);
+        border-radius: 20px;
+        height: 54px;
+        justify-content: center;
+      }
+
+      .dock svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      @media (max-width: 860px) {
+        .page {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          padding: 24px 16px 40px;
+        }
+
+        .chrome {
+          text-align: center;
+        }
+
+        .chrome p {
+          margin-inline: auto;
+        }
+
+        .col-toggle {
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <aside class="chrome">
+        <h1>Closet grid preview</h1>
+        <p>
+          Pinterest-style masonry: each garment keeps its own height, packed
+          into the shortest column. This toggle is preview-only — the app will
+          ship one column count.
+        </p>
+        <p class="note">Preview columns</p>
+        <div class="col-toggle" role="group" aria-label="Column count">
+          <button type="button" data-cols="2" aria-pressed="true">
+            2 columns
+          </button>
+          <button type="button" data-cols="3" aria-pressed="false">
+            3 columns
+          </button>
+        </div>
+      </aside>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="island"></div>
+          <div class="status">
+            <span>9:41</span>
+            <span>●●●</span>
+          </div>
+          <main class="app">
+            <h2 class="title">Your Closet</h2>
+            <div class="toolbar">
+              <label class="search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <input
+                  id="q"
+                  type="search"
+                  placeholder="Search pieces"
+                  autocomplete="off"
+                />
+              </label>
+              <div class="view-wrap">
+                <button class="view-btn" id="viewBtn" type="button">
+                  <span id="viewLabel">All</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M2.5 4.5 6 8l3.5-3.5"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="menu" id="viewMenu">
+                  <button type="button" data-view="all" aria-checked="true">
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    data-view="categories"
+                    aria-checked="false"
+                  >
+                    Categories
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="gridRoot"></div>
+          </main>
+          <nav class="dock" aria-label="Tabs">
+            <span class="active">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M21 6.5c0-1.5-1.6-2.6-3.4-2.1L12 6.2 6.4 4.4C4.6 3.9 3 5 3 6.5V18c0 1.1.9 2 2 2 .3 0 .6-.1.9-.2L12 18l6.1 1.8c.3.1.6.2.9.2 1.1 0 2-.9 2-2V6.5Z"
+                />
+              </svg>
+              Closet
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-4.2V9l-2.1-.4a7.2 7.2 0 0 0-.9-2.1L18.2 5 16.8 3.6l-1.5 1.2a7.2 7.2 0 0 0-2.1-.9L12.8 2h-1.6l-.4 2.1a7.2 7.2 0 0 0-2.1.9L7.2 3.6 5.8 5l1.2 1.5a7.2 7.2 0 0 0-.9 2.1L4 9v1.6l2.1.4c.1.7.4 1.5.9 2.1L5.8 14.6 7.2 16l1.5-1.2c.6.5 1.4.8 2.1.9L11.2 18h1.6l.4-2.1c.7-.1 1.5-.4 2.1-.9l1.5 1.2 1.4-1.4-1.2-1.5c.5-.6.8-1.4.9-2.1L20 10.8Z"
+                />
+              </svg>
+              Capture
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M13 3a9 9 0 1 0 8.5 12h-2.1A7 7 0 1 1 13 5v4.6l3.4 2-1 1.6L11 10V3h2Z"
+                />
+              </svg>
+              History
+            </span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ITEMS = [
+        {
+          name: "Camel overcoat",
+          category: "Outerwear",
+          ratio: "3 / 5",
+          tall: 5 / 3,
+          src: "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "White tee",
+          category: "Tops",
+          ratio: "4 / 5",
+          tall: 5 / 4,
+          src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Vintage denim",
+          category: "Bottoms",
+          ratio: "2 / 3",
+          tall: 1.5,
+          src: "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Court sneakers",
+          category: "Shoes",
+          ratio: "1 / 1",
+          tall: 1,
+          src: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Ivory knit",
+          category: "Tops",
+          ratio: "5 / 6",
+          tall: 6 / 5,
+          src: "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Leather jacket",
+          category: "Outerwear",
+          ratio: "3 / 4",
+          tall: 4 / 3,
+          src: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Tailored trousers",
+          category: "Bottoms",
+          ratio: "3 / 5",
+          tall: 5 / 3,
+          src: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Chelsea boots",
+          category: "Shoes",
+          ratio: "5 / 6",
+          tall: 6 / 5,
+          src: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Oxford stripe",
+          category: "Tops",
+          ratio: "3 / 4",
+          tall: 4 / 3,
+          src: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Wool trench",
+          category: "Outerwear",
+          ratio: "2 / 3",
+          tall: 1.5,
+          src: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Pleated skirt",
+          category: "Bottoms",
+          ratio: "4 / 5",
+          tall: 5 / 4,
+          src: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Loafers",
+          category: "Shoes",
+          ratio: "6 / 5",
+          tall: 5 / 6,
+          src: "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Ink hoodie",
+          category: "Tops",
+          ratio: "4 / 5",
+          tall: 5 / 4,
+          src: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Rain coat",
+          category: "Outerwear",
+          ratio: "3 / 5",
+          tall: 5 / 3,
+          src: "https://images.unsplash.com/photo-1544923246-77307dd654cb?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Wide-leg linen",
+          category: "Bottoms",
+          ratio: "2 / 3",
+          tall: 1.5,
+          src: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Ballet flats",
+          category: "Shoes",
+          ratio: "1 / 1",
+          tall: 1,
+          src: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80",
+        },
+      ];
+
+      const CATEGORIES = ["Tops", "Bottoms", "Outerwear", "Shoes"];
+
+      const state = {
+        cols: 2,
+        view: "all",
+        query: "",
+      };
+
+      const root = document.getElementById("gridRoot");
+      const viewBtn = document.getElementById("viewBtn");
+      const viewMenu = document.getElementById("viewMenu");
+      const viewLabel = document.getElementById("viewLabel");
+
+      function matches(item) {
+        const q = state.query.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          item.name.toLowerCase().includes(q) ||
+          item.category.toLowerCase().includes(q)
+        );
+      }
+
+      function pack(items, colCount) {
+        const cols = Array.from({ length: colCount }, () => []);
+        const heights = Array(colCount).fill(0);
+        for (const item of items) {
+          const i = heights.indexOf(Math.min(...heights));
+          cols[i].push(item);
+          heights[i] += item.tall;
+        }
+        return cols;
+      }
+
+      function tile(item) {
+        return `<figure class="tile" style="--ratio:${item.ratio}">
+          <img src="${item.src}" alt="${item.name}" loading="lazy" />
+          <figcaption>${item.name}</figcaption>
+        </figure>`;
+      }
+
+      function colClass() {
+        return state.cols === 3 ? "cols-3" : "cols-2";
+      }
+
+      function masonry(items) {
+        const cols = pack(items, state.cols);
+        return `<div class="masonry ${colClass()}">${cols
+          .map((col) => `<div class="col">${col.map(tile).join("")}</div>`)
+          .join("")}</div>`;
+      }
+
+      function categoryGrid(items) {
+        const body = CATEGORIES.flatMap((cat) => {
+          const group = items.filter((i) => i.category === cat);
+          if (!group.length) return [];
+          return [`<h3 class="section">${cat}</h3>`, ...group.map(tile)];
+        }).join("");
+        return `<div class="cat-grid ${colClass()}">${body}</div>`;
+      }
+
+      function render() {
+        const items = ITEMS.filter(matches);
+        if (!items.length) {
+          root.innerHTML = `<p class="empty">No pieces match “${state.query}”.</p>`;
+          return;
+        }
+        root.innerHTML =
+          state.view === "categories" ? categoryGrid(items) : masonry(items);
+      }
+
+      document.querySelectorAll(".col-toggle button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.cols = Number(btn.dataset.cols);
+          document.querySelectorAll(".col-toggle button").forEach((b) => {
+            b.setAttribute("aria-pressed", String(b === btn));
+          });
+          render();
+        });
+      });
+
+      document.getElementById("q").addEventListener("input", (e) => {
+        state.query = e.target.value;
+        render();
+      });
+
+      viewBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        viewMenu.classList.toggle("open");
+      });
+
+      viewMenu.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.view = btn.dataset.view;
+          viewLabel.textContent = btn.textContent.trim();
+          viewMenu.querySelectorAll("button").forEach((b) => {
+            b.setAttribute("aria-checked", String(b === btn));
+          });
+          viewMenu.classList.remove("open");
+          render();
+        });
+      });
+
+      document.addEventListener("click", () =>
+        viewMenu.classList.remove("open"),
+      );
+
+      render();
+    </script>
+  </body>
+</html>

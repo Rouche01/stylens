@@ -5,4 +5,5 @@ abstract final class FeatureFlags {
   static const onboardingInviteCode = 'onboarding-invite-code';
   static const marketingEmailNudgeOnFirstTip =
       'marketing-email-nudge-on-first-tip';
+  static const closetBrowse = 'closet-browse';
 }

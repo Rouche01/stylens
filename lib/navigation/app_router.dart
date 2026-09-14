@@ -19,7 +19,7 @@ import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
 import 'package:gostylens/pages/auth.dart';
 import 'package:gostylens/pages/billing_plan.dart';
-import 'package:gostylens/pages/closet.dart';
+import 'package:gostylens/pages/closet/closet.dart';
 import 'package:gostylens/pages/capture.dart';
 import 'package:gostylens/pages/history.dart';
 import 'package:gostylens/pages/home.dart';

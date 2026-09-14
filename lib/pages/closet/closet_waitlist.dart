@@ -11,14 +11,16 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
-class ClosetPage extends StatefulWidget {
-  const ClosetPage({super.key});
+/// Coming Soon waitlist shown when closet browse is off.
+class ClosetWaitlistView extends StatefulWidget {
+  const ClosetWaitlistView({super.key});
 
   @override
-  State<ClosetPage> createState() => _ClosetPageState();
+  State<ClosetWaitlistView> createState() => _ClosetWaitlistViewState();
 }
 
-class _ClosetPageState extends State<ClosetPage> with TickerProviderStateMixin {
+class _ClosetWaitlistViewState extends State<ClosetWaitlistView>
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late AnimationController _pulseController;
   bool _hasNotified = false;

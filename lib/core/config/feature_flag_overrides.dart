@@ -14,5 +14,6 @@ abstract final class FeatureFlagOverrides {
     // see feature_flags.dart
     FeatureFlags.onboardingInviteCode: true,
     FeatureFlags.marketingEmailNudgeOnFirstTip: true,
+    FeatureFlags.closetBrowse: true,
   };
 }

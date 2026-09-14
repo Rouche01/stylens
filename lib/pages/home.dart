@@ -56,60 +56,69 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
     // Only reserve for the full-width dock; the satellite is a corner overlay
     // so list content can scroll underneath it.
     final reservedBottom = FloatingNavBar.contentBottomInset(context);
-    final media = MediaQuery.of(context);
 
     return Scaffold(
       extendBody: true,
+      // Keep the dock on the physical bottom of the screen. The keyboard
+      // overlays it instead of lifting the whole shell.
+      resizeToAvoidBottomInset: false,
       // Let tab scaffolds paint full-bleed under the dock; inject bottom padding
       // so SafeArea / MediaQuery consumers still clear the floating bar.
-      body: Stack(
-        children: [
-          MediaQuery(
-            data: media.copyWith(
-              padding: media.padding.copyWith(bottom: reservedBottom),
-            ),
-            child: widget.navigationShell,
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, dockBottom),
-              child: FloatingNavBar(
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (index) {
-                  unawaited(_onDestinationSelected(index));
-                },
+      // Read MediaQuery from the Scaffold body so keyboard viewInsets are not
+      // re-injected — child tab Scaffolds would otherwise inset a second time.
+      body: Builder(
+        builder: (bodyContext) {
+          final bodyMedia = MediaQuery.of(bodyContext);
+          return Stack(
+            children: [
+              MediaQuery(
+                data: bodyMedia.copyWith(
+                  padding: bodyMedia.padding.copyWith(bottom: reservedBottom),
+                ),
+                child: widget.navigationShell,
               ),
-            ),
-          ),
-          Positioned(
-            right: SatelliteActionButton.sideInset,
-            bottom:
-                dockBottom +
-                FloatingNavBar.height +
-                SatelliteActionButton.gapAboveDock,
-            child: IgnorePointer(
-              ignoring: !showSatellite,
-              child: AnimatedScale(
-                scale: showSatellite ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 240),
-                curve: showSatellite
-                    ? Curves.easeOutBack
-                    : Curves.easeInCubic,
-                child: AnimatedOpacity(
-                  opacity: showSatellite ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  child: SatelliteActionButton(
-                    onPressed: () => startNewSessionAndNavigate(context),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, dockBottom),
+                  child: FloatingNavBar(
+                    selectedIndex: selectedIndex,
+                    onDestinationSelected: (index) {
+                      unawaited(_onDestinationSelected(index));
+                    },
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+              Positioned(
+                right: SatelliteActionButton.sideInset,
+                bottom:
+                    dockBottom +
+                    FloatingNavBar.height +
+                    SatelliteActionButton.gapAboveDock,
+                child: IgnorePointer(
+                  ignoring: !showSatellite,
+                  child: AnimatedScale(
+                    scale: showSatellite ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: showSatellite
+                        ? Curves.easeOutBack
+                        : Curves.easeInCubic,
+                    child: AnimatedOpacity(
+                      opacity: showSatellite ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      child: SatelliteActionButton(
+                        onPressed: () => startNewSessionAndNavigate(context),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
