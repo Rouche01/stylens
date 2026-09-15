@@ -17,6 +17,7 @@ import 'package:gostylens/core/managers/global_loader/global_loader_scope.dart';
 import 'package:lottie/lottie.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/managers/asset_upload_manager.dart';
+import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -147,6 +148,7 @@ class _MyAppState extends State<MyApp> {
         ),
         ChangeNotifierProvider.value(value: locator<UserStateManager>()),
         ChangeNotifierProvider.value(value: locator<AssetUploadManager>()),
+        ChangeNotifierProvider.value(value: locator<ClosetManager>()),
       ],
       child: _wrapWithPostHog(
         MaterialApp.router(

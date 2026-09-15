@@ -35,6 +35,7 @@ import 'package:gostylens/core/managers/push_notification_manager.dart';
 import 'package:gostylens/core/managers/location_manager.dart';
 import 'package:gostylens/core/managers/stylist_openers_manager.dart';
 import 'package:gostylens/core/managers/invite_code_manager.dart';
+import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/prefs/local_prefs_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
@@ -199,6 +200,7 @@ Future<void> setupLocator() async {
   );
   locator.registerLazySingleton<LocationManager>(() => LocationManager());
   locator.registerLazySingleton<InviteCodeManager>(() => InviteCodeManager());
+  locator.registerLazySingleton<ClosetManager>(() => ClosetManager());
   locator.registerLazySingleton<StylistOpenersManager>(
     () => StylistOpenersManager(),
   );
