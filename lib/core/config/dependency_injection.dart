@@ -19,6 +19,7 @@ import 'package:gostylens/core/services/api_service/subscription_api_service.dar
 import 'package:gostylens/core/services/api_service/style_analysis_api_service.dart';
 import 'package:gostylens/core/services/api_service/push_notification_api_service.dart';
 import 'package:gostylens/core/services/api_service/config_api_service.dart';
+import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 
 import 'package:gostylens/core/managers/auth_state_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
@@ -120,6 +121,7 @@ Future<void> setupLocator() async {
     () => PushNotificationApiService(),
   );
   locator.registerLazySingleton<ConfigApiService>(() => ConfigApiService());
+  locator.registerLazySingleton<ClosetApiService>(() => ClosetApiService());
 
   // Setup Singletons
   final supabaseClient = Supabase.instance.client;
