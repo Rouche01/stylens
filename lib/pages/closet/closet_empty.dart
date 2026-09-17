@@ -20,7 +20,7 @@ class ClosetEmptyState extends StatelessWidget {
             const ExcludeSemantics(child: _EmptyGhostRack()),
             const SizedBox(height: 18),
             Text(
-              'Your closet is empty',
+              'Nothing hanging yet',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'ClashDisplay',
