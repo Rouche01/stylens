@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/models/remote_image.dart';
+import 'package:gostylens/navigation/app_routes.dart';
+import 'package:gostylens/pages/closet/closet_empty.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:provider/provider.dart';
@@ -144,6 +147,15 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     return context.read<ClosetManager>().fetchItems(forceRefresh: true);
   }
 
+  void _openCapture() {
+    final shell = StatefulNavigationShell.maybeOf(context);
+    if (shell != null) {
+      shell.goBranch(1);
+      return;
+    }
+    GoRouter.maybeOf(context)?.go(AppRoutes.capture);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -211,10 +223,9 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                       onAction: _refresh,
                     )
                   else if (manager.items.isEmpty)
-                    _messageSliver(
-                      cs: cs,
+                    ClosetEmptySliver(
                       bottomPad: bottomPad,
-                      message: 'No pieces yet',
+                      onCaptureOutfit: _openCapture,
                     )
                   else if (items.isEmpty)
                     _messageSliver(

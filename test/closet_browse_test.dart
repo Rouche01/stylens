@@ -66,6 +66,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('closet-skeleton')), findsOneWidget);
+    expect(find.text('Your closet is empty'), findsNothing);
     expect(find.text('No pieces yet'), findsNothing);
 
     api.pending!.complete(ApiResponse.success([_tee]));
@@ -84,7 +85,16 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('No pieces yet'), findsOneWidget);
+    expect(find.text('Your closet is empty'), findsOneWidget);
+    expect(find.text('Capture an outfit'), findsOneWidget);
+    expect(
+      find.text(
+        'Capture an outfit and we’ll pull the pieces out for you. '
+        'Shirts, jeans, shoes, the lot.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('No pieces yet'), findsNothing);
     expect(find.text('Clear search'), findsNothing);
   });
 
@@ -128,6 +138,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('No pieces match “coat”.'), findsOneWidget);
+    expect(find.text('Your closet is empty'), findsNothing);
+    expect(find.text('Capture an outfit'), findsNothing);
     expect(find.text('No pieces yet'), findsNothing);
 
     await tester.tap(find.text('Clear search'));
