@@ -45,12 +45,57 @@ class ClosetItem {
     this.aspectRatio = fallbackAspectRatio,
   });
 
-  String get displayName => label;
+  String get displayName => formatDisplayName(label);
 
   String get displayCategory => _displayCategories[category] ?? 'Other';
 
+  static const _fillerWords = {'a', 'an', 'the', 'colored', 'coloured'};
+
+  static final _wordSplit = RegExp(r'\s+');
+
+  /// Title-cases an extraction label and drops filler words for tiles.
+  /// The raw [label] is unchanged so search can still match it.
+  static String formatDisplayName(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return trimmed;
+
+    final words = <String>[];
+    for (final token in trimmed.toLowerCase().split(_wordSplit)) {
+      if (token.isEmpty || _fillerWords.contains(token)) continue;
+      words.add(_titleCaseToken(token));
+    }
+    if (words.isEmpty) {
+      return [
+        for (final token in trimmed.toLowerCase().split(_wordSplit))
+          if (token.isNotEmpty) _titleCaseToken(token),
+      ].join(' ');
+    }
+    return words.join(' ');
+  }
+
+  static String _titleCaseToken(String token) {
+    return token.split('-').map(_titleCaseWord).join('-');
+  }
+
+  static String _titleCaseWord(String word) {
+    if (word.isEmpty) return word;
+    return '${word[0].toUpperCase()}${word.substring(1)}';
+  }
+
   /// Isolate cutout for masonry tiles. Null when the API has no crop.
   String? get tileImageUrl => isolatedImageUrl;
+
+  /// Taller tiles first (smaller width/height). [SliverMasonryGrid] then drops
+  /// each next piece into the shortest column, so short crops fill holes
+  /// instead of sitting in a stretched aligned-grid row.
+  static List<ClosetItem> packForMasonry(List<ClosetItem> items) {
+    if (items.length <= 1) return List<ClosetItem>.of(items);
+    return [...items]..sort((a, b) {
+      final byHeight = a.aspectRatio.compareTo(b.aspectRatio);
+      if (byHeight != 0) return byHeight;
+      return a.id.compareTo(b.id);
+    });
+  }
 
   factory ClosetItem.fromJson(Map<String, dynamic> json) {
     final ratio = _readPositiveDouble(json['tile_aspect_ratio']);

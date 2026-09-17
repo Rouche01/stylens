@@ -19,7 +19,7 @@ void main() {
       });
 
       expect(item.id, 'c1');
-      expect(item.displayName, 'Ivory knit');
+      expect(item.displayName, 'Ivory Knit');
       expect(item.displayCategory, 'Tops');
       expect(item.tileImageUrl, contains('width=480'));
       expect(item.imageKey, 'users/u1/photo.jpg');
@@ -61,6 +61,68 @@ void main() {
         ClosetItem.fromJson({'category': 'accessory'}).displayCategory,
         'Accessories',
       );
+    });
+  });
+
+  group('ClosetItem.formatDisplayName', () {
+    test('title-cases labels and drops filler words', () {
+      expect(
+        ClosetItem.formatDisplayName('cream colored collared shirt'),
+        'Cream Collared Shirt',
+      );
+      expect(ClosetItem.formatDisplayName('gray t-shirt'), 'Gray T-Shirt');
+      expect(
+        ClosetItem.formatDisplayName('olive green button-up shirt'),
+        'Olive Green Button-Up Shirt',
+      );
+      expect(
+        ClosetItem.formatDisplayName('light blue jeans'),
+        'Light Blue Jeans',
+      );
+      expect(
+        ClosetItem.formatDisplayName('black zip-up hoodie'),
+        'Black Zip-Up Hoodie',
+      );
+    });
+
+    test('keeps a usable name when the label is only filler', () {
+      expect(ClosetItem.formatDisplayName('the a'), 'The A');
+      expect(ClosetItem.formatDisplayName(''), '');
+    });
+  });
+
+  group('ClosetItem.packForMasonry', () {
+    ClosetItem piece(String id, double aspectRatio) => ClosetItem(
+      id: id,
+      label: id,
+      category: 'accessory',
+      subcategory: '',
+      color: '',
+      aspectRatio: aspectRatio,
+    );
+
+    test('places taller tiles first so shorter ones can fill holes', () {
+      final packed = ClosetItem.packForMasonry([
+        piece('hat', 1.2),
+        piece('socks', 0.7),
+        piece('full-body', 0.45),
+        piece('watch', 1.0),
+      ]);
+
+      expect(packed.map((item) => item.id), [
+        'full-body',
+        'socks',
+        'watch',
+        'hat',
+      ]);
+    });
+
+    test('breaks aspect ties by id and does not mutate the input', () {
+      final original = [piece('b', 0.8), piece('a', 0.8)];
+      final packed = ClosetItem.packForMasonry(original);
+
+      expect(packed.map((item) => item.id), ['a', 'b']);
+      expect(original.map((item) => item.id), ['b', 'a']);
     });
   });
 

@@ -1,164 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/core/managers/closet_manager.dart';
+import 'package:gostylens/models/closet_item.dart';
+import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
+import 'package:gostylens/widgets/image_with_fallback.dart';
+import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 enum _ClosetViewMode { all, categories }
-
-class ClosetMockItem {
-  const ClosetMockItem({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.imageUrl,
-    required this.aspectRatio,
-  });
-
-  final String id;
-  final String name;
-  final String category;
-  final String imageUrl;
-
-  /// Width / height. Used so masonry tiles keep a stable height before the
-  /// network image loads.
-  final double aspectRatio;
-}
 
 const _crossAxisCount = 3;
 const _gridGap = 8.0;
 const _tileRadius = 18.0;
 
-const _categoryOrder = ['Tops', 'Bottoms', 'Outerwear', 'Shoes'];
-
-const _mockItems = <ClosetMockItem>[
-  ClosetMockItem(
-    id: '1',
-    name: 'Camel overcoat',
-    category: 'Outerwear',
-    aspectRatio: 3 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '2',
-    name: 'White tee',
-    category: 'Tops',
-    aspectRatio: 4 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '3',
-    name: 'Vintage denim',
-    category: 'Bottoms',
-    aspectRatio: 2 / 3,
-    imageUrl:
-        'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '4',
-    name: 'Court sneakers',
-    category: 'Shoes',
-    aspectRatio: 1,
-    imageUrl:
-        'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '5',
-    name: 'Ivory knit',
-    category: 'Tops',
-    aspectRatio: 5 / 6,
-    imageUrl:
-        'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '6',
-    name: 'Leather jacket',
-    category: 'Outerwear',
-    aspectRatio: 3 / 4,
-    imageUrl:
-        'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '7',
-    name: 'Tailored trousers',
-    category: 'Bottoms',
-    aspectRatio: 3 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '8',
-    name: 'Chelsea boots',
-    category: 'Shoes',
-    aspectRatio: 5 / 6,
-    imageUrl:
-        'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '9',
-    name: 'Oxford stripe',
-    category: 'Tops',
-    aspectRatio: 3 / 4,
-    imageUrl:
-        'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '10',
-    name: 'Wool trench',
-    category: 'Outerwear',
-    aspectRatio: 2 / 3,
-    imageUrl:
-        'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '11',
-    name: 'Pleated skirt',
-    category: 'Bottoms',
-    aspectRatio: 4 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '12',
-    name: 'Loafers',
-    category: 'Shoes',
-    aspectRatio: 6 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '13',
-    name: 'Ink hoodie',
-    category: 'Tops',
-    aspectRatio: 4 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '14',
-    name: 'Rain coat',
-    category: 'Outerwear',
-    aspectRatio: 3 / 5,
-    imageUrl:
-        'https://images.unsplash.com/photo-1544923246-77307dd654cb?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '15',
-    name: 'Wide-leg linen',
-    category: 'Bottoms',
-    aspectRatio: 2 / 3,
-    imageUrl:
-        'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=800&q=80',
-  ),
-  ClosetMockItem(
-    id: '16',
-    name: 'Ballet flats',
-    category: 'Shoes',
-    aspectRatio: 1,
-    imageUrl:
-        'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80',
-  ),
+const _skeletonAspectRatios = <double>[
+  4 / 5,
+  3 / 4,
+  2 / 3,
+  5 / 6,
+  4 / 5,
+  3 / 5,
+  1,
+  3 / 4,
+  4 / 5,
 ];
+
+bool _itemMatchesQuery(ClosetItem item, String query) {
+  if (query.isEmpty) return true;
+  return item.displayName.toLowerCase().contains(query) ||
+      item.label.toLowerCase().contains(query) ||
+      item.displayCategory.toLowerCase().contains(query) ||
+      item.subcategory.toLowerCase().contains(query) ||
+      item.color.toLowerCase().contains(query);
+}
 
 class ClosetBrowseView extends StatefulWidget {
   const ClosetBrowseView({super.key});
@@ -171,13 +48,23 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   final _scrollController = ScrollController();
-  _ClosetViewMode _viewMode = _ClosetViewMode.all;
+  _ClosetViewMode _viewMode = _ClosetViewMode.categories;
   bool _snappingHeader = false;
+
+  /// Avoids an empty-state flash before the first [ClosetManager.fetchItems]
+  /// call (scheduled after this frame so notifyListeners is not during build).
+  bool _awaitingInitial = true;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_rebuild);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ClosetManager>().fetchItems().whenComplete(() {
+        if (mounted) setState(() => _awaitingInitial = false);
+      });
+    });
   }
 
   @override
@@ -196,7 +83,8 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
   }
 
   void _pinScrollIfEmpty() {
-    if (_filteredItems.isNotEmpty) return;
+    final items = _filter(context.read<ClosetManager>().items);
+    if (items.isNotEmpty) return;
     if (!_scrollController.hasClients) return;
     if (_scrollController.offset == 0) return;
     _scrollController.jumpTo(0);
@@ -246,22 +134,19 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     }
   }
 
-  List<ClosetMockItem> get _filteredItems {
+  List<ClosetItem> _filter(List<ClosetItem> items) {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _mockItems;
-    return _mockItems
-        .where(
-          (item) =>
-              item.name.toLowerCase().contains(query) ||
-              item.category.toLowerCase().contains(query),
-        )
-        .toList();
+    if (query.isEmpty) return items;
+    return items.where((item) => _itemMatchesQuery(item, query)).toList();
+  }
+
+  Future<void> _refresh() {
+    return context.read<ClosetManager>().fetchItems(forceRefresh: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final items = _filteredItems;
     final bottomPad = 16 + FloatingNavBar.contentBottomInset(context);
 
     final topInset = MediaQuery.paddingOf(context).top;
@@ -272,78 +157,210 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
       backgroundColor: cs.surfaceDim,
       // Search sits at the top; shrinking the body would crush the grid.
       resizeToAvoidBottomInset: false,
-      body: NotificationListener<ScrollNotification>(
-        onNotification: _onScrollNotification,
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: items.isEmpty ? const NeverScrollableScrollPhysics() : null,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: [
-            SliverResizingHeader(
-              minExtentPrototype: SizedBox(height: minHeader),
-              maxExtentPrototype: SizedBox(height: maxHeader),
-              child: _ClosetHeader(
-                minExtent: minHeader,
-                maxExtent: maxHeader,
-                topInset: topInset,
-                backgroundColor: cs.surfaceDim,
-                titleColor: cs.primary,
-                toolbar: _ClosetToolbar(
-                  searchController: _searchController,
-                  searchFocus: _searchFocus,
-                  viewMode: _viewMode,
-                  onDismissKeyboard: _dismissKeyboard,
-                  onViewModeChanged: _onViewModeChanged,
-                ),
-              ),
-            ),
-            if (items.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(32, 0, 32, bottomPad),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'No pieces match “${_searchController.text.trim()}”.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Metropolis',
-                            fontSize: 14,
-                            color: cs.primary.withValues(alpha: 0.55),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _searchController.clear,
-                          style: TextButton.styleFrom(
-                            foregroundColor: cs.primary,
-                            textStyle: const TextStyle(
-                              fontFamily: 'Metropolis',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          child: const Text('Clear search'),
-                        ),
-                      ],
+      body: Consumer<ClosetManager>(
+        builder: (context, manager, _) {
+          final items = _filter(manager.items);
+          final showSkeleton =
+              manager.items.isEmpty &&
+              (manager.isLoading || (_awaitingInitial && !manager.hasLoaded));
+          final query = _searchController.text.trim();
+
+          final physics = showSkeleton
+              ? const NeverScrollableScrollPhysics()
+              : items.isEmpty
+              ? const AlwaysScrollableScrollPhysics()
+              : null;
+
+          return NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: RefreshIndicator(
+              color: cs.primary,
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: physics,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: [
+                  SliverResizingHeader(
+                    minExtentPrototype: SizedBox(height: minHeader),
+                    maxExtentPrototype: SizedBox(height: maxHeader),
+                    child: _ClosetHeader(
+                      minExtent: minHeader,
+                      maxExtent: maxHeader,
+                      topInset: topInset,
+                      backgroundColor: cs.surfaceDim,
+                      titleColor: cs.primary,
+                      toolbar: _ClosetToolbar(
+                        searchController: _searchController,
+                        searchFocus: _searchFocus,
+                        viewMode: _viewMode,
+                        onDismissKeyboard: _dismissKeyboard,
+                        onViewModeChanged: _onViewModeChanged,
+                      ),
                     ),
                   ),
+                  if (showSkeleton)
+                    ..._skeletonSlivers(bottomPad)
+                  else if (manager.error != null && manager.items.isEmpty)
+                    _messageSliver(
+                      cs: cs,
+                      bottomPad: bottomPad,
+                      message: manager.error!,
+                      actionLabel: 'Retry',
+                      onAction: _refresh,
+                    )
+                  else if (manager.items.isEmpty)
+                    _messageSliver(
+                      cs: cs,
+                      bottomPad: bottomPad,
+                      message: 'No pieces yet',
+                    )
+                  else if (items.isEmpty)
+                    _messageSliver(
+                      cs: cs,
+                      bottomPad: bottomPad,
+                      message: 'No pieces match “$query”.',
+                      actionLabel: 'Clear search',
+                      onAction: _searchController.clear,
+                    )
+                  else if (_viewMode == _ClosetViewMode.all)
+                    ..._allSlivers(items, bottomPad)
+                  else
+                    ..._categorySlivers(items, bottomPad),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _messageSliver({
+    required ColorScheme cs,
+    required double bottomPad,
+    required String message,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(32, 0, 32, bottomPad),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Metropolis',
+                  fontSize: 14,
+                  color: cs.primary.withValues(alpha: 0.55),
                 ),
-              )
-            else if (_viewMode == _ClosetViewMode.all)
-              ..._allSlivers(items, bottomPad)
-            else
-              ..._categorySlivers(items, bottomPad),
-          ],
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(
+                    foregroundColor: cs.primary,
+                    textStyle: const TextStyle(
+                      fontFamily: 'Metropolis',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: Text(actionLabel),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _allSlivers(List<ClosetMockItem> items, double bottomPad) {
+  List<Widget> _skeletonSlivers(double bottomPad) {
+    if (_viewMode == _ClosetViewMode.categories) {
+      return _categorySkeletonSlivers(bottomPad);
+    }
+    return [
+      Skeletonizer.sliver(
+        key: const ValueKey('closet-skeleton'),
+        enabled: true,
+        child: SliverPadding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad),
+          sliver: SliverMasonryGrid.count(
+            crossAxisCount: _crossAxisCount,
+            mainAxisSpacing: _gridGap,
+            crossAxisSpacing: _gridGap,
+            childCount: _skeletonAspectRatios.length,
+            itemBuilder: (context, index) =>
+                _ClosetSkeletonTile(aspectRatio: _skeletonAspectRatios[index]),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _categorySkeletonSlivers(double bottomPad) {
+    const sections = [('Tops', 3), ('Bottoms', 3), ('Outerwear', 3)];
+    final cs = Theme.of(context).colorScheme;
+    final slivers = <Widget>[];
+    var aspectIndex = 0;
+
+    for (var i = 0; i < sections.length; i++) {
+      final section = sections[i];
+      final count = section.$2;
+      final isLast = i == sections.length - 1;
+      final ratios = [
+        for (var j = 0; j < count; j++)
+          _skeletonAspectRatios[aspectIndex++ % _skeletonAspectRatios.length],
+      ];
+
+      slivers.add(
+        SliverMainAxisGroup(
+          slivers: [
+            PinnedHeaderSliver(
+              child: _CategorySectionHeader(
+                label: section.$1,
+                count: count,
+                backgroundColor: cs.surfaceDim,
+                foregroundColor: cs.primary,
+              ),
+            ),
+            Skeletonizer.sliver(
+              key: i == 0 ? const ValueKey('closet-skeleton') : null,
+              enabled: true,
+              child: SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  isLast ? bottomPad : 16,
+                ),
+                sliver: SliverMasonryGrid.count(
+                  crossAxisCount: _crossAxisCount,
+                  mainAxisSpacing: _gridGap,
+                  crossAxisSpacing: _gridGap,
+                  childCount: count,
+                  itemBuilder: (context, index) =>
+                      _ClosetSkeletonTile(aspectRatio: ratios[index]),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return slivers;
+  }
+
+  List<Widget> _allSlivers(List<ClosetItem> items, double bottomPad) {
     return [
       SliverPadding(
         padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad),
@@ -358,16 +375,18 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     ];
   }
 
-  List<Widget> _categorySlivers(List<ClosetMockItem> items, double bottomPad) {
+  List<Widget> _categorySlivers(List<ClosetItem> items, double bottomPad) {
     final slivers = <Widget>[];
     final cs = Theme.of(context).colorScheme;
-    final present = _categoryOrder
-        .where((cat) => items.any((item) => item.category == cat))
+    final present = ClosetItem.displayCategoryOrder
+        .where((cat) => items.any((item) => item.displayCategory == cat))
         .toList();
 
     for (var i = 0; i < present.length; i++) {
       final category = present[i];
-      final group = items.where((item) => item.category == category).toList();
+      final group = ClosetItem.packForMasonry(
+        items.where((item) => item.displayCategory == category).toList(),
+      );
       final isLast = i == present.length - 1;
 
       slivers.add(
@@ -383,11 +402,11 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
             ),
             SliverPadding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, isLast ? bottomPad : 16),
-              sliver: SliverAlignedGrid.count(
+              sliver: SliverMasonryGrid.count(
                 crossAxisCount: _crossAxisCount,
                 mainAxisSpacing: _gridGap,
                 crossAxisSpacing: _gridGap,
-                itemCount: group.length,
+                childCount: group.length,
                 itemBuilder: (context, index) =>
                     _ClosetItemTile(item: group[index]),
               ),
@@ -780,81 +799,173 @@ class _PressableScaleState extends State<_PressableScale> {
   }
 }
 
-class _ClosetItemTile extends StatelessWidget {
-  const _ClosetItemTile({required this.item});
+class _ClosetSkeletonTile extends StatelessWidget {
+  const _ClosetSkeletonTile({required this.aspectRatio});
 
-  final ClosetMockItem item;
+  final double aspectRatio;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_tileRadius),
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: ColoredBox(color: cs.primary.withValues(alpha: 0.08)),
+      ),
+    );
+  }
+}
+
+class _ClosetItemTile extends StatefulWidget {
+  const _ClosetItemTile({required this.item});
+
+  final ClosetItem item;
+
+  @override
+  State<_ClosetItemTile> createState() => _ClosetItemTileState();
+}
+
+class _ClosetItemTileState extends State<_ClosetItemTile> {
+  bool _imageReady = false;
+
+  void _markImageReady() {
+    if (_imageReady || !mounted) return;
+    setState(() => _imageReady = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     final cs = Theme.of(context).colorScheme;
 
     return _PressableScale(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(_tileRadius),
-        child: AspectRatio(
-          aspectRatio: item.aspectRatio,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(color: cs.primary.withValues(alpha: 0.08)),
-              Image.network(
-                item.imageUrl,
-                fit: BoxFit.cover,
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  if (wasSynchronouslyLoaded) return child;
-                  return AnimatedOpacity(
-                    opacity: frame == null ? 0 : 1,
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOut,
-                    child: child,
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return ColoredBox(
-                    color: cs.primary.withValues(alpha: 0.12),
-                    child: Icon(
-                      Icons.checkroom_outlined,
-                      color: cs.primary.withValues(alpha: 0.35),
-                    ),
-                  );
-                },
+        child: Stack(
+          children: [
+            if (!_imageReady)
+              AspectRatio(
+                aspectRatio: item.aspectRatio,
+                child: _tilePlaceholder(item.blurHash),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        cs.primary.withValues(alpha: 0.72),
-                      ],
-                    ),
+            _ClosetTileImage(item: item, onReady: _markImageReady),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      cs.primary.withValues(alpha: 0.72),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 28, 10, 9),
-                    child: Text(
-                      item.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Metropolis',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 20, 10, 9),
+                  child: Text(
+                    item.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Metropolis',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+Widget _tilePlaceholder(String? blurHash) {
+  if (blurHash != null && blurHash.isNotEmpty) {
+    return BlurHash(
+      hash: blurHash,
+      imageFit: BoxFit.cover,
+      duration: Duration.zero,
+    );
+  }
+  return const Skeletonizer.zone(
+    child: Bone(width: double.infinity, height: double.infinity),
+  );
+}
+
+class _ClosetTileImage extends StatelessWidget {
+  const _ClosetTileImage({required this.item, required this.onReady});
+
+  final ClosetItem item;
+  final VoidCallback onReady;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final placeholder = ColoredBox(
+      color: cs.primary.withValues(alpha: 0.12),
+      child: Icon(
+        Icons.checkroom_outlined,
+        color: cs.primary.withValues(alpha: 0.35),
+      ),
+    );
+
+    final isolateUrl = item.tileImageUrl;
+    if (isolateUrl != null) {
+      return Image.network(
+        EnvConfig.resolvePlatformUrl(isolateUrl),
+        width: double.infinity,
+        fit: BoxFit.fitWidth,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+          }
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+          return _keyOrPlaceholder(item, placeholder);
+        },
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
+    return _keyOrPlaceholder(item, placeholder);
+  }
+
+  Widget _keyOrPlaceholder(ClosetItem item, Widget placeholder) {
+    final imageKey = item.imageKey;
+    if (imageKey == null) return placeholder;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ImageWithFallback(
+          width: constraints.maxWidth,
+          height: constraints.hasBoundedHeight && constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : constraints.maxWidth / item.aspectRatio,
+          fit: BoxFit.fitWidth,
+          remoteImage: RemoteImage(
+            url: item.originalImageUrl ?? '',
+            key: imageKey,
+            blurHash: item.blurHash,
+          ),
+          fallbackWidget: placeholder,
+        );
+      },
     );
   }
 }
