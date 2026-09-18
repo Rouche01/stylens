@@ -5,12 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
+import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/pages/closet/closet_browse.dart';
 import 'package:provider/provider.dart';
 
 class _FakeClosetApiService extends ClosetApiService {
   List<ClosetItem> items = const [];
+  ClosetIdentityStatus status = const ClosetIdentityStatus();
   bool fail = false;
   Completer<ApiResponse<List<ClosetItem>>>? pending;
 
@@ -26,6 +28,11 @@ class _FakeClosetApiService extends ClosetApiService {
       );
     }
     return ApiResponse.success(items);
+  }
+
+  @override
+  Future<ApiResponse<ClosetIdentityStatus>> getIdentityStatus() async {
+    return ApiResponse.success(status);
   }
 }
 
@@ -44,6 +51,14 @@ const _jeans = ClosetItem(
   subcategory: 'jeans',
   color: 'indigo',
 );
+
+ClosetManager _manager(_FakeClosetApiService api) {
+  return ClosetManager(
+    apiService: api,
+    onBroadcast: ({required channel, required event}) => const Stream.empty(),
+    leaveChannel: (_) {},
+  );
+}
 
 Widget _app(ClosetManager manager) {
   return ChangeNotifierProvider.value(
@@ -182,5 +197,86 @@ void main() {
     expect(find.text('Tops'), findsOneWidget);
     expect(find.text('Bottoms'), findsOneWidget);
     expect(find.text('1 piece'), findsNWidgets(2));
+  });
+
+  testWidgets('processing empty hangs pieces and hides capture', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..status = const ClosetIdentityStatus(processing: true);
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Hanging your pieces'), findsOneWidget);
+    expect(
+      find.text(
+        'We’re pulling them from your outfit. They’ll land here in a moment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Nothing hanging yet'), findsNothing);
+    expect(find.text('Capture an outfit'), findsNothing);
+    expect(find.text('Couldn’t hang that look'), findsNothing);
+    expect(find.text('Hanging a few more'), findsNothing);
+    expect(find.byKey(const ValueKey('closet-skeleton')), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('failed empty restores capture after a settled empty wave', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..status = const ClosetIdentityStatus(processing: true);
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+    api.status = const ClosetIdentityStatus();
+    await manager.syncIdentity(hideIfIdle: true);
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Couldn’t hang that look'), findsOneWidget);
+    expect(
+      find.text(
+        'We couldn’t pull pieces from your latest outfit. '
+        'Capture it again and we’ll try once more.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Capture an outfit'), findsOneWidget);
+    expect(find.text('Hanging your pieces'), findsNothing);
+    expect(find.text('Nothing hanging yet'), findsNothing);
+    expect(find.text('Hanging a few more'), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('filled closet pins a dock chip while processing', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee]
+      ..status = const ClosetIdentityStatus(processing: true);
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('White Tee'), findsOneWidget);
+    expect(find.text('Hanging a few more'), findsOneWidget);
+    expect(find.text('From your latest outfit'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('closet-processing-chip')),
+      findsOneWidget,
+    );
+    expect(find.text('Hanging your pieces'), findsNothing);
+    expect(find.text('Capture an outfit'), findsNothing);
+    manager.dispose();
   });
 }

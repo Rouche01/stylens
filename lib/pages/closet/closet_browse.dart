@@ -159,7 +159,7 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bottomPad = 16 + FloatingNavBar.contentBottomInset(context);
+    final dockClearance = 16 + FloatingNavBar.contentBottomInset(context);
 
     final topInset = MediaQuery.paddingOf(context).top;
     final minHeader = _ClosetHeaderMetrics.minExtentFor(topInset);
@@ -172,10 +172,25 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
       body: Consumer<ClosetManager>(
         builder: (context, manager, _) {
           final items = _filter(manager.items);
+          final catalogEmpty = manager.items.isEmpty;
+          final processingEmpty = catalogEmpty && manager.isProcessing;
+          final failedEmpty = catalogEmpty && manager.isFailedEmpty;
+          final showChip = !catalogEmpty && manager.isProcessing;
           final showSkeleton =
-              manager.items.isEmpty &&
+              catalogEmpty &&
+              !processingEmpty &&
+              !failedEmpty &&
               (manager.isLoading || (_awaitingInitial && !manager.hasLoaded));
           final query = _searchController.text.trim();
+          final bottomPad =
+              dockClearance +
+              (showChip ? ClosetProcessingDockChip.scrollReserve(context) : 0);
+
+          final emptyKind = processingEmpty
+              ? ClosetEmptyKind.processing
+              : failedEmpty
+              ? ClosetEmptyKind.failed
+              : ClosetEmptyKind.idle;
 
           final physics = showSkeleton
               ? const NeverScrollableScrollPhysics()
@@ -183,65 +198,85 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
               ? const AlwaysScrollableScrollPhysics()
               : null;
 
-          return NotificationListener<ScrollNotification>(
-            onNotification: _onScrollNotification,
-            child: RefreshIndicator(
-              color: cs.primary,
-              onRefresh: _refresh,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: physics,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                slivers: [
-                  SliverResizingHeader(
-                    minExtentPrototype: SizedBox(height: minHeader),
-                    maxExtentPrototype: SizedBox(height: maxHeader),
-                    child: _ClosetHeader(
-                      minExtent: minHeader,
-                      maxExtent: maxHeader,
-                      topInset: topInset,
-                      backgroundColor: cs.surfaceDim,
-                      titleColor: cs.primary,
-                      toolbar: _ClosetToolbar(
-                        searchController: _searchController,
-                        searchFocus: _searchFocus,
-                        viewMode: _viewMode,
-                        onDismissKeyboard: _dismissKeyboard,
-                        onViewModeChanged: _onViewModeChanged,
+          return Stack(
+            children: [
+              NotificationListener<ScrollNotification>(
+                onNotification: _onScrollNotification,
+                child: RefreshIndicator(
+                  color: cs.primary,
+                  onRefresh: _refresh,
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: physics,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    slivers: [
+                      SliverResizingHeader(
+                        minExtentPrototype: SizedBox(height: minHeader),
+                        maxExtentPrototype: SizedBox(height: maxHeader),
+                        child: _ClosetHeader(
+                          minExtent: minHeader,
+                          maxExtent: maxHeader,
+                          topInset: topInset,
+                          backgroundColor: cs.surfaceDim,
+                          titleColor: cs.primary,
+                          toolbar: _ClosetToolbar(
+                            searchController: _searchController,
+                            searchFocus: _searchFocus,
+                            viewMode: _viewMode,
+                            onDismissKeyboard: _dismissKeyboard,
+                            onViewModeChanged: _onViewModeChanged,
+                          ),
+                        ),
                       ),
+                      if (showSkeleton)
+                        ..._skeletonSlivers(bottomPad)
+                      else if (manager.error != null &&
+                          catalogEmpty &&
+                          !processingEmpty &&
+                          !failedEmpty)
+                        _messageSliver(
+                          cs: cs,
+                          bottomPad: bottomPad,
+                          message: manager.error!,
+                          actionLabel: 'Retry',
+                          onAction: _refresh,
+                        )
+                      else if (catalogEmpty)
+                        ClosetEmptySliver(
+                          bottomPad: bottomPad,
+                          onCaptureOutfit: _openCapture,
+                          kind: emptyKind,
+                        )
+                      else if (items.isEmpty)
+                        _messageSliver(
+                          cs: cs,
+                          bottomPad: bottomPad,
+                          message: 'No pieces match “$query”.',
+                          actionLabel: 'Clear search',
+                          onAction: _searchController.clear,
+                        )
+                      else if (_viewMode == _ClosetViewMode.all)
+                        ..._allSlivers(items, bottomPad)
+                      else
+                        ..._categorySlivers(items, bottomPad),
+                    ],
+                  ),
+                ),
+              ),
+              if (showChip)
+                Positioned(
+                  left: ClosetProcessingDockChip.sideInset,
+                  right: ClosetProcessingDockChip.sideInset,
+                  bottom: ClosetProcessingDockChip.bottomOffset(context),
+                  child: const Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ClosetProcessingDockChip(
+                      key: ValueKey('closet-processing-chip'),
                     ),
                   ),
-                  if (showSkeleton)
-                    ..._skeletonSlivers(bottomPad)
-                  else if (manager.error != null && manager.items.isEmpty)
-                    _messageSliver(
-                      cs: cs,
-                      bottomPad: bottomPad,
-                      message: manager.error!,
-                      actionLabel: 'Retry',
-                      onAction: _refresh,
-                    )
-                  else if (manager.items.isEmpty)
-                    ClosetEmptySliver(
-                      bottomPad: bottomPad,
-                      onCaptureOutfit: _openCapture,
-                    )
-                  else if (items.isEmpty)
-                    _messageSliver(
-                      cs: cs,
-                      bottomPad: bottomPad,
-                      message: 'No pieces match “$query”.',
-                      actionLabel: 'Clear search',
-                      onAction: _searchController.clear,
-                    )
-                  else if (_viewMode == _ClosetViewMode.all)
-                    ..._allSlivers(items, bottomPad)
-                  else
-                    ..._categorySlivers(items, bottomPad),
-                ],
-              ),
-            ),
+                ),
+            ],
           );
         },
       ),
