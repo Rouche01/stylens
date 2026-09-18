@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/services/pose_video_service.dart';
 import 'package:gostylens/utils/style_analysis_actions.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/satellite_action_button.dart';
+import 'package:provider/provider.dart';
 
 /// Bottom-nav shell hosting the Closet / Capture / History tab branches.
 ///
@@ -56,6 +58,8 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
     // Only reserve for the full-width dock; the satellite is a corner overlay
     // so list content can scroll underneath it.
     final reservedBottom = FloatingNavBar.contentBottomInset(context);
+    final closetProcessing =
+        context.watch<ClosetManager>().isProcessing && selectedIndex != 0;
 
     return Scaffold(
       extendBody: true,
@@ -85,6 +89,7 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
                   padding: EdgeInsets.fromLTRB(16, 0, 16, dockBottom),
                   child: FloatingNavBar(
                     selectedIndex: selectedIndex,
+                    closetProcessing: closetProcessing,
                     onDestinationSelected: (index) {
                       unawaited(_onDestinationSelected(index));
                     },

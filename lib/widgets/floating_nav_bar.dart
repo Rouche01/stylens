@@ -10,10 +10,14 @@ class FloatingNavBar extends StatefulWidget {
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    this.closetProcessing = false,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+
+  /// Lime pulse on the Closet hanger. Pass only when Closet is not selected.
+  final bool closetProcessing;
 
   /// Visual height of the bar (icon + label pill).
   static const double height = 64;
@@ -215,6 +219,10 @@ class _FloatingNavBarState extends State<FloatingNavBar>
                                   destination: FloatingNavBar._destinations[i],
                                   selected: selectedIndex == i,
                                   reduceMotion: reduceMotion,
+                                  showProcessingDot:
+                                      widget.closetProcessing &&
+                                      i == 0 &&
+                                      selectedIndex != 0,
                                   onTap: () => widget.onDestinationSelected(i),
                                 ),
                               ),
@@ -250,12 +258,14 @@ class _NavItem extends StatefulWidget {
     required this.destination,
     required this.selected,
     required this.reduceMotion,
+    required this.showProcessingDot,
     required this.onTap,
   });
 
   final _NavDestination destination;
   final bool selected;
   final bool reduceMotion;
+  final bool showProcessingDot;
   final VoidCallback onTap;
 
   @override
@@ -347,7 +357,9 @@ class _NavItemState extends State<_NavItem>
     return Semantics(
       button: true,
       selected: widget.selected,
-      label: destination.label,
+      label: widget.showProcessingDot
+          ? '${destination.label}, hanging pieces'
+          : destination.label,
       onTap: widget.onTap,
       child: GestureDetector(
         onTap: widget.onTap,
@@ -368,7 +380,7 @@ class _NavItemState extends State<_NavItem>
                       end: widget.selected ? activeColor : inactiveColor,
                     ),
                     builder: (context, color, _) {
-                      return AnimatedSwitcher(
+                      final icon = AnimatedSwitcher(
                         duration: colorDuration,
                         switchInCurve: Curves.easeOut,
                         switchOutCurve: Curves.easeIn,
@@ -379,6 +391,22 @@ class _NavItemState extends State<_NavItem>
                           key: ValueKey<bool>(widget.selected),
                           size: 21,
                           color: color ?? inactiveColor,
+                        ),
+                      );
+                      if (!widget.showProcessingDot) return icon;
+                      return SizedBox(
+                        width: 21,
+                        height: 21,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Center(child: icon),
+                            const Positioned(
+                              top: -5,
+                              right: -5,
+                              child: IgnorePointer(child: _HangerPulseDot()),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -407,5 +435,119 @@ class _NavItemState extends State<_NavItem>
         ),
       ),
     );
+  }
+}
+
+class _HangerPulseDot extends StatefulWidget {
+  const _HangerPulseDot();
+
+  static const double canvas = 18;
+
+  @override
+  State<_HangerPulseDot> createState() => _HangerPulseDotState();
+}
+
+class _HangerPulseDotState extends State<_HangerPulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  void _sync() {
+    if (FloatingNavBar.reduceMotionOf(context)) {
+      _pulse.stop();
+      _pulse.value = 0;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final reduceMotion = FloatingNavBar.reduceMotionOf(context);
+
+    return SizedBox(
+      key: const ValueKey('closet-hanger-pulse'),
+      width: _HangerPulseDot.canvas,
+      height: _HangerPulseDot.canvas,
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, _) {
+          return CustomPaint(
+            painter: _HangerPulsePainter(
+              progress: _pulse.value,
+              lime: cs.secondary,
+              halo: cs.primary,
+              reduceMotion: reduceMotion,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HangerPulsePainter extends CustomPainter {
+  const _HangerPulsePainter({
+    required this.progress,
+    required this.lime,
+    required this.halo,
+    required this.reduceMotion,
+  });
+
+  final double progress;
+  final Color lime;
+  final Color halo;
+  final bool reduceMotion;
+
+  static const _coreRadius = 3.5;
+  static const _haloWidth = 1.5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    if (!reduceMotion) {
+      final t = Curves.easeOut.transform(progress);
+      canvas.drawCircle(
+        center,
+        _coreRadius + 1 + 5 * t,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.25
+          ..color = lime.withValues(alpha: 0.7 * (1 - t)),
+      );
+    }
+
+    canvas.drawCircle(center, _coreRadius + _haloWidth, Paint()..color = halo);
+    canvas.drawCircle(center, _coreRadius, Paint()..color = lime);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HangerPulsePainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.lime != lime ||
+        oldDelegate.halo != halo ||
+        oldDelegate.reduceMotion != reduceMotion;
   }
 }
