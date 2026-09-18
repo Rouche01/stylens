@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
@@ -227,6 +229,12 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                             onDismissKeyboard: _dismissKeyboard,
                             onViewModeChanged: _onViewModeChanged,
                           ),
+                          onTitleLongPress: kDebugMode
+                              ? () {
+                                  HapticFeedback.selectionClick();
+                                  manager.debugCycleWaitChrome();
+                                }
+                              : null,
                         ),
                       ),
                       if (showSkeleton)
@@ -492,6 +500,7 @@ class _ClosetHeader extends StatelessWidget {
     required this.backgroundColor,
     required this.titleColor,
     required this.toolbar,
+    this.onTitleLongPress,
   });
 
   final double minExtent;
@@ -500,6 +509,7 @@ class _ClosetHeader extends StatelessWidget {
   final Color backgroundColor;
   final Color titleColor;
   final Widget toolbar;
+  final VoidCallback? onTitleLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -549,17 +559,21 @@ class _ClosetHeader extends StatelessWidget {
                         child: Transform.scale(
                           alignment: Alignment.centerLeft,
                           scale: titleScale,
-                          child: Text(
-                            'Your Closet',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'ClashDisplay',
-                              fontSize: _ClosetHeaderMetrics.expandedTitleSize,
-                              fontWeight: titleWeight,
-                              height: 1.1,
-                              letterSpacing: -0.3,
-                              color: titleColor,
+                          child: GestureDetector(
+                            onLongPress: onTitleLongPress,
+                            child: Text(
+                              'Your Closet',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'ClashDisplay',
+                                fontSize:
+                                    _ClosetHeaderMetrics.expandedTitleSize,
+                                fontWeight: titleWeight,
+                                height: 1.1,
+                                letterSpacing: -0.3,
+                                color: titleColor,
+                              ),
                             ),
                           ),
                         ),

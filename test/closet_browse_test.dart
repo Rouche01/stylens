@@ -279,4 +279,25 @@ void main() {
     expect(find.text('Capture an outfit'), findsNothing);
     manager.dispose();
   });
+
+  testWidgets('long-press title mimics processing on an empty closet', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService();
+    final manager = _manager(api);
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Nothing hanging yet'), findsOneWidget);
+
+    await tester.longPress(find.text('Your Closet'));
+    await tester.pump();
+
+    expect(find.text('Hanging your pieces'), findsOneWidget);
+    expect(find.text('Capture an outfit'), findsNothing);
+
+    manager.dispose();
+  });
 }

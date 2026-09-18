@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
@@ -48,6 +49,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   ClosetIdentityStatus _status = const ClosetIdentityStatus();
   bool _waitChrome = false;
   bool _failedEmpty = false;
+  bool _debugPinned = false;
   bool _observingLifecycle = false;
   StreamSubscription<Map<String, dynamic>>? _identitySub;
   StreamSubscription<Map<String, dynamic>>? _catalogSub;
@@ -94,6 +96,35 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> onAppResumed() => syncIdentity(hideIfIdle: true);
 
+  /// Debug preview: cycle idle → processing → failed empty (empty catalog)
+  /// or idle ↔ processing (filled). Resume/GET will not clear it until the
+  /// cycle returns to idle. No-op in release.
+  void debugCycleWaitChrome() {
+    if (!kDebugMode) return;
+
+    if (_items.isEmpty) {
+      if (!_waitChrome && !_failedEmpty) {
+        _debugPinned = true;
+        _setWaitChrome(true);
+      } else if (_waitChrome) {
+        _debugPinned = true;
+        _setWaitChrome(false);
+        _failedEmpty = true;
+      } else {
+        _failedEmpty = false;
+        _debugPinned = false;
+      }
+    } else if (!_waitChrome) {
+      _debugPinned = true;
+      _failedEmpty = false;
+      _setWaitChrome(true);
+    } else {
+      _setWaitChrome(false);
+      _debugPinned = false;
+    }
+    notifyListeners();
+  }
+
   Future<void> fetchItems({bool forceRefresh = false}) {
     final future = _fetchItems(forceRefresh: forceRefresh);
     _itemsInFlight = future;
@@ -131,6 +162,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _fetchStatus({required bool hideIfIdle}) async {
+    if (_debugPinned) return;
     try {
       final response = await _apiService.getIdentityStatus();
       if (_dbId == null) return;
@@ -185,7 +217,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _onIdentityEvent(Map<String, dynamic> payload) {
-    if (_dbId == null) return;
+    if (_dbId == null || _debugPinned) return;
     final status = ClosetIdentityStatus.fromResponse(payload);
     _status = status;
 
@@ -269,6 +301,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     _status = const ClosetIdentityStatus();
     _waitChrome = false;
     _failedEmpty = false;
+    _debugPinned = false;
     _items = const [];
     _isLoading = false;
     _hasLoaded = false;

@@ -143,33 +143,36 @@ void main() {
     expect(manager.identityStatus.processing, isFalse);
   });
 
-  test('started broadcast shows chrome without hiding on later tiles', () async {
-    await manager.bindUser('user-1');
-    expect(manager.isProcessing, isFalse);
+  test(
+    'started broadcast shows chrome without hiding on later tiles',
+    () async {
+      await manager.bindUser('user-1');
+      expect(manager.isProcessing, isFalse);
 
-    identity.add({
-      'processing': true,
-      'queued': 1,
-      'running': 0,
-      'failed': 0,
-      'phase': 'started',
-    });
-    await Future<void>.delayed(Duration.zero);
+      identity.add({
+        'processing': true,
+        'queued': 1,
+        'running': 0,
+        'failed': 0,
+        'phase': 'started',
+      });
+      await Future<void>.delayed(Duration.zero);
 
-    expect(manager.isProcessing, isTrue);
+      expect(manager.isProcessing, isTrue);
 
-    api.items = [_tee];
-    catalog.add({
-      'reason': 'identity',
-      'outfit_id': 'o1',
-      'closet_item_ids': ['1'],
-    });
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      api.items = [_tee];
+      catalog.add({
+        'reason': 'identity',
+        'outfit_id': 'o1',
+        'closet_item_ids': ['1'],
+      });
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(manager.isProcessing, isTrue);
-    expect(manager.items, [_tee]);
-  });
+      expect(manager.isProcessing, isTrue);
+      expect(manager.items, [_tee]);
+    },
+  );
 
   test('settled broadcast hides chrome and catch-up fetches items', () async {
     api.status = const ClosetIdentityStatus(processing: true);
@@ -271,5 +274,38 @@ void main() {
     expect(manager.isProcessing, isFalse);
     expect(manager.items, isEmpty);
     expect(manager.hasLoaded, isFalse);
+  });
+
+  test('debug cycle pins empty wait, then failed, then idle', () async {
+    await manager.bindUser('user-1');
+    expect(manager.isProcessing, isFalse);
+
+    manager.debugCycleWaitChrome();
+    expect(manager.isProcessing, isTrue);
+    expect(manager.isFailedEmpty, isFalse);
+
+    api.status = const ClosetIdentityStatus();
+    await manager.syncIdentity(hideIfIdle: true);
+    expect(manager.isProcessing, isTrue);
+
+    manager.debugCycleWaitChrome();
+    expect(manager.isProcessing, isFalse);
+    expect(manager.isFailedEmpty, isTrue);
+
+    manager.debugCycleWaitChrome();
+    expect(manager.isProcessing, isFalse);
+    expect(manager.isFailedEmpty, isFalse);
+  });
+
+  test('debug cycle pins a filled catalog in processing', () async {
+    api.items = [_tee];
+    await manager.bindUser('user-1');
+
+    manager.debugCycleWaitChrome();
+    expect(manager.isProcessing, isTrue);
+    expect(manager.items, isNotEmpty);
+
+    manager.debugCycleWaitChrome();
+    expect(manager.isProcessing, isFalse);
   });
 }

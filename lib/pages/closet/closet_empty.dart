@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/primary_button.dart';
@@ -259,7 +261,7 @@ class _EmptyGhostRack extends StatefulWidget {
   static const _heights = [70.0, 88.0, 62.0];
   static const _tileWidth = 52.0;
   static const _radius = 12.0;
-  static const _shimmerOffsets = [0.0, 0.2 / 1.8, 0.4 / 1.8];
+  static const _stagger = [0.0, 0.08, 0.16];
 
   @override
   State<_EmptyGhostRack> createState() => _EmptyGhostRackState();
@@ -274,7 +276,7 @@ class _EmptyGhostRackState extends State<_EmptyGhostRack>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2400),
     );
   }
 
@@ -309,46 +311,39 @@ class _EmptyGhostRackState extends State<_EmptyGhostRack>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final fill = cs.primary.withValues(alpha: 0.06);
-    final stroke = cs.primary.withValues(alpha: 0.22);
-    final highlight = cs.secondary.withValues(alpha: 0.55);
     final animate = widget.shimmer && !FloatingNavBar.reduceMotionOf(context);
+    final baseFill = cs.primary.withValues(alpha: 0.06);
+    final fill = animate ? Color.lerp(baseFill, cs.secondary, 0.34)! : baseFill;
+    final stroke = animate
+        ? Color.lerp(cs.primary.withValues(alpha: 0.22), cs.secondary, 0.45)!
+        : cs.primary.withValues(alpha: 0.22);
+    final highlight = Color.lerp(fill, cs.secondary, 1)!;
 
     return SizedBox(
       height: 88,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < _EmptyGhostRack._heights.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                _GhostTile(
-                  size: Size(
-                    _EmptyGhostRack._tileWidth,
-                    _EmptyGhostRack._heights[i],
-                  ),
-                  fill: fill,
-                  stroke: stroke,
-                  highlight: highlight,
-                  shimmerT: animate
-                      ? _shimmerPhase(_EmptyGhostRack._shimmerOffsets[i])
-                      : null,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < _EmptyGhostRack._heights.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            RepaintBoundary(
+              child: _GhostTile(
+                size: Size(
+                  _EmptyGhostRack._tileWidth,
+                  _EmptyGhostRack._heights[i],
                 ),
-              ],
-            ],
-          );
-        },
+                fill: fill,
+                stroke: stroke,
+                highlight: highlight,
+                shimmer: animate ? _controller : null,
+                stagger: _EmptyGhostRack._stagger[i],
+              ),
+            ),
+          ],
+        ],
       ),
     );
-  }
-
-  double _shimmerPhase(double offset) {
-    var v = _controller.value - offset;
-    v -= v.floorToDouble();
-    return Curves.easeInOut.transform(v);
   }
 }
 
@@ -358,55 +353,54 @@ class _GhostTile extends StatelessWidget {
     required this.fill,
     required this.stroke,
     required this.highlight,
-    required this.shimmerT,
+    required this.shimmer,
+    required this.stagger,
   });
 
   final Size size;
   final Color fill;
   final Color stroke;
   final Color highlight;
-  final double? shimmerT;
+  final Animation<double>? shimmer;
+  final double stagger;
 
   @override
   Widget build(BuildContext context) {
-    final tile = CustomPaint(
-      size: size,
-      painter: _DashedRRectPainter(
-        fill: fill,
-        stroke: stroke,
-        radius: _EmptyGhostRack._radius,
-      ),
+    final painter = _DashedRRectPainter(
+      fill: fill,
+      stroke: stroke,
+      highlight: highlight,
+      radius: _EmptyGhostRack._radius,
     );
 
-    if (shimmerT == null) return tile;
+    if (shimmer == null) {
+      return CustomPaint(size: size, painter: painter);
+    }
 
-    return SizedBox(
-      width: size.width,
-      height: size.height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(_EmptyGhostRack._radius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            tile,
-            FractionallySizedBox(
-              widthFactor: 1.4,
-              alignment: Alignment(-1.2 + 2.4 * shimmerT!, 0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Colors.transparent, highlight, Colors.transparent],
-                    stops: const [0.2, 0.5, 0.8],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: shimmer!,
+      builder: (context, _) {
+        return CustomPaint(
+          size: size,
+          painter: _DashedRRectPainter(
+            fill: fill,
+            stroke: stroke,
+            highlight: highlight,
+            radius: _EmptyGhostRack._radius,
+            shimmerT: _sweep(shimmer!.value, stagger),
+          ),
+        );
+      },
     );
+  }
+
+  /// Linear sweep for most of the loop, then rest off-screen so the wrap is hidden.
+  static double _sweep(double value, double stagger) {
+    var t = value - stagger;
+    t -= t.floorToDouble();
+    const travel = 0.82;
+    if (t >= travel) return 1;
+    return t / travel;
   }
 }
 
@@ -415,11 +409,15 @@ class _DashedRRectPainter extends CustomPainter {
     required this.fill,
     required this.stroke,
     required this.radius,
+    this.highlight,
+    this.shimmerT,
   });
 
   final Color fill;
   final Color stroke;
+  final Color? highlight;
   final double radius;
+  final double? shimmerT;
 
   static const _dash = 5.0;
   static const _gap = 3.5;
@@ -430,7 +428,27 @@ class _DashedRRectPainter extends CustomPainter {
       Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
       Radius.circular(radius),
     );
-    canvas.drawRRect(rrect, Paint()..color = fill);
+
+    final fillPaint = Paint()..color = fill;
+    final t = shimmerT;
+    final glow = highlight;
+    if (t != null && glow != null) {
+      final band = size.width * 1.5;
+      final x = ui.lerpDouble(-band, size.width, t)!;
+      fillPaint.shader = ui.Gradient.linear(
+        Offset(x, 0),
+        Offset(x + band, size.height * 0.2),
+        [
+          fill,
+          Color.lerp(fill, glow, 0.7)!,
+          glow,
+          Color.lerp(fill, glow, 0.7)!,
+          fill,
+        ],
+        const [0.0, 0.2, 0.5, 0.8, 1.0],
+      );
+    }
+    canvas.drawRRect(rrect, fillPaint);
 
     final path = Path()..addRRect(rrect);
     final paint = Paint()
@@ -458,6 +476,8 @@ class _DashedRRectPainter extends CustomPainter {
   bool shouldRepaint(covariant _DashedRRectPainter oldDelegate) {
     return oldDelegate.fill != fill ||
         oldDelegate.stroke != stroke ||
-        oldDelegate.radius != radius;
+        oldDelegate.radius != radius ||
+        oldDelegate.highlight != highlight ||
+        oldDelegate.shimmerT != shimmerT;
   }
 }
