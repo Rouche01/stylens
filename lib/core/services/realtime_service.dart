@@ -12,6 +12,9 @@ class RealtimeService {
   final Map<String, Map<String, StreamController<Map<String, dynamic>>>>
   _controllers = {};
 
+  final Map<String, StreamController<RealtimeSubscribeStatus>>
+  _statusControllers = {};
+
   RealtimeService(this._supabase);
 
   /// Returns a stream for a specific broadcast event on a specific channel.
@@ -44,15 +47,29 @@ class RealtimeService {
     }).stream;
   }
 
+  /// Join and rejoin status for [channel]. `subscribed` fires on first join
+  /// and again when the socket rejoins after a drop.
+  Stream<RealtimeSubscribeStatus> onChannelStatus(String channel) {
+    _getOrCreateChannel(channel);
+    return _statusControllers[channel]!.stream;
+  }
+
   RealtimeChannel _getOrCreateChannel(String channelName) {
     if (_channels.containsKey(channelName)) {
       return _channels[channelName]!;
     }
 
+    final statusController =
+        StreamController<RealtimeSubscribeStatus>.broadcast();
+    _statusControllers[channelName] = statusController;
+
     final channel = _supabase.channel(channelName);
     _channels[channelName] = channel;
 
     channel.subscribe((status, [error]) {
+      if (!statusController.isClosed) {
+        statusController.add(status);
+      }
       if (kDebugMode) {
         print(
           '📡 [RealtimeService] [$channelName] Status: $status ${error != null ? 'Error: $error' : ''}',
@@ -70,6 +87,9 @@ class RealtimeService {
 
     _controllers[channelName]?.values.forEach((c) => c.close());
     _controllers.remove(channelName);
+
+    _statusControllers[channelName]?.close();
+    _statusControllers.remove(channelName);
 
     if (kDebugMode) {
       print('📡 [RealtimeService] Left channel: $channelName');

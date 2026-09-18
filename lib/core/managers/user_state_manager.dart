@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
@@ -8,6 +10,7 @@ import 'package:gostylens/models/api_responses/user.dart';
 import 'package:gostylens/models/api_responses/gender.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/managers/auth_state_manager.dart';
+import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/managers/invite_code_manager.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
 import 'package:gostylens/core/managers/push_notification_manager.dart';
@@ -20,6 +23,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   final UserApiService _userApiService;
   SubscriptionManager get _subscriptionManager =>
       locator<SubscriptionManager>();
+  ClosetManager get _closetManager => locator<ClosetManager>();
 
   UserStateManager({UserApiService? userApiService})
     : _userApiService = userApiService ?? locator<UserApiService>();
@@ -136,6 +140,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
           userData.id,
           initialSubscription: userData.subscription,
         );
+        unawaited(_closetManager.bindUser(userData.id));
         // Initialize Push Notifications
         locator<PushNotificationManager>().initialize();
         locator<StylistOpenersManager>().ensureFresh();
@@ -225,6 +230,8 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
           userData.id,
           initialSubscription: userData.subscription,
         );
+
+        unawaited(_closetManager.bindUser(userData.id));
 
         // Initialize Push Notifications
         locator<PushNotificationManager>().initialize();
@@ -382,6 +389,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
     _isUpdatingEmailPrefs = false;
     _operationState = const UserOperationState();
     _lastError = null;
+    _closetManager.reset();
     await _subscriptionManager.clearState();
     notifyListeners();
   }

@@ -66,7 +66,7 @@ Event: `closet_catalog_updated`
 
 Always `fetchItems(forceRefresh: true)`. Do not render from `closet_item_ids` (no signed URLs on this ping). Ignore empty-id events if they ever arrive; the API does not send them.
 
-Missed broadcasts are fine: GET status + items on login, resume, closet tab, and pull-to-refresh. Optional ~15s status poll while wait chrome is up is only a missed-`settled` backup — not an item poll.
+Missed broadcasts are fine: GET status + items on login, channel subscribe/rejoin, resume, closet tab, and pull-to-refresh. No status poll and no item poll.
 
 ---
 
@@ -176,8 +176,8 @@ Mock: [`closet-session-hanging-preview.html`](./closet-session-hanging-preview.h
 - One channel `closet-identity:$dbId`. Two `onBroadcast` subscriptions:
   - `closet_identity_updated` → wait chrome
   - `closet_catalog_updated` → `fetchItems(forceRefresh: true)`
-- GET status + items on bind, app resume (`WidgetsBindingObserver`), closet tab visible, and pull-to-refresh.
-- While wait chrome is showing: optional ~15s GET status poll as a missed-`settled` backup. Cancel on idle or logout. No ~8s item poll.
+- GET status + items on bind, channel `subscribed` / rejoin, app resume (`WidgetsBindingObserver`), closet tab visible, and pull-to-refresh.
+- No periodic status poll. Subscribe/rejoin and resume are the missed-`settled` path.
 - On `phase == started`: show wait chrome.
 - On `phase == settled`: hide wait chrome, one last `fetchItems(forceRefresh: true)`.
 - Do not hide wait chrome just because the first tile arrived, or just because a single GET returned `processing: false` (another job may still enqueue inside the quiet window).
