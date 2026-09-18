@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stylens — Session hanging tag preview</title>
+    <link
+      rel="stylesheet"
+      href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,600&display=swap"
+    />
+    <style>
+      :root {
+        --green: #3d4a3d;
+        --lime: #b8e994;
+        --mist: #e8f5e8;
+        --ink: #2c352c;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: Satoshi, Metropolis, system-ui, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, #d7ecd4 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 100%, #cfe8c8 0%, transparent 50%),
+          #dfe9dc;
+        color: var(--ink);
+      }
+
+      .page {
+        display: grid;
+        grid-template-columns: minmax(260px, 340px) auto;
+        gap: 48px;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px 32px;
+      }
+
+      .chrome h1 {
+        font-family: "Clash Display", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        color: var(--green);
+      }
+
+      .chrome p {
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #5a675a;
+        max-width: 38ch;
+      }
+
+      .chrome .note {
+        margin-top: 18px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #7a8a7a;
+      }
+
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .steps button {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+        background: #fff;
+        color: var(--green);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .steps button[aria-pressed="true"] {
+        background: var(--green);
+        color: var(--lime);
+        border-color: var(--green);
+      }
+
+      .steps button span {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 500;
+        color: color-mix(in srgb, var(--green) 55%, #fff);
+      }
+
+      .steps button[aria-pressed="true"] span {
+        color: color-mix(in srgb, var(--lime) 70%, #fff);
+      }
+
+      .phone-wrap {
+        transform: scale(0.75);
+        transform-origin: top center;
+        width: 390px;
+        height: calc(844px * 0.75);
+      }
+
+      .phone {
+        width: 390px;
+        height: 844px;
+        background: var(--mist);
+        border-radius: 48px;
+        padding: 12px;
+        box-shadow:
+          0 0 0 10px #2a332a,
+          0 40px 80px rgba(61, 74, 61, 0.28);
+        position: relative;
+      }
+
+      .phone-screen {
+        height: 100%;
+        border-radius: 38px;
+        overflow: hidden;
+        background: var(--mist);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .status {
+        flex: none;
+        height: 52px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 28px 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--green);
+      }
+
+      .island {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        width: 118px;
+        height: 34px;
+        transform: translateX(-50%);
+        background: #1c221c;
+        border-radius: 20px;
+        z-index: 2;
+      }
+
+      .app-bar {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 8px 10px;
+        background: color-mix(in srgb, var(--lime) 55%, var(--mist));
+      }
+
+      .app-bar button {
+        width: 44px;
+        height: 44px;
+        border: 0;
+        background: transparent;
+        color: var(--green);
+        display: grid;
+        place-items: center;
+        cursor: default;
+      }
+
+      .brand {
+        font-family: "Clash Display", sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        color: var(--green);
+      }
+
+      .thread {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 16px 16px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        scrollbar-width: none;
+      }
+
+      .bubble {
+        max-width: 75%;
+        padding: 12px;
+        border-radius: 16px;
+      }
+
+      .bubble.user {
+        align-self: flex-end;
+        background: var(--green);
+        color: #fff;
+      }
+
+      .bubble.stylist {
+        align-self: flex-start;
+        background: color-mix(in srgb, var(--green) 8%, white);
+        color: var(--green);
+      }
+
+      .bubble p {
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .look {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #1c221c;
+      }
+
+      .look img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 30%;
+        display: block;
+      }
+
+      .hang-tag {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px 4px 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--lime) 88%, white);
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        box-shadow: 0 6px 14px rgba(28, 34, 28, 0.28);
+        pointer-events: none;
+      }
+
+      .hang-tag.hidden {
+        display: none;
+      }
+
+      .hang-spin {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, var(--green) 22%, transparent);
+        border-top-color: var(--green);
+        animation: spin 0.9s linear infinite;
+      }
+
+      .composer {
+        flex: none;
+        padding: 12px 16px 28px;
+        background: #fff;
+        border-top: 1px solid color-mix(in srgb, var(--green) 12%, transparent);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .attach,
+      .send {
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--green) 8%, white);
+        color: var(--green);
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+
+      .send {
+        background: var(--green);
+        color: var(--lime);
+      }
+
+      .composer input {
+        flex: 1;
+        height: 40px;
+        border: 1px solid color-mix(in srgb, var(--green) 16%, transparent);
+        border-radius: 12px;
+        padding: 0 12px;
+        background: var(--mist);
+        color: var(--green);
+        font: 500 14px/1 Satoshi, sans-serif;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hang-spin {
+          animation: none;
+        }
+      }
+
+      @media (max-width: 860px) {
+        .page {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          padding: 24px 16px 40px;
+        }
+
+        .chrome {
+          text-align: center;
+        }
+
+        .chrome p {
+          margin-inline: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <aside class="chrome">
+        <h1>Session hanging tag</h1>
+        <p>
+          Advice is a full-screen route — no dock — so the closet signal sits on
+          the look itself. A lime pill on the photo, bottom-left:
+          <strong>Hanging</strong>. It belongs to the latest look while identity
+          is in flight, then it comes off. Not on Capture, not on History
+          thumbs.
+        </p>
+        <p class="note">Non-tappable · same voice as the dock chip</p>
+        <div class="steps" role="tablist" aria-label="Session hanging states">
+          <button type="button" data-step="hanging" aria-pressed="true">
+            While hanging
+            <span>Tag on the look, stylist still writing</span>
+          </button>
+          <button type="button" data-step="settled" aria-pressed="false">
+            After settle
+            <span>Tag gone — tiles in Closet are the proof</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="island"></div>
+            <div class="status">
+              <span>9:41</span>
+              <span>●●●</span>
+            </div>
+            <header class="app-bar">
+              <button type="button" aria-label="Back">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M15 6l-6 6 6 6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <span class="brand">stylens</span>
+              <button type="button" aria-label="More">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="6" r="1.7" />
+                  <circle cx="12" cy="12" r="1.7" />
+                  <circle cx="12" cy="18" r="1.7" />
+                </svg>
+              </button>
+            </header>
+            <main class="thread">
+              <article class="bubble user">
+                <div class="look">
+                  <img
+                    src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80"
+                    alt=""
+                  />
+                  <span id="hangTag" class="hang-tag" aria-label="Hanging">
+                    <i class="hang-spin" aria-hidden="true"></i>
+                    Hanging
+                  </span>
+                </div>
+              </article>
+              <article class="bubble stylist">
+                <p id="stylistCopy">
+                  Looking at this look — clean lines, easy to build around.
+                </p>
+              </article>
+            </main>
+            <form class="composer" action="#" onsubmit="return false">
+              <button class="attach" type="button" aria-label="Attach">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5v14M5 12h14"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+              <input type="text" placeholder="Ask your stylist…" disabled />
+              <button class="send" type="button" aria-label="Send">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 12h12M13 6l6 6-6 6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const hangTag = document.getElementById("hangTag");
+      const stylistCopy = document.getElementById("stylistCopy");
+      const settledLine =
+        "This silhouette is doing the work. Keep the rest quiet and let the coat lead.";
+      const hangingLine =
+        "Looking at this look — clean lines, easy to build around.";
+
+      function show(step) {
+        const hanging = step === "hanging";
+        hangTag.classList.toggle("hidden", !hanging);
+        stylistCopy.textContent = hanging ? hangingLine : settledLine;
+        document.querySelectorAll(".steps button").forEach((btn) => {
+          btn.setAttribute("aria-pressed", String(btn.dataset.step === step));
+        });
+      }
+
+      document.querySelectorAll(".steps button").forEach((btn) => {
+        btn.addEventListener("click", () => show(btn.dataset.step));
+      });
+    </script>
+  </body>
+</html>

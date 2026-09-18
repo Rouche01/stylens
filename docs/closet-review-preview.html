@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stylens — Closet review preview</title>
+    <link
+      rel="stylesheet"
+      href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,600&display=swap"
+    />
+    <style>
+      :root {
+        --green: #3d4a3d;
+        --lime: #b8e994;
+        --mist: #e8f5e8;
+        --ink: #2c352c;
+        --gap: 8px;
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: Satoshi, Metropolis, system-ui, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, #d7ecd4 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 100%, #cfe8c8 0%, transparent 50%),
+          #dfe9dc;
+        color: var(--ink);
+      }
+
+      .page {
+        display: grid;
+        grid-template-columns: minmax(260px, 340px) auto;
+        gap: 48px;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 40px 32px;
+      }
+
+      .chrome h1 {
+        font-family: "Clash Display", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        color: var(--green);
+      }
+
+      .chrome p {
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #5a675a;
+        max-width: 38ch;
+      }
+
+      .chrome .note {
+        margin-top: 18px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #7a8a7a;
+      }
+
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .steps button {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+        background: #fff;
+        color: var(--green);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .steps button[aria-pressed="true"] {
+        background: var(--green);
+        color: var(--lime);
+        border-color: var(--green);
+      }
+
+      .steps button span {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 500;
+        color: color-mix(in srgb, var(--green) 55%, #fff);
+      }
+
+      .steps button[aria-pressed="true"] span {
+        color: color-mix(in srgb, var(--lime) 70%, #fff);
+      }
+
+      .phone {
+        width: 390px;
+        height: 844px;
+        background: var(--mist);
+        border-radius: 48px;
+        padding: 12px;
+        box-shadow:
+          0 0 0 10px #2a332a,
+          0 40px 80px rgba(61, 74, 61, 0.28);
+        position: relative;
+      }
+
+      .phone-screen {
+        height: 100%;
+        border-radius: 38px;
+        overflow: hidden;
+        background: var(--mist);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .status {
+        flex: none;
+        height: 52px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 0 28px 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--green);
+      }
+
+      .island {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        width: 118px;
+        height: 34px;
+        transform: translateX(-50%);
+        background: #1c221c;
+        border-radius: 20px;
+      }
+
+      .app {
+        flex: 1;
+        overflow: auto;
+        padding: 8px 16px 108px;
+        scrollbar-width: none;
+      }
+
+      .app::-webkit-scrollbar {
+        display: none;
+      }
+
+      .title {
+        font-family: "Clash Display", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: var(--green);
+        margin: 4px 0 16px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .search {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fff;
+        border: 1px solid color-mix(in srgb, var(--green) 18%, transparent);
+        border-radius: 999px;
+        padding: 0 14px;
+        height: 42px;
+      }
+
+      .search svg {
+        flex: none;
+        color: #7a8a7a;
+      }
+
+      .search input {
+        border: 0;
+        outline: 0;
+        width: 100%;
+        background: transparent;
+        font: 500 14px/1 Satoshi, sans-serif;
+        color: var(--ink);
+      }
+
+      .view-btn {
+        height: 42px;
+        padding: 0 14px 0 16px;
+        border-radius: 999px;
+        border: 0;
+        background: var(--green);
+        color: var(--lime);
+        font: 600 13px/1 Satoshi, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 118px;
+        justify-content: space-between;
+      }
+
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 14px;
+        padding: 10px 12px 10px 10px;
+        border: 0;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 8px 20px color-mix(in srgb, var(--green) 8%, transparent);
+        color: var(--green);
+        text-align: left;
+      }
+
+      button.banner {
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .banner.settle {
+        background: color-mix(in srgb, var(--lime) 55%, white);
+        box-shadow: none;
+      }
+
+      .thumbs {
+        display: flex;
+        width: 56px;
+        height: 40px;
+        flex: none;
+      }
+
+      .thumbs img {
+        width: 32px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 2px solid #fff;
+        background: #d5e4d4;
+      }
+
+      .thumbs img + img {
+        margin-left: -12px;
+      }
+
+      .check {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: var(--green);
+        color: var(--lime);
+        display: grid;
+        place-items: center;
+      }
+
+      .banner-copy {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .banner-copy strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .banner-copy span {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        color: color-mix(in srgb, var(--green) 55%, #fff);
+      }
+
+      .banner svg.chevron {
+        flex: none;
+        color: color-mix(in srgb, var(--green) 45%, #fff);
+      }
+
+      .section-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .section {
+        font-family: "Clash Display", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--green);
+      }
+
+      .count {
+        font-size: 13px;
+        font-weight: 500;
+        color: color-mix(in srgb, var(--green) 45%, #fff);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--gap);
+        align-items: start;
+      }
+
+      .tile {
+        position: relative;
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: #d5e4d4;
+      }
+
+      .tile img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: var(--ratio);
+        object-fit: cover;
+      }
+
+      .tile figcaption {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 28px 10px 9px;
+        background: linear-gradient(
+          transparent,
+          color-mix(in srgb, var(--green) 72%, black)
+        );
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .tile.new-piece {
+        outline: 2px solid var(--green);
+        outline-offset: 1px;
+      }
+
+      .cat-block {
+        margin-top: 14px;
+      }
+
+      .cat-block:first-of-type {
+        margin-top: 0;
+      }
+
+      .sheet {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: color-mix(in srgb, var(--green) 38%, transparent);
+      }
+
+      .sheet.open {
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .sheet-card {
+        width: 100%;
+        background: var(--mist);
+        border-radius: 28px 28px 38px 38px;
+        padding: 12px 20px 28px;
+      }
+
+      .sheet-handle {
+        width: 40px;
+        height: 4px;
+        margin: 4px auto 16px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--green) 22%, transparent);
+      }
+
+      .sheet-card h3 {
+        font-family: "Clash Display", sans-serif;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: var(--green);
+        text-align: center;
+      }
+
+      .sheet-card > p {
+        margin: 8px auto 18px;
+        max-width: 28ch;
+        text-align: center;
+        font-size: 14px;
+        line-height: 1.45;
+        color: color-mix(in srgb, var(--green) 58%, #fff);
+      }
+
+      .sheet-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .sheet-pair figure {
+        margin: 0;
+      }
+
+      .sheet-pair img {
+        display: block;
+        width: 100%;
+        height: 168px;
+        object-fit: cover;
+        border-radius: 16px;
+        background: #d5e4d4;
+      }
+
+      .sheet-pair figcaption {
+        margin-top: 8px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--green);
+      }
+
+      .sheet-actions {
+        display: grid;
+        gap: 8px;
+      }
+
+      .sheet-actions button {
+        height: 44px;
+        border-radius: 12px;
+        border: 0;
+        font: 600 16px/1 Satoshi, sans-serif;
+        cursor: pointer;
+      }
+
+      .sheet-actions .same {
+        background: var(--green);
+        color: #fff;
+      }
+
+      .sheet-actions .fresh {
+        background: transparent;
+        color: var(--green);
+        border: 1.5px solid color-mix(in srgb, var(--green) 22%, transparent);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .dock {
+        position: absolute;
+        left: 20px;
+        right: 20px;
+        bottom: 18px;
+        height: 64px;
+        border-radius: 26px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: center;
+        padding: 5px;
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--green) 82%, var(--lime)) 0%,
+          color-mix(in srgb, var(--green) 92%, black) 100%
+        );
+        box-shadow: 0 8px 24px rgba(61, 74, 61, 0.28);
+        z-index: 6;
+      }
+
+      .dock span {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 10px;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .dock span.active {
+        color: var(--green);
+        background: color-mix(in srgb, var(--lime) 92%, white);
+        border-radius: 20px;
+        height: 54px;
+        justify-content: center;
+      }
+
+      .dock svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      @media (max-width: 860px) {
+        .page {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          padding: 24px 16px 40px;
+        }
+
+        .chrome {
+          text-align: center;
+        }
+
+        .chrome p {
+          margin-inline: auto;
+        }
+
+        .steps {
+          max-width: 390px;
+          margin-inline: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <aside class="chrome">
+        <h1>Closet review guide</h1>
+        <p id="blurb"></p>
+        <p class="note">Steps</p>
+        <div class="steps" role="group" aria-label="Review steps"></div>
+      </aside>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="island"></div>
+          <div class="status">
+            <span>9:41</span>
+            <span>●●●</span>
+          </div>
+          <main class="app">
+            <h2 class="title">Your Closet</h2>
+            <div class="toolbar">
+              <label class="search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search pieces"
+                  autocomplete="off"
+                  disabled
+                />
+              </label>
+              <button class="view-btn" type="button">
+                <span id="viewLabel">All</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 4.5 6 8l3.5-3.5"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div id="bannerHost"></div>
+            <div id="catalog"></div>
+          </main>
+
+          <div class="sheet" id="sheet">
+            <div class="sheet-card">
+              <div class="sheet-handle"></div>
+              <h3>Same piece?</h3>
+              <p id="sheetCopy"></p>
+              <div class="sheet-pair">
+                <figure>
+                  <img id="sheetNew" alt="" />
+                  <figcaption>New photo</figcaption>
+                </figure>
+                <figure>
+                  <img id="sheetOld" alt="" />
+                  <figcaption>In closet</figcaption>
+                </figure>
+              </div>
+              <div class="sheet-actions">
+                <button class="same" type="button" id="sheetSame">
+                  It’s the same
+                </button>
+                <button class="fresh" type="button" id="sheetNewBtn">
+                  It’s new
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <nav class="dock" aria-label="Tabs">
+            <span class="active">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M21 6.5c0-1.5-1.6-2.6-3.4-2.1L12 6.2 6.4 4.4C4.6 3.9 3 5 3 6.5V18c0 1.1.9 2 2 2 .3 0 .6-.1.9-.2L12 18l6.1 1.8c.3.1.6.2.9.2 1.1 0 2-.9 2-2V6.5Z"
+                />
+              </svg>
+              Closet
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-4.2V9l-2.1-.4a7.2 7.2 0 0 0-.9-2.1L18.2 5 16.8 3.6l-1.5 1.2a7.2 7.2 0 0 0-2.1-.9L12.8 2h-1.6l-.4 2.1a7.2 7.2 0 0 0-2.1.9L7.2 3.6 5.8 5l1.2 1.5a7.2 7.2 0 0 0-.9 2.1L4 9v1.6l2.1.4c.1.7.4 1.5.9 2.1L5.8 14.6 7.2 16l1.5-1.2c.6.5 1.4.8 2.1.9L11.2 18h1.6l.4-2.1c.7-.1 1.5-.4 2.1-.9l1.5 1.2 1.4-1.4-1.2-1.5c.5-.6.8-1.4.9-2.1L20 10.8Z"
+                />
+              </svg>
+              Capture
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M13 3a9 9 0 1 0 8.5 12h-2.1A7 7 0 1 1 13 5v4.6l3.4 2-1 1.6L11 10V3h2Z"
+                />
+              </svg>
+              History
+            </span>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TEE_NEW =
+        "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=800&q=80";
+      const TEE_OLD =
+        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80";
+      const JACKET_NEW =
+        "https://images.unsplash.com/photo-1521223890158-f9f7c3d5d504?auto=format&fit=crop&w=800&q=80";
+      const JACKET_OLD =
+        "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80";
+      const SHOE_NEW =
+        "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?auto=format&fit=crop&w=800&q=80";
+      const SHOE_OLD =
+        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80";
+
+      const MATCHES = {
+        tee: {
+          title: "Same white tee?",
+          sub: "Looks like one already in your closet",
+          copy: "We spotted this on a new outfit. Is it the tee already in your closet?",
+          fresh: TEE_NEW,
+          closet: TEE_OLD,
+        },
+        jacket: {
+          title: "Same leather jacket?",
+          sub: "Looks like one already in your closet",
+          copy: "New outfit, familiar jacket. Same piece, or a second one?",
+          fresh: JACKET_NEW,
+          closet: JACKET_OLD,
+        },
+        shoes: {
+          title: "Same court sneakers?",
+          sub: "Looks like one already in your closet",
+          copy: "Last one in the queue. Is this the pair already in your closet?",
+          fresh: SHOE_NEW,
+          closet: SHOE_OLD,
+        },
+      };
+
+      const ITEMS = [
+        {
+          name: "White tee",
+          category: "Tops",
+          ratio: "4 / 5",
+          src: TEE_OLD,
+        },
+        {
+          name: "Ivory knit",
+          category: "Tops",
+          ratio: "5 / 6",
+          src: "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Oxford stripe",
+          category: "Tops",
+          ratio: "3 / 4",
+          src: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Vintage denim",
+          category: "Bottoms",
+          ratio: "2 / 3",
+          src: "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Tailored trousers",
+          category: "Bottoms",
+          ratio: "3 / 5",
+          src: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Leather jacket",
+          category: "Outerwear",
+          ratio: "3 / 4",
+          src: JACKET_OLD,
+        },
+        {
+          name: "Camel overcoat",
+          category: "Outerwear",
+          ratio: "3 / 5",
+          src: "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=800&q=80",
+        },
+        {
+          name: "Court sneakers",
+          category: "Shoes",
+          ratio: "1 / 1",
+          src: SHOE_OLD,
+        },
+        {
+          name: "Chelsea boots",
+          category: "Shoes",
+          ratio: "5 / 6",
+          src: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&w=800&q=80",
+        },
+      ];
+
+      const NEW_JACKET = {
+        name: "Moto jacket",
+        category: "Outerwear",
+        ratio: "3 / 4",
+        src: JACKET_NEW,
+        fresh: true,
+      };
+
+      const STEPS = [
+        {
+          id: "ask1",
+          label: "1. First ask",
+          hint: "All · banner is this pair",
+          blurb:
+            "One match in the banner: this new crop vs this closet piece. No queue count here — that waits until after they decide. Catalog stays confirmed pieces only.",
+          view: "all",
+          banner: "ask",
+          match: "tee",
+          sheet: false,
+          added: false,
+        },
+        {
+          id: "sheet1",
+          label: "2. Resolve",
+          hint: "Tap destination",
+          blurb:
+            "Same / New live on the sheet, not the banner. You need a proper look at both crops before deciding.",
+          view: "all",
+          banner: "ask",
+          match: "tee",
+          sheet: true,
+          added: false,
+        },
+        {
+          id: "saved",
+          label: "3. Saved as same",
+          hint: "Settle, don’t snap",
+          blurb:
+            "After It’s the same, the banner becomes a short confirmation with how many are left. No second tee in the grid.",
+          view: "all",
+          banner: "saved",
+          match: "tee",
+          sheet: false,
+          added: false,
+        },
+        {
+          id: "ask2",
+          label: "4. Next ask",
+          hint: "Next pair",
+          blurb:
+            "Then the banner becomes the next pair. Compact at any queue length — never a stack of pending tiles.",
+          view: "all",
+          banner: "ask",
+          match: "jacket",
+          sheet: false,
+          added: false,
+        },
+        {
+          id: "sheet2",
+          label: "5. Resolve new",
+          hint: "It’s new",
+          blurb:
+            "This time the user says it’s a second jacket. Still a pair, still not a closet tile until they confirm.",
+          view: "all",
+          banner: "ask",
+          match: "jacket",
+          sheet: true,
+          added: false,
+        },
+        {
+          id: "added",
+          label: "6. Added to closet",
+          hint: "New tile lands",
+          blurb:
+            "Confirmation first, with 1 left. The new jacket can appear in the grid. Banner still hasn’t jumped to the next pair yet.",
+          view: "all",
+          banner: "added",
+          match: "jacket",
+          sheet: false,
+          added: true,
+        },
+        {
+          id: "ask3",
+          label: "7. Last ask",
+          hint: "Last pair",
+          blurb:
+            "Newest-first queue continues until empty. Same banner chrome, last pair.",
+          view: "all",
+          banner: "ask",
+          match: "shoes",
+          sheet: false,
+          added: true,
+        },
+        {
+          id: "clear",
+          label: "8. Queue empty",
+          hint: "Banner gone",
+          blurb:
+            "After the last resolve, the banner disappears. Closet is just the catalog again — including the jacket they marked as new.",
+          view: "all",
+          banner: "none",
+          match: "shoes",
+          sheet: false,
+          added: true,
+        },
+        {
+          id: "categories",
+          label: "9. Categories",
+          hint: "Same banner",
+          blurb:
+            "All and Categories share this chrome. It sits under the toolbar, above Tops — not a clothing category called Pending.",
+          view: "categories",
+          banner: "ask",
+          match: "tee",
+          sheet: false,
+          added: false,
+        },
+      ];
+
+      const chevron = `<svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+      const check = `<span class="check" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M4 9.2 7.2 12.5 14 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>`;
+
+      const catalog = document.getElementById("catalog");
+      const viewLabel = document.getElementById("viewLabel");
+      const blurb = document.getElementById("blurb");
+      const bannerHost = document.getElementById("bannerHost");
+      const sheet = document.getElementById("sheet");
+      const stepsRoot = document.querySelector(".steps");
+      const sheetCopy = document.getElementById("sheetCopy");
+      const sheetNew = document.getElementById("sheetNew");
+      const sheetOld = document.getElementById("sheetOld");
+      let currentId = "ask1";
+
+      function tile(item) {
+        const fresh = item.fresh ? " new-piece" : "";
+        return `<figure class="tile${fresh}" style="--ratio:${item.ratio}">
+          <img src="${item.src}" alt="${item.name}" loading="lazy" />
+          <figcaption>${item.name}</figcaption>
+        </figure>`;
+      }
+
+      function grid(items) {
+        return `<div class="grid">${items.map(tile).join("")}</div>`;
+      }
+
+      function catalogItems(added) {
+        return added ? [NEW_JACKET, ...ITEMS] : ITEMS;
+      }
+
+      function categories(items) {
+        return ["Tops", "Bottoms", "Outerwear", "Shoes"]
+          .map((cat) => {
+            const group = items.filter((item) => item.category === cat);
+            const n = group.length;
+            return `<section class="cat-block">
+              <div class="section-row">
+                <h3 class="section">${cat}</h3>
+                <span class="count">${n} ${n === 1 ? "piece" : "pieces"}</span>
+              </div>
+              ${grid(group)}
+            </section>`;
+          })
+          .join("");
+      }
+
+      function thumbs(match) {
+        return `<span class="thumbs" aria-hidden="true">
+          <img src="${match.fresh}" alt="" />
+          <img src="${match.closet}" alt="" />
+        </span>`;
+      }
+
+      function renderBanner(step) {
+        if (step.banner === "none") {
+          bannerHost.innerHTML = "";
+          return;
+        }
+        const match = MATCHES[step.match];
+        if (step.banner === "saved") {
+          bannerHost.innerHTML = `<div class="banner settle">
+            ${check}
+            <span class="banner-copy">
+              <strong>Saved as the same piece</strong>
+              <span>2 left to confirm</span>
+            </span>
+          </div>`;
+          return;
+        }
+        if (step.banner === "added") {
+          bannerHost.innerHTML = `<div class="banner settle">
+            ${check}
+            <span class="banner-copy">
+              <strong>Added to closet</strong>
+              <span>1 left to confirm</span>
+            </span>
+          </div>`;
+          return;
+        }
+        const nextId =
+          step.id === "ask1" || step.id === "categories"
+            ? "sheet1"
+            : step.id === "ask2"
+              ? "sheet2"
+              : null;
+        bannerHost.innerHTML = `<button class="banner" type="button" ${
+          nextId ? `data-go="${nextId}"` : ""
+        }>
+          ${thumbs(match)}
+          <span class="banner-copy">
+            <strong>${match.title}</strong>
+            <span>${match.sub}</span>
+          </span>
+          ${chevron}
+        </button>`;
+        bannerHost.querySelector("[data-go]")?.addEventListener("click", () => {
+          go(nextId);
+        });
+      }
+
+      function renderSheet(step) {
+        const match = MATCHES[step.match];
+        sheet.classList.toggle("open", step.sheet);
+        if (!step.sheet) return;
+        sheetCopy.textContent = match.copy;
+        sheetNew.src = match.fresh;
+        sheetOld.src = match.closet;
+      }
+
+      function go(id) {
+        const step = STEPS.find((item) => item.id === id);
+        if (!step) return;
+        currentId = id;
+        viewLabel.textContent = step.view === "categories" ? "Categories" : "All";
+        blurb.textContent = step.blurb;
+        renderBanner(step);
+        renderSheet(step);
+        const items = catalogItems(step.added);
+        catalog.innerHTML =
+          step.view === "categories" ? categories(items) : grid(items);
+        stepsRoot.querySelectorAll("button").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.step === id));
+        });
+      }
+
+      STEPS.forEach((step) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.step = step.id;
+        button.innerHTML = `${step.label}<span>${step.hint}</span>`;
+        button.addEventListener("click", () => go(step.id));
+        stepsRoot.append(button);
+      });
+
+      document.getElementById("sheetSame").addEventListener("click", () => {
+        go(currentId === "sheet2" ? "ask3" : "saved");
+      });
+      document.getElementById("sheetNewBtn").addEventListener("click", () => {
+        go(currentId === "sheet2" ? "added" : "ask2");
+      });
+
+      go("ask1");
+    </script>
+  </body>
+</html>
