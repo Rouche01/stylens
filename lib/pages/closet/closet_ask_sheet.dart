@@ -64,121 +64,127 @@ class _ClosetAskSheetState extends State<ClosetAskSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final ask = widget.ask;
-    final manager = context.watch<ClosetManager>();
-    final resolving = manager.isResolvingMatch;
-    final error = manager.matchResolveError;
+    final error = context.watch<ClosetManager>().matchResolveError;
+    final sameLoading = _pendingDecision == ClosetMatchDecision.same;
+    final newLoading = _pendingDecision == ClosetMatchDecision.asNew;
+    final busy = sameLoading || newLoading;
 
-    return SafeArea(
-      key: ClosetAskSheet.sheetKey,
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(999),
+    return PopScope(
+      canPop: !busy,
+      child: SafeArea(
+        key: ClosetAskSheet.sheetKey,
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const SizedBox(width: 40, height: 4),
                 ),
-                child: const SizedBox(width: 40, height: 4),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Same piece?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'ClashDisplay',
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
-                color: cs.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              ask.sheetCopy,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Metropolis',
-                fontSize: 14,
-                height: 1.45,
-                color: cs.primary.withValues(alpha: 0.58),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _SheetCrop(side: ask.probe, caption: 'New photo'),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _SheetCrop(side: ask.candidate, caption: 'In closet'),
-                ),
-              ],
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Text(
-                error,
+                'Same piece?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'ClashDisplay',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
+                  color: cs.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ask.sheetCopy,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Metropolis',
-                  fontSize: 13,
-                  height: 1.35,
-                  color: cs.primary.withValues(alpha: 0.7),
+                  fontSize: 14,
+                  height: 1.45,
+                  color: cs.primary.withValues(alpha: 0.58),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _SheetCrop(side: ask.probe, caption: 'New photo'),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SheetCrop(
+                      side: ask.candidate,
+                      caption: 'In closet',
+                    ),
+                  ),
+                ],
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  error,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Metropolis',
+                    fontSize: 13,
+                    height: 1.35,
+                    color: cs.primary.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              PrimaryButton(
+                key: ClosetAskSheet.sameKey,
+                label: "It's the same",
+                isLoading: sameLoading,
+                disabled: newLoading,
+                onPressed: () => _resolve(ClosetMatchDecision.same),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cs.primary,
+                  foregroundColor: cs.onPrimary,
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              CustomOutlinedButton(
+                key: ClosetAskSheet.newKey,
+                label: "It's new",
+                isLoading: newLoading,
+                disabled: sameLoading,
+                onPressed: () => _resolve(ClosetMatchDecision.asNew),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: cs.primary,
+                  minimumSize: const Size.fromHeight(44),
+                  side: BorderSide(color: cs.primary.withValues(alpha: 0.22)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 18),
-            PrimaryButton(
-              key: ClosetAskSheet.sameKey,
-              label: "It's the same",
-              isLoading:
-                  resolving && _pendingDecision == ClosetMatchDecision.same,
-              disabled:
-                  resolving && _pendingDecision != ClosetMatchDecision.same,
-              onPressed: () => _resolve(ClosetMatchDecision.same),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cs.primary,
-                foregroundColor: cs.onPrimary,
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: EdgeInsets.zero,
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            CustomOutlinedButton(
-              key: ClosetAskSheet.newKey,
-              label: "It's new",
-              disabled: resolving,
-              onPressed: () => _resolve(ClosetMatchDecision.asNew),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: cs.primary,
-                minimumSize: const Size.fromHeight(44),
-                side: BorderSide(color: cs.primary.withValues(alpha: 0.22)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: EdgeInsets.zero,
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

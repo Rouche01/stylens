@@ -24,15 +24,16 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final ButtonStyle effectiveStyle =
         style ??
         ElevatedButton.styleFrom(
           backgroundColor: disabled || isLoading
               ? Colors.grey.shade300
-              : Theme.of(context).colorScheme.primary,
+              : cs.primary,
           foregroundColor: disabled || isLoading
               ? Colors.grey.shade600
-              : Theme.of(context).colorScheme.onPrimary,
+              : cs.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -40,33 +41,45 @@ class PrimaryButton extends StatelessWidget {
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         );
 
+    final spinnerColor =
+        style?.foregroundColor?.resolve(const <WidgetState>{}) ?? cs.onPrimary;
+
     Widget childContent = isLoading
         ? SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).colorScheme.onPrimary,
-              ),
+              color: spinnerColor,
             ),
           )
         : Text(label);
+
+    // Keep onPressed non-null while loading so M3 does not fade the button
+    // (and the spinner) into the disabled colors.
+    final VoidCallback? effectiveOnPressed = disabled
+        ? null
+        : isLoading
+        ? () {}
+        : onPressed;
 
     final buttonChild = icon != null && !isLoading
         ? ElevatedButton.icon(
             icon: icon!,
             label: Text(label),
             style: effectiveStyle,
-            onPressed: disabled || isLoading ? null : onPressed,
+            onPressed: effectiveOnPressed,
             iconAlignment: iconAlignment ?? IconAlignment.start,
           )
         : ElevatedButton(
             style: effectiveStyle,
-            onPressed: disabled || isLoading ? null : onPressed,
+            onPressed: effectiveOnPressed,
             child: childContent,
           );
 
-    return SizedBox(width: width ?? double.infinity, child: buttonChild);
+    return AbsorbPointer(
+      absorbing: disabled || isLoading,
+      child: SizedBox(width: width ?? double.infinity, child: buttonChild),
+    );
   }
 }

@@ -23,6 +23,7 @@ class _FakeClosetApiService extends ClosetApiService {
   int getItemsCalls = 0;
   int forceRefreshCalls = 0;
   Completer<ApiResponse<List<ClosetItem>>>? pending;
+  Completer<ApiResponse<ClosetMatchResolveResult>>? resolvePending;
 
   @override
   Future<ApiResponse<List<ClosetItem>>> getItems({
@@ -55,6 +56,7 @@ class _FakeClosetApiService extends ClosetApiService {
     required String matchId,
     required ClosetMatchDecision decision,
   }) async {
+    if (resolvePending != null) return resolvePending!.future;
     if (resolveStatusCode != 200) {
       return ApiResponse.error(
         defaultMessage: 'Failed to resolve closet match',
@@ -649,5 +651,85 @@ void main() {
     expect(find.text('Saved as the same piece'), findsOneWidget);
     expect(find.text('1 left to confirm'), findsOneWidget);
     manager.dispose();
+  });
+
+  testWidgets('sheet same and new show a spinner while resolving', (
+    tester,
+  ) async {
+    Future<void> openSheet(
+      _FakeClosetApiService api,
+      ClosetManager manager,
+    ) async {
+      await manager.bindUser('user-1');
+      await tester.pumpWidget(_app(manager));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.byKey(ClosetAskBanner.askKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    final sameApi = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee')]
+      ..resolvePending = Completer();
+    final sameManager = _manager(sameApi);
+    await openSheet(sameApi, sameManager);
+
+    await tester.tap(find.byKey(ClosetAskSheet.sameKey));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text("It's the same"), findsNothing);
+    expect(find.text("It's new"), findsOneWidget);
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsOneWidget);
+
+    sameApi.resolvePending!.complete(
+      ApiResponse.success(
+        const ClosetMatchResolveResult(
+          decision: ClosetMatchDecision.same,
+          matchId: 'tee',
+          identityStatus: ClosetMatchIdentityStatus.created,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsNothing);
+    sameManager.dispose();
+
+    final newApi = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee')]
+      ..resolvePending = Completer();
+    final newManager = _manager(newApi);
+    await newManager.bindUser('user-1');
+    await tester.pumpWidget(_app(newManager));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byKey(ClosetAskBanner.askKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.byKey(ClosetAskSheet.newKey));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text("It's new"), findsNothing);
+    expect(find.text("It's the same"), findsOneWidget);
+
+    newApi.resolvePending!.complete(
+      ApiResponse.success(
+        const ClosetMatchResolveResult(
+          decision: ClosetMatchDecision.asNew,
+          matchId: 'tee',
+          identityStatus: ClosetMatchIdentityStatus.created,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsNothing);
+    newManager.dispose();
   });
 }
