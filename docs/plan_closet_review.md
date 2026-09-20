@@ -49,7 +49,7 @@ No match-specific realtime event. Catch-up `GET /closet/matches/pending` (no cac
 }
 ```
 
-Keep `score` / `cosine` / `color_distance` / boxes on the model. **Do not render scores.** Prefer `isolated_image_url` for thumbs; fall back to `original_image_url`.
+Keep `score` / `cosine` / `color_distance` / boxes on the model. **Do not render scores.** Thumbs: isolate URL with `cutout=0` (photo crop of the boxed item), then `original_image_url`. Do not use the SAM silhouette.
 
 API order is `created_at DESC` (newest first). The banner is `matches.first`.
 
@@ -70,7 +70,7 @@ Do **not** treat resolve as “1 of 3”. Remaining is `pending.length` after a 
 
 1. **One ask at a time.** Never a stack of pending tiles. After resolve, settle copy, then the next pair.
 2. **Banner under the toolbar.** Same chrome in All and Categories. Not a clothing section called Pending. Do not put this above the dock (that slot is processing).
-3. **No queue count on the ask.** Title **Same {displayName}?** / **Looks like one already in your closet**. Count only after a decision: **2 left to confirm** / **1 left to confirm**.
+3. **No queue count on the ask.** Title **Same {short name}?** / **Looks like one already in your closet**. Count only after a decision: **2 left to confirm** / **1 left to confirm**.
 4. **Same / New live on the sheet**, not the banner. Banner tap opens the sheet.
 5. **Catalog is confirmed pieces only.** A **new** resolve may add a tile; **same** does not duplicate.
 6. **If remaining is 0** after resolve, hide the banner (no leftover count). Skip a settle flash on the last pair so the closet just returns to catalog.
@@ -89,7 +89,7 @@ Tappable. Two overlapping thumbs (probe then candidate) + title + subtitle + che
 >
 > Looks like one already in your closet
 
-Title uses `ClosetItem.formatDisplayName` on the candidate label: `Same {name}?` with the name lowercased after the first word as in the mock (`Same white tee?`).
+Title uses a short candidate name: keep labels that already fit (`Same white tee?`); if the formatted label is long, use **color + kind** (`Same olive jacket?` not `Same olive green button-up jacket?`).
 
 ### Settle banner
 

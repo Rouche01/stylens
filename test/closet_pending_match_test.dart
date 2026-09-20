@@ -63,9 +63,15 @@ void main() {
         expect(match.probe.pattern, 'solid');
         expect(match.probe.imageKey, 'users/u1/look.jpg');
         expect(match.probe.boundingBox?.x, 0.1);
-        expect(match.probe.thumbUrl, 'https://api.example/isolate?probe=1');
+        expect(
+          match.probe.thumbUrl,
+          'https://api.example/isolate?probe=1&cutout=0',
+        );
         expect(match.candidate.closetItemId, 'c1');
-        expect(match.candidate.thumbUrl, 'https://api.example/isolate?cand=1');
+        expect(
+          match.candidate.thumbUrl,
+          'https://api.example/isolate?cand=1&cutout=0',
+        );
         expect(match.askTitle, 'Same white tee?');
         expect(match.askTitle, isNot(contains('0.91')));
         expect(
@@ -75,12 +81,13 @@ void main() {
       },
     );
 
-    test('prefers isolated thumbs and falls back to the original', () {
+    test('uses isolate photo crops, not cutouts, and falls back to original', () {
       final match = ClosetPendingMatch.fromJson(
         pendingJson(
           probe: {
             'label': 'navy jacket',
-            'original_image_url': 'https://r2.example/probe.jpg',
+            'isolated_image_url':
+                'https://api.example/assets/isolate?key=p.jpg&x=0.1&y=0.2&w=0.3&h=0.4',
           },
           candidate: {
             'closet_item_id': 'c2',
@@ -91,9 +98,30 @@ void main() {
         ),
       );
 
-      expect(match.probe.thumbUrl, 'https://r2.example/probe.jpg');
+      expect(match.probe.thumbUrl, contains('cutout=0'));
+      expect(match.probe.thumbUrl, contains('key=p.jpg'));
       expect(match.candidate.thumbUrl, 'https://r2.example/cand.jpg');
       expect(match.askTitle, 'Same navy jacket?');
+    });
+
+    test('shortens long ask names to color + kind', () {
+      final match = ClosetPendingMatch.fromJson(
+        pendingJson(
+          candidate: {
+            'closet_item_id': 'c3',
+            'label': 'olive green button-up jacket',
+            'subcategory': 'button-up jacket',
+            'color': 'olive green',
+          },
+        ),
+      );
+
+      expect(match.candidate.displayName, 'Olive Green Button-Up Jacket');
+      expect(match.askTitle, 'Same olive jacket?');
+      expect(
+        match.askTitle.length,
+        lessThan(match.candidate.displayName.length),
+      );
     });
 
     test('defaults missing sides and drops empty ask names to Same piece?', () {

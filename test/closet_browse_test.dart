@@ -8,12 +8,14 @@ import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/models/closet_pending_match.dart';
+import 'package:gostylens/pages/closet/closet_ask_banner.dart';
 import 'package:gostylens/pages/closet/closet_browse.dart';
 import 'package:provider/provider.dart';
 
 class _FakeClosetApiService extends ClosetApiService {
   List<ClosetItem> items = const [];
   ClosetIdentityStatus status = const ClosetIdentityStatus();
+  List<ClosetPendingMatch> pendingMatches = const [];
   bool fail = false;
   Completer<ApiResponse<List<ClosetItem>>>? pending;
 
@@ -38,7 +40,25 @@ class _FakeClosetApiService extends ClosetApiService {
 
   @override
   Future<ApiResponse<List<ClosetPendingMatch>>> getPendingMatches() async {
-    return ApiResponse.success(const []);
+    return ApiResponse.success(pendingMatches);
+  }
+
+  @override
+  Future<ApiResponse<ClosetMatchResolveResult>> resolveMatch({
+    required String matchId,
+    required ClosetMatchDecision decision,
+  }) async {
+    pendingMatches = [
+      for (final match in pendingMatches)
+        if (match.id != matchId) match,
+    ];
+    return ApiResponse.success(
+      ClosetMatchResolveResult(
+        decision: decision,
+        matchId: matchId,
+        identityStatus: ClosetMatchIdentityStatus.created,
+      ),
+    );
   }
 }
 
@@ -57,6 +77,17 @@ const _jeans = ClosetItem(
   subcategory: 'jeans',
   color: 'indigo',
 );
+
+ClosetPendingMatch _ask(String id, {String label = 'white tee'}) {
+  return ClosetPendingMatch(
+    id: id,
+    outfitId: 'o1',
+    score: 0.91,
+    cosine: 0.88,
+    probe: ClosetMatchSide(label: label),
+    candidate: ClosetMatchSide(closetItemId: 'c-$id', label: label),
+  );
+}
 
 ClosetManager _manager(_FakeClosetApiService api) {
   return ClosetManager(
@@ -304,6 +335,108 @@ void main() {
     expect(find.text('Hanging your pieces'), findsOneWidget);
     expect(find.text('Capture an outfit'), findsNothing);
 
+    manager.dispose();
+  });
+
+  testWidgets('ask banner sits under the toolbar on a filled closet', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee', label: 'white tee')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(ClosetAskBanner.askKey), findsOneWidget);
+    expect(find.text('Same white tee?'), findsOneWidget);
+    expect(find.text('Looks like one already in your closet'), findsOneWidget);
+    expect(find.text('0.91'), findsNothing);
+    expect(find.textContaining('1 of'), findsNothing);
+    expect(find.byKey(const ValueKey('closet-processing-chip')), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('ask banner stays in Categories and All', (tester) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee, _jeans]
+      ..pendingMatches = [_ask('tee')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Categories'), findsOneWidget);
+    expect(find.text('Same white tee?'), findsOneWidget);
+    expect(find.text('Tops'), findsOneWidget);
+
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Same white tee?'), findsOneWidget);
+    expect(find.text('Tops'), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('ask banner still shows over an empty closet', (tester) async {
+    final api = _FakeClosetApiService()..pendingMatches = [_ask('tee')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Same white tee?'), findsOneWidget);
+    expect(find.text('Nothing hanging yet'), findsOneWidget);
+    expect(find.byKey(const ValueKey('closet-processing-chip')), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('settle banner then the next ask; last resolve hides', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee'), _ask('jacket', label: 'leather jacket')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Same white tee?'), findsOneWidget);
+
+    await manager.resolveCurrentAsk(ClosetMatchDecision.same);
+    await tester.pump();
+
+    expect(find.byKey(ClosetAskBanner.settleKey), findsOneWidget);
+    expect(find.text('Saved as the same piece'), findsOneWidget);
+    expect(find.text('1 left to confirm'), findsOneWidget);
+    expect(find.text('Same white tee?'), findsNothing);
+    expect(find.byKey(const ValueKey('closet-processing-chip')), findsNothing);
+
+    await tester.pump(ClosetManager.settleDwell);
+    await tester.pump();
+
+    expect(find.text('Same leather jacket?'), findsOneWidget);
+    expect(find.text('Saved as the same piece'), findsNothing);
+
+    await manager.resolveCurrentAsk(ClosetMatchDecision.asNew);
+    await tester.pump();
+
+    expect(find.byKey(ClosetAskBanner.askKey), findsNothing);
+    expect(find.byKey(ClosetAskBanner.settleKey), findsNothing);
+    expect(find.text('Added to closet'), findsNothing);
     manager.dispose();
   });
 }

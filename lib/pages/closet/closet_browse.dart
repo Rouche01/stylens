@@ -11,6 +11,7 @@ import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/navigation/app_routes.dart';
+import 'package:gostylens/pages/closet/closet_ask_banner.dart';
 import 'package:gostylens/pages/closet/closet_empty.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
@@ -165,6 +166,9 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     GoRouter.maybeOf(context)?.go(AppRoutes.capture);
   }
 
+  /// Sheet is the next plan item.
+  void _openAskSheet() {}
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -244,6 +248,15 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                               : null,
                         ),
                       ),
+                      if (manager.askSettle != null ||
+                          manager.currentAsk != null)
+                        SliverToBoxAdapter(
+                          child: ClosetAskBanner(
+                            ask: manager.currentAsk,
+                            settle: manager.askSettle,
+                            onOpenAsk: _openAskSheet,
+                          ),
+                        ),
                       if (showSkeleton)
                         ..._skeletonSlivers(bottomPad)
                       else if (manager.error != null &&
@@ -258,10 +271,10 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                           onAction: _refresh,
                         )
                       else if (catalogEmpty)
-                        ClosetEmptySliver(
+                        _emptyCatalogSliver(
+                          manager: manager,
                           bottomPad: bottomPad,
-                          onCaptureOutfit: _openCapture,
-                          kind: emptyKind,
+                          emptyKind: emptyKind,
                         )
                       else if (items.isEmpty)
                         _messageSliver(
@@ -295,6 +308,29 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
           );
         },
       ),
+    );
+  }
+
+  Widget _emptyCatalogSliver({
+    required ClosetManager manager,
+    required double bottomPad,
+    required ClosetEmptyKind emptyKind,
+  }) {
+    if (manager.askSettle != null || manager.currentAsk != null) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(32, 8, 32, bottomPad),
+          child: ClosetEmptyState(
+            onCaptureOutfit: _openCapture,
+            kind: emptyKind,
+          ),
+        ),
+      );
+    }
+    return ClosetEmptySliver(
+      bottomPad: bottomPad,
+      onCaptureOutfit: _openCapture,
+      kind: emptyKind,
     );
   }
 

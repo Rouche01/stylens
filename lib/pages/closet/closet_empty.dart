@@ -37,63 +37,61 @@ class ClosetEmptyState extends StatelessWidget {
 
     return Semantics(
       liveRegion: processing || failed,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 280),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ExcludeSemantics(child: _EmptyGhostRack(shimmer: processing)),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'ClashDisplay',
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.3,
-                  color: cs.primary,
-                ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(child: _EmptyGhostRack(shimmer: processing)),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'ClashDisplay',
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+                color: cs.primary,
               ),
-              const SizedBox(height: 8),
-              Text(
-                body,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Metropolis',
-                  fontSize: 14,
-                  height: 1.45,
-                  color: cs.primary.withValues(alpha: 0.58),
-                ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Metropolis',
+                fontSize: 14,
+                height: 1.45,
+                color: cs.primary.withValues(alpha: 0.58),
               ),
-              if (!processing) ...[
-                const SizedBox(height: 22),
-                SizedBox(
-                  height: 44,
-                  width: double.infinity,
-                  child: PrimaryButton(
-                    label: 'Capture an outfit',
-                    onPressed: onCaptureOutfit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: cs.primary,
-                      foregroundColor: cs.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+            ),
+            if (!processing) ...[
+              const SizedBox(height: 22),
+              SizedBox(
+                height: 44,
+                width: double.infinity,
+                child: PrimaryButton(
+                  label: 'Capture an outfit',
+                  onPressed: onCaptureOutfit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -119,7 +117,9 @@ class ClosetEmptySliver extends StatelessWidget {
       hasScrollBody: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(32, 0, 32, bottomPad),
-        child: ClosetEmptyState(onCaptureOutfit: onCaptureOutfit, kind: kind),
+        child: Center(
+          child: ClosetEmptyState(onCaptureOutfit: onCaptureOutfit, kind: kind),
+        ),
       ),
     );
   }

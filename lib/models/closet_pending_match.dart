@@ -94,8 +94,58 @@ class ClosetMatchSide {
 
   String get displayName => ClosetItem.formatDisplayName(label);
 
-  /// Isolated cutout, then the signed original. Scores are never part of this.
-  String? get thumbUrl => isolatedImageUrl ?? originalImageUrl;
+  /// Photo crop of the outfit (`cutout=0`), not the SAM silhouette.
+  /// Falls back to the signed original. Scores are never part of this.
+  String? get thumbUrl {
+    final isolate = isolatedImageUrl;
+    if (isolate != null) return photoCropUrl(isolate);
+    return originalImageUrl;
+  }
+
+  /// Short name for “Same {name}?” — keep short labels, else color + kind.
+  String get shortAskName {
+    final full = displayName.toLowerCase();
+    if (full.isEmpty) return '';
+    if (full.length <= ClosetPendingMatch.askNameBudget) return full;
+
+    final kind = _askKind;
+    final hue = _askHue;
+    if (hue != null && kind != null && hue != kind) {
+      final paired = '$hue $kind';
+      if (paired.length <= ClosetPendingMatch.askNameBudget) return paired;
+    }
+    if (kind != null && kind.length <= ClosetPendingMatch.askNameBudget) {
+      return kind;
+    }
+    return full.split(ClosetPendingMatch._wordSplit).take(2).join(' ');
+  }
+
+  String? get _askKind {
+    final fromSub = ClosetItem.formatDisplayName(subcategory).toLowerCase();
+    if (fromSub.isNotEmpty) {
+      return fromSub.split(ClosetPendingMatch._wordSplit).last;
+    }
+    if (displayName.isEmpty) return null;
+    return displayName.toLowerCase().split(ClosetPendingMatch._wordSplit).last;
+  }
+
+  String? get _askHue {
+    final fromColor = ClosetItem.formatDisplayName(color).toLowerCase();
+    if (fromColor.isNotEmpty) {
+      return fromColor.split(ClosetPendingMatch._wordSplit).first;
+    }
+    if (displayName.isEmpty) return null;
+    return displayName.toLowerCase().split(ClosetPendingMatch._wordSplit).first;
+  }
+
+  /// Isolate worker crop: keep the box, drop the foreground cutout.
+  static String photoCropUrl(String isolateUrl) {
+    final uri = Uri.tryParse(isolateUrl);
+    if (uri == null || uri.query.isEmpty) return isolateUrl;
+    return uri
+        .replace(queryParameters: {...uri.queryParameters, 'cutout': '0'})
+        .toString();
+  }
 
   factory ClosetMatchSide.fromJson(Map<String, dynamic> json) {
     return ClosetMatchSide(
@@ -139,9 +189,15 @@ class ClosetPendingMatch {
 
   static const askSubtitle = 'Looks like one already in your closet';
 
-  /// Banner title from the candidate label. Never includes scores.
+  /// Max characters for the name inside **Same {name}?** so the banner
+  /// does not ellipsize mid-word.
+  static const askNameBudget = 18;
+
+  static final _wordSplit = RegExp(r'\s+');
+
+  /// Banner title from a shortened candidate name. Never includes scores.
   String get askTitle {
-    final name = candidate.displayName.toLowerCase();
+    final name = candidate.shortAskName;
     if (name.isEmpty) return 'Same piece?';
     return 'Same $name?';
   }
