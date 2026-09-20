@@ -24,6 +24,7 @@ List<Widget> closetBrowseBodySlivers({
   required VoidCallback onRetry,
   required VoidCallback onClearSearch,
   required VoidCallback onCapture,
+  required ValueChanged<ClosetItem> onOpenItem,
 }) {
   final cs = Theme.of(context).colorScheme;
 
@@ -70,8 +71,8 @@ List<Widget> closetBrowseBodySlivers({
     ];
   }
   final grid = viewMode == ClosetViewMode.all
-      ? _allSlivers(items)
-      : _categorySlivers(context, items);
+      ? _allSlivers(items, onOpenItem)
+      : _categorySlivers(context, items, onOpenItem);
   return _withDockScrollInset(grid, bottomPad, dockInsetKey);
 }
 
@@ -248,19 +249,32 @@ List<Widget> _categorySkeletonSlivers(BuildContext context) {
   return slivers;
 }
 
-List<Widget> _allSlivers(List<ClosetItem> items) {
+List<Widget> _allSlivers(
+  List<ClosetItem> items,
+  ValueChanged<ClosetItem> onOpenItem,
+) {
   return [
     _masonrySliver(
       key: const ValueKey('closet-all-grid'),
       itemCount: items.length,
       keyOf: (index) => ValueKey(items[index].id),
-      itemBuilder: (context, index) =>
-          ClosetItemTile(key: ValueKey(items[index].id), item: items[index]),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return ClosetItemTile(
+          key: ValueKey(item.id),
+          item: item,
+          onTap: () => onOpenItem(item),
+        );
+      },
     ),
   ];
 }
 
-List<Widget> _categorySlivers(BuildContext context, List<ClosetItem> items) {
+List<Widget> _categorySlivers(
+  BuildContext context,
+  List<ClosetItem> items,
+  ValueChanged<ClosetItem> onOpenItem,
+) {
   final slivers = <Widget>[];
   final cs = Theme.of(context).colorScheme;
   final present = ClosetItem.displayCategoryOrder
@@ -288,10 +302,14 @@ List<Widget> _categorySlivers(BuildContext context, List<ClosetItem> items) {
           _masonrySliver(
             itemCount: group.length,
             keyOf: (index) => ValueKey(group[index].id),
-            itemBuilder: (context, index) => ClosetItemTile(
-              key: ValueKey(group[index].id),
-              item: group[index],
-            ),
+            itemBuilder: (context, index) {
+              final item = group[index];
+              return ClosetItemTile(
+                key: ValueKey(item.id),
+                item: item,
+                onTap: () => onOpenItem(item),
+              );
+            },
           ),
         ],
       ),

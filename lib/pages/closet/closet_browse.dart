@@ -144,6 +144,10 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     GoRouter.maybeOf(context)?.go(AppRoutes.capture);
   }
 
+  void _openItem(ClosetItem item) {
+    context.push(AppRoutes.closetItem(item.id));
+  }
+
   void _openAskSheet() {
     _dismissKeyboard();
     final manager = context.read<ClosetManager>();
@@ -266,6 +270,7 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                         onRetry: _refresh,
                         onClearSearch: _searchController.clear,
                         onCapture: _openCapture,
+                        onOpenItem: _openItem,
                       ),
                     ],
                   ),

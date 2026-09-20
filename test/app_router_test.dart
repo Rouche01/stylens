@@ -100,6 +100,10 @@ void main() {
         redirectForStage(AuthStage.userReady, AppRoutes.session('abc')),
         isNull,
       );
+      expect(
+        redirectForStage(AuthStage.userReady, AppRoutes.closetItem('c1')),
+        isNull,
+      );
     });
   });
 
@@ -437,6 +441,8 @@ void main() {
       expect(isPushDetailLocation(AppRoutes.paywall), isTrue);
       expect(isPushDetailLocation(AppRoutes.billing), isTrue);
       expect(isPushDetailLocation(AppRoutes.session('x')), isTrue);
+      expect(isPushDetailLocation(AppRoutes.closetItem('c1')), isTrue);
+      expect(isPushDetailLocation(AppRoutes.closet), isFalse);
       expect(isPushDetailLocation(AppRoutes.capture), isFalse);
     });
 
@@ -465,11 +471,16 @@ void main() {
       );
       expect(semanticShellForLocation(AppRoutes.paywall), AppRoutes.capture);
       expect(semanticShellForLocation(AppRoutes.billing), AppRoutes.capture);
+      expect(
+        semanticShellForLocation(AppRoutes.closetItem('c1')),
+        AppRoutes.closet,
+      );
     });
 
-    test('sessionIdFromLocation', () {
-      expect(sessionIdFromLocation(AppRoutes.sessionNew), isNull);
-      expect(sessionIdFromLocation(AppRoutes.session('s1')), 's1');
+    test('closetItemIdFromLocation', () {
+      expect(closetItemIdFromLocation(AppRoutes.closetItem('c1')), 'c1');
+      expect(closetItemIdFromLocation(AppRoutes.closet), isNull);
+      expect(closetItemIdFromLocation('/closet-item/'), isNull);
     });
 
     test('matchesViewingSession', () {

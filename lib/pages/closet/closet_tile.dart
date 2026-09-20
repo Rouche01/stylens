@@ -7,9 +7,10 @@ import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class ClosetItemTile extends StatelessWidget {
-  const ClosetItemTile({super.key, required this.item});
+  const ClosetItemTile({super.key, required this.item, this.onTap});
 
   final ClosetItem item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +18,7 @@ class ClosetItemTile extends StatelessWidget {
 
     return RepaintBoundary(
       child: _PressableScale(
+        onTap: onTap,
         child: ClipRRect(
           clipBehavior: Clip.hardEdge,
           borderRadius: BorderRadius.circular(ClosetBrowseLayout.tileRadius),
@@ -85,9 +87,10 @@ class ClosetSkeletonTile extends StatelessWidget {
 }
 
 class _PressableScale extends StatefulWidget {
-  const _PressableScale({required this.child});
+  const _PressableScale({required this.child, this.onTap});
 
   final Widget child;
+  final VoidCallback? onTap;
 
   @override
   State<_PressableScale> createState() => _PressableScaleState();
@@ -108,6 +111,7 @@ class _PressableScaleState extends State<_PressableScale> {
       onTapDown: (_) => _setPressed(true),
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
+      onTap: widget.onTap,
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1,
         duration: const Duration(milliseconds: 120),

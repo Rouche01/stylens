@@ -29,8 +29,11 @@ class AppRoutes {
   static const billing = '/billing';
   static const profile = '/profile';
   static const profileNotifications = '/profile/notifications';
+  static const closetItemPattern = '/closet-item/:id';
 
   static String session(String id) => '/session/$id';
+
+  static String closetItem(String id) => '/closet-item/$id';
 
   /// Tab branch locations that the bottom nav switches between.
   static const tabLocations = {closet, capture, history};
@@ -68,6 +71,18 @@ String? sessionIdFromLocation(String location) {
   return id.isEmpty ? null : id;
 }
 
+/// Whether [location] is a closet item detail route (`/closet-item/:id`).
+bool isClosetItemLocation(String location) =>
+    closetItemIdFromLocation(location) != null;
+
+/// Extracts the closet item id from `/closet-item/:id`.
+String? closetItemIdFromLocation(String location) {
+  const prefix = '/closet-item/';
+  if (!location.startsWith(prefix)) return null;
+  final id = location.substring(prefix.length);
+  return id.isEmpty ? null : id;
+}
+
 /// Full-screen routes that must be [GoRouter.push]ed over the tab shell, never
 /// reached via redirect `go` (which would leave nothing to pop back to).
 bool isPushDetailTarget(DeepLinkTarget target) => switch (target) {
@@ -80,7 +95,8 @@ bool isPushDetailTarget(DeepLinkTarget target) => switch (target) {
 bool isPushDetailLocation(String location) =>
     location == AppRoutes.paywall ||
     location == AppRoutes.billing ||
-    isSessionLocation(location);
+    isSessionLocation(location) ||
+    isClosetItemLocation(location);
 
 /// Natural parent tab for a push-detail deep link — mirrors normal in-app paths.
 String semanticShellFor(DeepLinkTarget target) => switch (target) {
@@ -92,6 +108,7 @@ String semanticShellFor(DeepLinkTarget target) => switch (target) {
 /// [semanticShellFor] derived from a push-detail location string.
 String semanticShellForLocation(String location) {
   if (isSessionLocation(location)) return AppRoutes.history;
+  if (isClosetItemLocation(location)) return AppRoutes.closet;
   if (location == AppRoutes.paywall || location == AppRoutes.billing) {
     return AppRoutes.capture;
   }
