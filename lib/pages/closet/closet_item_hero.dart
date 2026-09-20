@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:gostylens/core/config/env_config.dart';
@@ -7,9 +8,17 @@ import 'package:gostylens/widgets/image_with_fallback.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class ClosetItemHero extends StatefulWidget {
-  const ClosetItemHero({super.key, required this.item});
+  const ClosetItemHero({
+    super.key,
+    required this.item,
+    @visibleForTesting this.debugDecodedSize,
+  });
 
   final ClosetItem item;
+
+  /// Skips network decode so overlay tests can assert box vs no-box.
+  @visibleForTesting
+  final Size? debugDecodedSize;
 
   @override
   State<ClosetItemHero> createState() => _ClosetItemHeroState();
@@ -59,6 +68,10 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
   }
 
   void _listenToImage() {
+    if (widget.debugDecodedSize != null) {
+      _detach();
+      return;
+    }
     final url = _resolvedUrl;
     if (url == null) {
       _detach();
@@ -105,6 +118,7 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final decodedSize = widget.debugDecodedSize ?? _decodedSize;
     final item = widget.item;
 
     return Padding(
@@ -121,8 +135,10 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
               fit: StackFit.expand,
               children: [
                 _photo(cs),
-                if (item.boundingBox != null && _decodedSize != null)
-                  Positioned.fill(child: _overlay(cs, item.boundingBox!)),
+                if (item.boundingBox != null && decodedSize != null)
+                  Positioned.fill(
+                    child: _overlay(cs, item.boundingBox!, decodedSize),
+                  ),
                 _caption(cs, item),
               ],
             ),
@@ -180,12 +196,12 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
     );
   }
 
-  Widget _overlay(ColorScheme cs, ClosetPercentBox box) {
+  Widget _overlay(ColorScheme cs, ClosetPercentBox box, Size decodedSize) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final mapped = ClosetItemHeroLayout.percentBoxOnCoverFit(
           box: box,
-          imageSize: _decodedSize!,
+          imageSize: decodedSize,
           widgetSize: constraints.biggest,
         );
         if (mapped == null) return const SizedBox.shrink();

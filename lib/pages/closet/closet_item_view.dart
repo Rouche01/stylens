@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
 import 'package:gostylens/pages/closet/closet_item_hero.dart';
+import 'package:gostylens/pages/closet/closet_item_recs.dart';
 import 'package:provider/provider.dart';
 
 /// Full-screen closet item detail, pushed over the tab shell.
@@ -49,12 +50,11 @@ class _ClosetItemViewState extends State<ClosetItemView> {
 
     return Scaffold(
       backgroundColor: cs.surfaceDim,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
               child: Row(
                 children: [
@@ -97,13 +97,15 @@ class _ClosetItemViewState extends State<ClosetItemView> {
                 ],
               ),
             ),
-          ),
-          if (item != null)
-            ClosetItemHero(
-              key: ValueKey('closet-item-hero-${item.id}'),
-              item: item,
-            ),
-        ],
+            if (item != null) ...[
+              ClosetItemHero(
+                key: ValueKey('closet-item-hero-${item.id}'),
+                item: item,
+              ),
+              ClosetItemRecs(displayName: item.displayName),
+            ],
+          ],
+        ),
       ),
     );
   }
