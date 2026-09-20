@@ -117,6 +117,24 @@ Widget _app(ClosetManager manager) {
   );
 }
 
+/// Lazy masonry estimates extent until children are laid out. Jump until
+/// [maxScrollExtent] settles so the last tile is actually built.
+Future<void> _jumpToScrollEnd(WidgetTester tester) async {
+  final controller = tester
+      .widget<CustomScrollView>(find.byType(CustomScrollView))
+      .controller!;
+  var previous = -1.0;
+  for (var i = 0; i < 20; i++) {
+    final max = controller.position.maxScrollExtent;
+    if ((max - previous).abs() < 0.5 && controller.offset >= max - 0.5) {
+      break;
+    }
+    previous = max;
+    controller.jumpTo(max);
+    await tester.pump();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -338,13 +356,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final scrollView = tester.widget<CustomScrollView>(
-        find.byType(CustomScrollView),
-      );
-      scrollView.controller!.jumpTo(
-        scrollView.controller!.position.maxScrollExtent,
-      );
-      await tester.pump();
+      await _jumpToScrollEnd(tester);
 
       final context = tester.element(find.byType(ClosetBrowseView));
       final dockInset = FloatingNavBar.contentBottomInset(context);

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -239,6 +240,7 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                   child: CustomScrollView(
                     controller: _scrollController,
                     physics: physics,
+                    scrollCacheExtent: const ScrollCacheExtent.viewport(0.5),
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
                     slivers: [
@@ -446,23 +448,34 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     );
   }
 
-  Widget _boxMasonry({
+  Widget _masonrySliver({
+    Key? key,
     required int itemCount,
     required IndexedWidgetBuilder itemBuilder,
-    Key Function(int index)? keyOf,
+    Key? Function(int index)? keyOf,
   }) {
-    return StaggeredGrid.count(
-      crossAxisCount: _crossAxisCount,
-      mainAxisSpacing: _gridGap,
-      crossAxisSpacing: _gridGap,
-      children: [
-        for (var i = 0; i < itemCount; i++)
-          StaggeredGridTile.fit(
-            key: keyOf?.call(i),
-            crossAxisCellCount: 1,
-            child: itemBuilder(context, i),
-          ),
-      ],
+    return SliverPadding(
+      key: key,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      sliver: SliverMasonryGrid(
+        gridDelegate: const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _crossAxisCount,
+        ),
+        mainAxisSpacing: _gridGap,
+        crossAxisSpacing: _gridGap,
+        delegate: SliverChildBuilderDelegate(
+          itemBuilder,
+          childCount: itemCount,
+          findChildIndexCallback: keyOf == null
+              ? null
+              : (key) {
+                  for (var i = 0; i < itemCount; i++) {
+                    if (keyOf(i) == key) return i;
+                  }
+                  return null;
+                },
+        ),
+      ),
     );
   }
 
@@ -471,20 +484,14 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
       return _categorySkeletonSlivers();
     }
     return [
-      SliverToBoxAdapter(
-        child: Skeletonizer(
-          key: const ValueKey('closet-skeleton'),
+      _masonrySliver(
+        key: const ValueKey('closet-skeleton'),
+        itemCount: _skeletonAspectRatios.length,
+        keyOf: (index) => ValueKey('closet-skeleton-tile-$index'),
+        itemBuilder: (context, index) => Skeletonizer(
+          key: ValueKey('closet-skeleton-tile-$index'),
           enabled: true,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _boxMasonry(
-              itemCount: _skeletonAspectRatios.length,
-              keyOf: (index) => ValueKey('closet-skeleton-tile-$index'),
-              itemBuilder: (context, index) => _ClosetSkeletonTile(
-                aspectRatio: _skeletonAspectRatios[index],
-              ),
-            ),
-          ),
+          child: _ClosetSkeletonTile(aspectRatio: _skeletonAspectRatios[index]),
         ),
       ),
     ];
@@ -515,19 +522,14 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                 foregroundColor: cs.primary,
               ),
             ),
-            SliverToBoxAdapter(
-              child: Skeletonizer(
-                key: i == 0 ? const ValueKey('closet-skeleton') : null,
+            _masonrySliver(
+              key: i == 0 ? const ValueKey('closet-skeleton') : null,
+              itemCount: count,
+              keyOf: (index) => ValueKey('closet-skeleton-$i-$index'),
+              itemBuilder: (context, index) => Skeletonizer(
+                key: ValueKey('closet-skeleton-$i-$index'),
                 enabled: true,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: _boxMasonry(
-                    itemCount: count,
-                    keyOf: (index) => ValueKey('closet-skeleton-$i-$index'),
-                    itemBuilder: (context, index) =>
-                        _ClosetSkeletonTile(aspectRatio: ratios[index]),
-                  ),
-                ),
+                child: _ClosetSkeletonTile(aspectRatio: ratios[index]),
               ),
             ),
           ],
@@ -540,19 +542,12 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
 
   List<Widget> _allSlivers(List<ClosetItem> items) {
     return [
-      SliverToBoxAdapter(
+      _masonrySliver(
         key: const ValueKey('closet-all-grid'),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: _boxMasonry(
-            itemCount: items.length,
-            keyOf: (index) => ValueKey(items[index].id),
-            itemBuilder: (context, index) => _ClosetItemTile(
-              key: ValueKey(items[index].id),
-              item: items[index],
-            ),
-          ),
-        ),
+        itemCount: items.length,
+        keyOf: (index) => ValueKey(items[index].id),
+        itemBuilder: (context, index) =>
+            _ClosetItemTile(key: ValueKey(items[index].id), item: items[index]),
       ),
     ];
   }
@@ -582,17 +577,12 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                 foregroundColor: cs.primary,
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _boxMasonry(
-                  itemCount: group.length,
-                  keyOf: (index) => ValueKey(group[index].id),
-                  itemBuilder: (context, index) => _ClosetItemTile(
-                    key: ValueKey(group[index].id),
-                    item: group[index],
-                  ),
-                ),
+            _masonrySliver(
+              itemCount: group.length,
+              keyOf: (index) => ValueKey(group[index].id),
+              itemBuilder: (context, index) => _ClosetItemTile(
+                key: ValueKey(group[index].id),
+                item: group[index],
               ),
             ),
           ],
@@ -1016,48 +1006,50 @@ class _ClosetItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return _PressableScale(
-      child: ClipRRect(
-        clipBehavior: Clip.hardEdge,
-        borderRadius: BorderRadius.circular(_tileRadius),
-        child: AspectRatio(
-          aspectRatio: item.aspectRatio,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _ClosetTileImage(item: item),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        cs.primary.withValues(alpha: 0.72),
-                      ],
+    return RepaintBoundary(
+      child: _PressableScale(
+        child: ClipRRect(
+          clipBehavior: Clip.hardEdge,
+          borderRadius: BorderRadius.circular(_tileRadius),
+          child: AspectRatio(
+            aspectRatio: item.aspectRatio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _ClosetTileImage(item: item),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          cs.primary.withValues(alpha: 0.72),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 20, 10, 9),
-                    child: Text(
-                      item.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Metropolis',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 20, 10, 9),
+                      child: Text(
+                        item.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Metropolis',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
