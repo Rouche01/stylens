@@ -43,20 +43,29 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   final Stream<RealtimeSubscribeStatus> Function(String channel)?
   _onChannelStatus;
 
+  // Bind / session
+  String? _userDbId;
+
+  // Catalog (GET /closet/items)
   List<ClosetItem> _items = const [];
   bool _isLoading = false;
   bool _hasLoaded = false;
   String? _error;
-  String? _dbId;
+  Future<void>? _itemsInFlight;
+
+  // Identity wait chrome (GET status + closet_identity_updated)
   ClosetIdentityStatus _status = const ClosetIdentityStatus();
   bool _waitChrome = false;
   bool _failedEmpty = false;
   bool _debugPinned = false;
+
+  // Realtime + resume
   bool _observingLifecycle = false;
   StreamSubscription<Map<String, dynamic>>? _identitySub;
   StreamSubscription<Map<String, dynamic>>? _catalogSub;
   StreamSubscription<RealtimeSubscribeStatus>? _channelStatusSub;
-  Future<void>? _itemsInFlight;
+
+  // Pending asks (GET pending + POST resolve)
   List<ClosetPendingMatch> _pending = const [];
   ClosetAskSettle? _settle;
   Timer? _settleTimer;
@@ -68,6 +77,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
   String? get error => _error;
+
   ClosetIdentityStatus get identityStatus => _status;
 
   /// Wait chrome: empty hang state, dock chip, hanger badge, session pill.
@@ -90,17 +100,17 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   /// Set on 409 / failed resolve. Sheet stays open.
   String? get matchResolveError => _matchResolveError;
 
-  String _channelFor(String dbId) => 'closet-identity:$dbId';
+  String _channelFor(String userDbId) => 'closet-identity:$userDbId';
 
-  Future<void> bindUser(String dbId) async {
-    if (_dbId == dbId) {
+  Future<void> bindUser(String userDbId) async {
+    if (_userDbId == userDbId) {
       await syncIdentity(hideIfIdle: false);
       return;
     }
 
     reset(notify: false);
-    _dbId = dbId;
-    _subscribe(dbId);
+    _userDbId = userDbId;
+    _subscribe(userDbId);
     _ensureLifecycleObserver();
     await syncIdentity(hideIfIdle: true);
   }
@@ -109,7 +119,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   /// on bind/resume/subscribe-rejoin so a missed `settled` can clear chrome.
   /// False while already showing chrome in-session (quiet window).
   Future<void> syncIdentity({bool hideIfIdle = false}) async {
-    if (_dbId == null) return;
+    if (_userDbId == null) return;
     await Future.wait([
       _fetchStatus(hideIfIdle: hideIfIdle),
       fetchItems(forceRefresh: true),
@@ -157,11 +167,11 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   /// Catch-up GET for pending asks. Bind / resume / closet tab / settled /
   /// catalog ping. Do not poll.
   Future<void> fetchPendingMatches() async {
-    if (_dbId == null) return;
+    if (_userDbId == null) return;
     final epoch = ++_pendingEpoch;
     try {
       final response = await _apiService.getPendingMatches();
-      if (epoch != _pendingEpoch || _dbId == null) return;
+      if (epoch != _pendingEpoch || _userDbId == null) return;
       if (!response.isSuccess) return;
       _applyPending(response.data ?? const []);
     } catch (e, st) {
@@ -172,7 +182,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   /// POST same / new for [currentAsk]. True if the sheet can close.
   /// 409 keeps the queue and [matchResolveError]. Last remaining skips settle.
   Future<bool> resolveCurrentAsk(ClosetMatchDecision decision) async {
-    if (_dbId == null || _settle != null || _resolvingMatch) return false;
+    if (_userDbId == null || _settle != null || _resolvingMatch) return false;
     final ask = currentAsk;
     if (ask == null) return false;
 
@@ -185,7 +195,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
         matchId: ask.id,
         decision: decision,
       );
-      if (_dbId == null) return false;
+      if (_userDbId == null) return false;
 
       if (!response.isSuccess) {
         if (response.statusCode == 404) {
@@ -265,7 +275,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     if (_debugPinned) return;
     try {
       final response = await _apiService.getIdentityStatus();
-      if (_dbId == null) return;
+      if (_userDbId == null) return;
       if (!response.isSuccess || response.data == null) return;
 
       final status = response.data!;
@@ -285,18 +295,25 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void _subscribe(String dbId) {
-    _identitySub = _listen(dbId, identityUpdatedEvent).listen(_onIdentityEvent);
-    _catalogSub = _listen(dbId, catalogUpdatedEvent).listen(_onCatalogEvent);
-    _channelStatusSub = _statusListen(dbId).listen((status) {
-      if (status == RealtimeSubscribeStatus.subscribed && _dbId == dbId) {
+  void _subscribe(String userDbId) {
+    _identitySub = _listen(
+      userDbId,
+      identityUpdatedEvent,
+    ).listen(_onIdentityEvent);
+    _catalogSub = _listen(
+      userDbId,
+      catalogUpdatedEvent,
+    ).listen(_onCatalogEvent);
+    _channelStatusSub = _statusListen(userDbId).listen((status) {
+      if (status == RealtimeSubscribeStatus.subscribed &&
+          _userDbId == userDbId) {
         syncIdentity(hideIfIdle: true);
       }
     });
   }
 
-  Stream<Map<String, dynamic>> _listen(String dbId, String event) {
-    final channel = _channelFor(dbId);
+  Stream<Map<String, dynamic>> _listen(String userDbId, String event) {
+    final channel = _channelFor(userDbId);
     if (_onBroadcast != null) {
       return _onBroadcast(channel: channel, event: event);
     }
@@ -304,8 +321,8 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     return realtime.onBroadcast(channel: channel, event: event);
   }
 
-  Stream<RealtimeSubscribeStatus> _statusListen(String dbId) {
-    final channel = _channelFor(dbId);
+  Stream<RealtimeSubscribeStatus> _statusListen(String userDbId) {
+    final channel = _channelFor(userDbId);
     if (_onChannelStatus != null) {
       return _onChannelStatus(channel);
     }
@@ -317,7 +334,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _onIdentityEvent(Map<String, dynamic> payload) {
-    if (_dbId == null || _debugPinned) return;
+    if (_userDbId == null || _debugPinned) return;
     final status = ClosetIdentityStatus.fromResponse(payload);
     _status = status;
 
@@ -334,7 +351,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _onCatalogEvent(Map<String, dynamic> payload) {
-    if (_dbId == null) return;
+    if (_userDbId == null) return;
     final ids = payload['closet_item_ids'];
     if (ids is! List || ids.isNotEmpty) {
       fetchItems(forceRefresh: true);
@@ -405,9 +422,9 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _leaveIdentityChannel() {
-    final dbId = _dbId;
-    if (dbId == null) return;
-    final channel = _channelFor(dbId);
+    final userDbId = _userDbId;
+    if (userDbId == null) return;
+    final channel = _channelFor(userDbId);
     if (_leaveChannel != null) {
       _leaveChannel(channel);
       return;
@@ -429,16 +446,20 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     _channelStatusSub = null;
     _leaveIdentityChannel();
     _removeLifecycleObserver();
-    _dbId = null;
+
+    _userDbId = null;
+
     _status = const ClosetIdentityStatus();
     _waitChrome = false;
     _failedEmpty = false;
     _debugPinned = false;
+
     _pendingEpoch += 1;
     _pending = const [];
     _clearSettle();
     _resolvingMatch = false;
     _matchResolveError = null;
+
     _items = const [];
     _isLoading = false;
     _hasLoaded = false;
@@ -448,7 +469,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _dbId != null) {
+    if (state == AppLifecycleState.resumed && _userDbId != null) {
       onAppResumed();
     }
   }
