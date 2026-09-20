@@ -124,6 +124,30 @@ void main() {
       );
     });
 
+    test('uses tee and default sheet copy without scores', () {
+      final tee = ClosetPendingMatch.fromJson(pendingJson());
+      final jacket = ClosetPendingMatch.fromJson(
+        pendingJson(
+          candidate: {
+            'closet_item_id': 'c4',
+            'label': 'leather jacket',
+            'subcategory': 'jacket',
+            'color': 'black',
+          },
+        ),
+      );
+
+      expect(
+        tee.sheetCopy,
+        'We spotted this on a new outfit. Is it the white tee already in your closet?',
+      );
+      expect(
+        jacket.sheetCopy,
+        'New outfit, familiar leather jacket. Same piece, or a second one?',
+      );
+      expect(tee.sheetCopy, isNot(contains('0.91')));
+    });
+
     test('defaults missing sides and drops empty ask names to Same piece?', () {
       final match = ClosetPendingMatch.fromJson({'id': 'm2'});
 
@@ -132,6 +156,10 @@ void main() {
       expect(match.probe.thumbUrl, isNull);
       expect(match.candidate.closetItemId, isNull);
       expect(match.askTitle, 'Same piece?');
+      expect(
+        match.sheetCopy,
+        'New outfit, familiar piece. Same piece, or a second one?',
+      );
     });
 
     test('coerces numeric strings and drops negative created_at', () {

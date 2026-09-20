@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,9 +10,9 @@ import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/models/closet_item.dart';
-import 'package:gostylens/models/remote_image.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/pages/closet/closet_ask_banner.dart';
+import 'package:gostylens/pages/closet/closet_ask_sheet.dart';
 import 'package:gostylens/pages/closet/closet_empty.dart';
 import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:gostylens/widgets/image_with_fallback.dart';
@@ -23,6 +24,7 @@ enum _ClosetViewMode { all, categories }
 const _crossAxisCount = 3;
 const _gridGap = 8.0;
 const _tileRadius = 18.0;
+const _toolbarControlRadius = 12.0;
 
 const _skeletonAspectRatios = <double>[
   4 / 5,
@@ -47,6 +49,11 @@ bool _itemMatchesQuery(ClosetItem item, String query) {
 
 class ClosetBrowseView extends StatefulWidget {
   const ClosetBrowseView({super.key});
+
+  /// Trailing scroll extent after the grid so the last tile can rest above
+  /// the dock. The scroll view stays full-bleed so the bar does not sit on
+  /// a mint band of empty scaffold.
+  static const scrollBottomInsetKey = ValueKey('closet-scroll-bottom-inset');
 
   @override
   State<ClosetBrowseView> createState() => _ClosetBrowseViewState();
@@ -166,13 +173,21 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     GoRouter.maybeOf(context)?.go(AppRoutes.capture);
   }
 
-  /// Sheet is the next plan item.
-  void _openAskSheet() {}
+  void _openAskSheet() {
+    _dismissKeyboard();
+    final manager = context.read<ClosetManager>();
+    final ask = manager.currentAsk;
+    if (ask == null) return;
+    unawaited(ClosetAskSheet.show(context, manager: manager, ask: ask));
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dockClearance = 16 + FloatingNavBar.contentBottomInset(context);
+    final dockReserve = math.max(
+      MediaQuery.paddingOf(context).bottom,
+      FloatingNavBar.contentBottomInset(context),
+    );
 
     final topInset = MediaQuery.paddingOf(context).top;
     final minHeader = _ClosetHeaderMetrics.minExtentFor(topInset);
@@ -196,7 +211,8 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
               (manager.isLoading || (_awaitingInitial && !manager.hasLoaded));
           final query = _searchController.text.trim();
           final bottomPad =
-              dockClearance +
+              16 +
+              dockReserve +
               (showChip ? ClosetProcessingDockChip.scrollReserve(context) : 0);
 
           final emptyKind = processingEmpty
@@ -205,11 +221,13 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
               ? ClosetEmptyKind.failed
               : ClosetEmptyKind.idle;
 
+          // All is a compact masonry (no section headers), so a small closet
+          // often fits in the viewport. Default physics then refuse drags and
+          // RefreshIndicator never fires. AlwaysScrollable keeps pull-to-refresh
+          // working for short All grids and empty states.
           final physics = showSkeleton
               ? const NeverScrollableScrollPhysics()
-              : items.isEmpty
-              ? const AlwaysScrollableScrollPhysics()
-              : null;
+              : const AlwaysScrollableScrollPhysics();
 
           return Stack(
             children: [
@@ -257,37 +275,18 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                             onOpenAsk: _openAskSheet,
                           ),
                         ),
-                      if (showSkeleton)
-                        ..._skeletonSlivers(bottomPad)
-                      else if (manager.error != null &&
-                          catalogEmpty &&
-                          !processingEmpty &&
-                          !failedEmpty)
-                        _messageSliver(
-                          cs: cs,
-                          bottomPad: bottomPad,
-                          message: manager.error!,
-                          actionLabel: 'Retry',
-                          onAction: _refresh,
-                        )
-                      else if (catalogEmpty)
-                        _emptyCatalogSliver(
-                          manager: manager,
-                          bottomPad: bottomPad,
-                          emptyKind: emptyKind,
-                        )
-                      else if (items.isEmpty)
-                        _messageSliver(
-                          cs: cs,
-                          bottomPad: bottomPad,
-                          message: 'No pieces match “$query”.',
-                          actionLabel: 'Clear search',
-                          onAction: _searchController.clear,
-                        )
-                      else if (_viewMode == _ClosetViewMode.all)
-                        ..._allSlivers(items, bottomPad)
-                      else
-                        ..._categorySlivers(items, bottomPad),
+                      ..._bodySlivers(
+                        manager: manager,
+                        items: items,
+                        bottomPad: bottomPad,
+                        showSkeleton: showSkeleton,
+                        catalogEmpty: catalogEmpty,
+                        processingEmpty: processingEmpty,
+                        failedEmpty: failedEmpty,
+                        emptyKind: emptyKind,
+                        cs: cs,
+                        query: query,
+                      ),
                     ],
                   ),
                 ),
@@ -309,6 +308,73 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
         },
       ),
     );
+  }
+
+  List<Widget> _bodySlivers({
+    required ClosetManager manager,
+    required List<ClosetItem> items,
+    required double bottomPad,
+    required bool showSkeleton,
+    required bool catalogEmpty,
+    required bool processingEmpty,
+    required bool failedEmpty,
+    required ClosetEmptyKind emptyKind,
+    required ColorScheme cs,
+    required String query,
+  }) {
+    if (showSkeleton) {
+      return _withDockScrollInset(_skeletonSlivers(), bottomPad);
+    }
+    if (manager.error != null &&
+        catalogEmpty &&
+        !processingEmpty &&
+        !failedEmpty) {
+      return [
+        _messageSliver(
+          cs: cs,
+          bottomPad: bottomPad,
+          message: manager.error!,
+          actionLabel: 'Retry',
+          onAction: _refresh,
+        ),
+      ];
+    }
+    if (catalogEmpty) {
+      return [
+        _emptyCatalogSliver(
+          manager: manager,
+          bottomPad: bottomPad,
+          emptyKind: emptyKind,
+        ),
+      ];
+    }
+    if (items.isEmpty) {
+      return [
+        _messageSliver(
+          cs: cs,
+          bottomPad: bottomPad,
+          message: 'No pieces match “$query”.',
+          actionLabel: 'Clear search',
+          onAction: _searchController.clear,
+        ),
+      ];
+    }
+    final grid = _viewMode == _ClosetViewMode.all
+        ? _allSlivers(items)
+        : _categorySlivers(items);
+    return _withDockScrollInset(grid, bottomPad);
+  }
+
+  List<Widget> _withDockScrollInset(List<Widget> slivers, double bottomPad) {
+    return [
+      ...slivers,
+      SliverToBoxAdapter(
+        child: SizedBox(
+          key: ClosetBrowseView.scrollBottomInsetKey,
+          height: bottomPad,
+        ),
+      ),
+    ];
   }
 
   Widget _emptyCatalogSliver({
@@ -380,30 +446,51 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     );
   }
 
-  List<Widget> _skeletonSlivers(double bottomPad) {
+  Widget _boxMasonry({
+    required int itemCount,
+    required IndexedWidgetBuilder itemBuilder,
+    Key Function(int index)? keyOf,
+  }) {
+    return StaggeredGrid.count(
+      crossAxisCount: _crossAxisCount,
+      mainAxisSpacing: _gridGap,
+      crossAxisSpacing: _gridGap,
+      children: [
+        for (var i = 0; i < itemCount; i++)
+          StaggeredGridTile.fit(
+            key: keyOf?.call(i),
+            crossAxisCellCount: 1,
+            child: itemBuilder(context, i),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _skeletonSlivers() {
     if (_viewMode == _ClosetViewMode.categories) {
-      return _categorySkeletonSlivers(bottomPad);
+      return _categorySkeletonSlivers();
     }
     return [
-      Skeletonizer.sliver(
-        key: const ValueKey('closet-skeleton'),
-        enabled: true,
-        child: SliverPadding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount: _crossAxisCount,
-            mainAxisSpacing: _gridGap,
-            crossAxisSpacing: _gridGap,
-            childCount: _skeletonAspectRatios.length,
-            itemBuilder: (context, index) =>
-                _ClosetSkeletonTile(aspectRatio: _skeletonAspectRatios[index]),
+      SliverToBoxAdapter(
+        child: Skeletonizer(
+          key: const ValueKey('closet-skeleton'),
+          enabled: true,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _boxMasonry(
+              itemCount: _skeletonAspectRatios.length,
+              keyOf: (index) => ValueKey('closet-skeleton-tile-$index'),
+              itemBuilder: (context, index) => _ClosetSkeletonTile(
+                aspectRatio: _skeletonAspectRatios[index],
+              ),
+            ),
           ),
         ),
       ),
     ];
   }
 
-  List<Widget> _categorySkeletonSlivers(double bottomPad) {
+  List<Widget> _categorySkeletonSlivers() {
     const sections = [('Tops', 3), ('Bottoms', 3), ('Outerwear', 3)];
     final cs = Theme.of(context).colorScheme;
     final slivers = <Widget>[];
@@ -412,7 +499,6 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     for (var i = 0; i < sections.length; i++) {
       final section = sections[i];
       final count = section.$2;
-      final isLast = i == sections.length - 1;
       final ratios = [
         for (var j = 0; j < count; j++)
           _skeletonAspectRatios[aspectIndex++ % _skeletonAspectRatios.length],
@@ -429,23 +515,18 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                 foregroundColor: cs.primary,
               ),
             ),
-            Skeletonizer.sliver(
-              key: i == 0 ? const ValueKey('closet-skeleton') : null,
-              enabled: true,
-              child: SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  isLast ? bottomPad : 16,
-                ),
-                sliver: SliverMasonryGrid.count(
-                  crossAxisCount: _crossAxisCount,
-                  mainAxisSpacing: _gridGap,
-                  crossAxisSpacing: _gridGap,
-                  childCount: count,
-                  itemBuilder: (context, index) =>
-                      _ClosetSkeletonTile(aspectRatio: ratios[index]),
+            SliverToBoxAdapter(
+              child: Skeletonizer(
+                key: i == 0 ? const ValueKey('closet-skeleton') : null,
+                enabled: true,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: _boxMasonry(
+                    itemCount: count,
+                    keyOf: (index) => ValueKey('closet-skeleton-$i-$index'),
+                    itemBuilder: (context, index) =>
+                        _ClosetSkeletonTile(aspectRatio: ratios[index]),
+                  ),
                 ),
               ),
             ),
@@ -457,22 +538,26 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
     return slivers;
   }
 
-  List<Widget> _allSlivers(List<ClosetItem> items, double bottomPad) {
+  List<Widget> _allSlivers(List<ClosetItem> items) {
     return [
-      SliverPadding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad),
-        sliver: SliverMasonryGrid.count(
-          crossAxisCount: _crossAxisCount,
-          mainAxisSpacing: _gridGap,
-          crossAxisSpacing: _gridGap,
-          childCount: items.length,
-          itemBuilder: (context, index) => _ClosetItemTile(item: items[index]),
+      SliverToBoxAdapter(
+        key: const ValueKey('closet-all-grid'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: _boxMasonry(
+            itemCount: items.length,
+            keyOf: (index) => ValueKey(items[index].id),
+            itemBuilder: (context, index) => _ClosetItemTile(
+              key: ValueKey(items[index].id),
+              item: items[index],
+            ),
+          ),
         ),
       ),
     ];
   }
 
-  List<Widget> _categorySlivers(List<ClosetItem> items, double bottomPad) {
+  List<Widget> _categorySlivers(List<ClosetItem> items) {
     final slivers = <Widget>[];
     final cs = Theme.of(context).colorScheme;
     final present = ClosetItem.displayCategoryOrder
@@ -484,10 +569,10 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
       final group = ClosetItem.packForMasonry(
         items.where((item) => item.displayCategory == category).toList(),
       );
-      final isLast = i == present.length - 1;
 
       slivers.add(
         SliverMainAxisGroup(
+          key: ValueKey('closet-cat-$category'),
           slivers: [
             PinnedHeaderSliver(
               child: _CategorySectionHeader(
@@ -497,15 +582,17 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
                 foregroundColor: cs.primary,
               ),
             ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, isLast ? bottomPad : 16),
-              sliver: SliverMasonryGrid.count(
-                crossAxisCount: _crossAxisCount,
-                mainAxisSpacing: _gridGap,
-                crossAxisSpacing: _gridGap,
-                childCount: group.length,
-                itemBuilder: (context, index) =>
-                    _ClosetItemTile(item: group[index]),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _boxMasonry(
+                  itemCount: group.length,
+                  keyOf: (index) => ValueKey(group[index].id),
+                  itemBuilder: (context, index) => _ClosetItemTile(
+                    key: ValueKey(group[index].id),
+                    item: group[index],
+                  ),
+                ),
               ),
             ),
           ],
@@ -742,19 +829,19 @@ class _ClosetToolbar extends StatelessWidget {
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(_toolbarControlRadius),
                   borderSide: BorderSide(
                     color: cs.primary.withValues(alpha: 0.18),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(_toolbarControlRadius),
                   borderSide: BorderSide(
                     color: cs.primary.withValues(alpha: 0.18),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(_toolbarControlRadius),
                   borderSide: BorderSide(
                     color: cs.primary.withValues(alpha: 0.4),
                   ),
@@ -784,7 +871,7 @@ class _ClosetToolbar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: cs.primary,
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(_toolbarControlRadius),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -920,71 +1007,58 @@ class _ClosetSkeletonTile extends StatelessWidget {
   }
 }
 
-class _ClosetItemTile extends StatefulWidget {
-  const _ClosetItemTile({required this.item});
+class _ClosetItemTile extends StatelessWidget {
+  const _ClosetItemTile({super.key, required this.item});
 
   final ClosetItem item;
 
   @override
-  State<_ClosetItemTile> createState() => _ClosetItemTileState();
-}
-
-class _ClosetItemTileState extends State<_ClosetItemTile> {
-  bool _imageReady = false;
-
-  void _markImageReady() {
-    if (_imageReady || !mounted) return;
-    setState(() => _imageReady = true);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final item = widget.item;
     final cs = Theme.of(context).colorScheme;
 
     return _PressableScale(
       child: ClipRRect(
+        clipBehavior: Clip.hardEdge,
         borderRadius: BorderRadius.circular(_tileRadius),
-        child: Stack(
-          children: [
-            if (!_imageReady)
-              AspectRatio(
-                aspectRatio: item.aspectRatio,
-                child: _tilePlaceholder(item.blurHash),
-              ),
-            _ClosetTileImage(item: item, onReady: _markImageReady),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      cs.primary.withValues(alpha: 0.72),
-                    ],
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _ClosetTileImage(item: item),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        cs.primary.withValues(alpha: 0.72),
+                      ],
+                    ),
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 20, 10, 9),
-                  child: Text(
-                    item.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Metropolis',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 20, 10, 9),
+                    child: Text(
+                      item.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Metropolis',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1004,14 +1078,30 @@ Widget _tilePlaceholder(String? blurHash) {
   );
 }
 
-class _ClosetTileImage extends StatelessWidget {
-  const _ClosetTileImage({required this.item, required this.onReady});
+class _ClosetTileImage extends StatefulWidget {
+  const _ClosetTileImage({required this.item});
 
   final ClosetItem item;
-  final VoidCallback onReady;
+
+  @override
+  State<_ClosetTileImage> createState() => _ClosetTileImageState();
+}
+
+class _ClosetTileImageState extends State<_ClosetTileImage> {
+  var _useAuth = false;
+
+  @override
+  void didUpdateWidget(_ClosetTileImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id ||
+        oldWidget.item.tileImageUrl != widget.item.tileImageUrl) {
+      _useAuth = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final cs = Theme.of(context).colorScheme;
     final placeholder = ColoredBox(
       color: cs.primary.withValues(alpha: 0.12),
@@ -1022,52 +1112,32 @@ class _ClosetTileImage extends StatelessWidget {
     );
 
     final isolateUrl = item.tileImageUrl;
-    if (isolateUrl != null) {
-      return Image.network(
-        EnvConfig.resolvePlatformUrl(isolateUrl),
-        width: double.infinity,
-        fit: BoxFit.fitWidth,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
-          }
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
-          return _keyOrPlaceholder(item, placeholder);
-        },
-      );
-    }
+    if (isolateUrl == null) return placeholder;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => onReady());
-    return _keyOrPlaceholder(item, placeholder);
-  }
+    final url = EnvConfig.resolvePlatformUrl(isolateUrl);
+    final headers = _useAuth ? ImageWithFallback.authHeaders() : null;
 
-  Widget _keyOrPlaceholder(ClosetItem item, Widget placeholder) {
-    final imageKey = item.imageKey;
-    if (imageKey == null) return placeholder;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return ImageWithFallback(
-          width: constraints.maxWidth,
-          height: constraints.hasBoundedHeight && constraints.maxHeight.isFinite
-              ? constraints.maxHeight
-              : constraints.maxWidth / item.aspectRatio,
-          fit: BoxFit.fitWidth,
-          remoteImage: RemoteImage(
-            url: item.originalImageUrl ?? '',
-            key: imageKey,
-            blurHash: item.blurHash,
-          ),
-          fallbackWidget: placeholder,
-        );
+    return Image.network(
+      url,
+      key: ValueKey('${item.id}:$url:${_useAuth ? 'auth' : 'open'}'),
+      headers: headers,
+      gaplessPlayback: true,
+      fit: BoxFit.fitWidth,
+      alignment: Alignment.topCenter,
+      width: double.infinity,
+      height: double.infinity,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return _tilePlaceholder(item.blurHash);
+      },
+      errorBuilder: (context, error, stackTrace) {
+        if (!_useAuth) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _useAuth = true);
+          });
+          return _tilePlaceholder(item.blurHash);
+        }
+        return placeholder;
       },
     );
   }

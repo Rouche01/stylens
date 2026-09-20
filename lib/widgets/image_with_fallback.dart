@@ -37,6 +37,13 @@ class ImageWithFallback extends StatefulWidget {
     return '$base/assets/file?key=${Uri.encodeQueryComponent(key)}';
   }
 
+  /// Isolate and file proxies both require the current session JWT.
+  static Map<String, String>? authHeaders() {
+    final token = locator<SupabaseClient>().auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) return null;
+    return {'Authorization': 'Bearer $token'};
+  }
+
   @override
   State<ImageWithFallback> createState() => _ImageWithFallbackState();
 }
@@ -46,6 +53,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
   bool _hasRetriedAuth = false;
   bool _imageReady = false;
   bool _loadFailed = false;
+
   /// Bumped after token refresh so Image.network reloads with new headers.
   int _authGeneration = 0;
 
@@ -88,12 +96,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
     return EnvConfig.resolvePlatformUrl(remote.url);
   }
 
-  Map<String, String>? _authHeaders() {
-    final token =
-        locator<SupabaseClient>().auth.currentSession?.accessToken;
-    if (token == null || token.isEmpty) return null;
-    return {'Authorization': 'Bearer $token'};
-  }
+  Map<String, String>? _authHeaders() => ImageWithFallback.authHeaders();
 
   @override
   Widget build(BuildContext context) {
@@ -150,8 +153,7 @@ class _ImageWithFallbackState extends State<ImageWithFallback> {
               headers: headers,
               gaplessPlayback: true,
               frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                if (!_imageReady &&
-                    (wasSynchronouslyLoaded || frame != null)) {
+                if (!_imageReady && (wasSynchronouslyLoaded || frame != null)) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     _markImageReady();
                   });

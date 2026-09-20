@@ -82,11 +82,11 @@ class ClosetItem {
     return '${word[0].toUpperCase()}${word.substring(1)}';
   }
 
-  /// Isolate cutout for masonry tiles. Null when the API has no crop.
+  /// Isolate crop for masonry tiles. Never the full outfit (`image_key`).
   String? get tileImageUrl => isolatedImageUrl;
 
-  /// Taller tiles first (smaller width/height). [SliverMasonryGrid] then drops
-  /// each next piece into the shortest column, so short crops fill holes
+  /// Taller tiles first (smaller width/height). The closet masonry grid then
+  /// drops each next piece into the shortest column, so short crops fill holes
   /// instead of sitting in a stretched aligned-grid row.
   static List<ClosetItem> packForMasonry(List<ClosetItem> items) {
     if (items.length <= 1) return List<ClosetItem>.of(items);

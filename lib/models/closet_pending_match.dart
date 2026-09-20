@@ -202,6 +202,19 @@ class ClosetPendingMatch {
     return 'Same $name?';
   }
 
+  /// One-line sheet prompt. Uses the short name; never scores or a queue index.
+  String get sheetCopy {
+    final name = candidate.shortAskName;
+    if (name.isEmpty) {
+      return 'New outfit, familiar piece. Same piece, or a second one?';
+    }
+    final blob = '${candidate.subcategory} ${candidate.label}'.toLowerCase();
+    if (blob.contains('tee') || blob.contains('t-shirt')) {
+      return 'We spotted this on a new outfit. Is it the $name already in your closet?';
+    }
+    return 'New outfit, familiar $name. Same piece, or a second one?';
+  }
+
   factory ClosetPendingMatch.fromJson(Map<String, dynamic> json) {
     return ClosetPendingMatch(
       id: json['id'] as String? ?? '',

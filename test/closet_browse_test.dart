@@ -9,7 +9,9 @@ import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/models/closet_pending_match.dart';
 import 'package:gostylens/pages/closet/closet_ask_banner.dart';
+import 'package:gostylens/pages/closet/closet_ask_sheet.dart';
 import 'package:gostylens/pages/closet/closet_browse.dart';
+import 'package:gostylens/widgets/floating_nav_bar.dart';
 import 'package:provider/provider.dart';
 
 class _FakeClosetApiService extends ClosetApiService {
@@ -17,12 +19,17 @@ class _FakeClosetApiService extends ClosetApiService {
   ClosetIdentityStatus status = const ClosetIdentityStatus();
   List<ClosetPendingMatch> pendingMatches = const [];
   bool fail = false;
+  int resolveStatusCode = 200;
+  int getItemsCalls = 0;
+  int forceRefreshCalls = 0;
   Completer<ApiResponse<List<ClosetItem>>>? pending;
 
   @override
   Future<ApiResponse<List<ClosetItem>>> getItems({
     bool forceRefresh = false,
   }) async {
+    getItemsCalls += 1;
+    if (forceRefresh) forceRefreshCalls += 1;
     if (pending != null) return pending!.future;
     if (fail) {
       return ApiResponse.error(
@@ -48,6 +55,12 @@ class _FakeClosetApiService extends ClosetApiService {
     required String matchId,
     required ClosetMatchDecision decision,
   }) async {
+    if (resolveStatusCode != 200) {
+      return ApiResponse.error(
+        defaultMessage: 'Failed to resolve closet match',
+        statusCode: resolveStatusCode,
+      );
+    }
     pendingMatches = [
       for (final match in pendingMatches)
         if (match.id != matchId) match,
@@ -161,7 +174,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('White Tee'), findsOneWidget);
-    expect(find.text('Vintage Denim'), findsOneWidget);
+    expect(find.text('Vintage Denim', skipOffstage: false), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'ivory');
     await tester.pump();
@@ -235,6 +248,124 @@ void main() {
     expect(find.text('Bottoms'), findsOneWidget);
     expect(find.text('1 piece'), findsNWidgets(2));
   });
+
+  testWidgets('All view still pull-to-refreshes when the grid fits', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final api = _FakeClosetApiService()..items = [_tee, _jeans];
+    final manager = ClosetManager(apiService: api);
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All').last);
+    await tester.pumpAndSettle();
+
+    final callsBefore = api.forceRefreshCalls;
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(api.forceRefreshCalls, greaterThan(callsBefore));
+    manager.dispose();
+  });
+
+  testWidgets(
+    'last category tile scrolls fully above the floating dock inset',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 59, bottom: 34);
+      tester.view.viewPadding = const FakeViewPadding(top: 59, bottom: 34);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPadding();
+        tester.view.resetViewPadding();
+      });
+
+      final api = _FakeClosetApiService()
+        ..items = [
+          for (var i = 0; i < 6; i++)
+            ClosetItem(
+              id: 't$i',
+              label: 'White tee $i',
+              category: 'top',
+              subcategory: 't-shirt',
+              color: 'white',
+            ),
+          _jeans,
+          const ClosetItem(
+            id: 'o1',
+            label: 'Olive green button-up',
+            category: 'outerwear',
+            subcategory: 'jacket',
+            color: 'olive',
+          ),
+          const ClosetItem(
+            id: 's1',
+            label: 'White canvas sneakers',
+            category: 'footwear',
+            subcategory: 'sneakers',
+            color: 'white',
+          ),
+          const ClosetItem(
+            id: 'a1',
+            label: 'Black cap',
+            category: 'accessory',
+            subcategory: 'hat',
+            color: 'black',
+          ),
+        ];
+      final manager = ClosetManager(apiService: api);
+
+      await tester.pumpWidget(_app(manager));
+      await tester.pump();
+      await tester.pump();
+
+      final scrollView = tester.widget<CustomScrollView>(
+        find.byType(CustomScrollView),
+      );
+      scrollView.controller!.jumpTo(
+        scrollView.controller!.position.maxScrollExtent,
+      );
+      await tester.pump();
+
+      final context = tester.element(find.byType(ClosetBrowseView));
+      final dockInset = FloatingNavBar.contentBottomInset(context);
+      final spacer = tester.getRect(
+        find.byKey(ClosetBrowseView.scrollBottomInsetKey),
+      );
+      final tile = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Black Cap'),
+              matching: find.byType(ClipRRect),
+            )
+            .first,
+      );
+      final browse = tester.getRect(find.byType(ClosetBrowseView));
+
+      expect(spacer.height, 16 + dockInset);
+      expect(tile.bottom, lessThanOrEqualTo(spacer.top + 0.5));
+      expect(tile.bottom, lessThanOrEqualTo(browse.bottom - dockInset + 0.5));
+    },
+  );
 
   testWidgets('processing empty hangs pieces and hides capture', (
     tester,
@@ -437,6 +568,74 @@ void main() {
     expect(find.byKey(ClosetAskBanner.askKey), findsNothing);
     expect(find.byKey(ClosetAskBanner.settleKey), findsNothing);
     expect(find.text('Added to closet'), findsNothing);
+    manager.dispose();
+  });
+
+  testWidgets('banner tap opens the Same piece sheet', (tester) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byKey(ClosetAskBanner.askKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsOneWidget);
+    expect(find.text('Same piece?'), findsOneWidget);
+    expect(find.text('New photo'), findsOneWidget);
+    expect(find.text('In closet'), findsOneWidget);
+    expect(find.text("It's the same"), findsOneWidget);
+    expect(find.text("It's new"), findsOneWidget);
+    expect(
+      find.text(
+        'We spotted this on a new outfit. Is it the white tee already in your closet?',
+      ),
+      findsOneWidget,
+    );
+    manager.dispose();
+  });
+
+  testWidgets('sheet same settles the banner; 409 keeps the sheet', (
+    tester,
+  ) async {
+    final api = _FakeClosetApiService()
+      ..items = [_tee]
+      ..pendingMatches = [_ask('tee'), _ask('jacket', label: 'leather jacket')];
+    final manager = _manager(api);
+    await manager.bindUser('user-1');
+
+    await tester.pumpWidget(_app(manager));
+    await tester.pump();
+    await tester.pump();
+
+    api.resolveStatusCode = 409;
+    await tester.tap(find.byKey(ClosetAskBanner.askKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(ClosetAskSheet.sameKey));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsOneWidget);
+    expect(find.text('Same piece?'), findsOneWidget);
+    expect(find.text('Same white tee?'), findsOneWidget);
+    expect(manager.currentAsk?.id, 'tee');
+
+    api.resolveStatusCode = 200;
+    await tester.tap(find.byKey(ClosetAskSheet.sameKey));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byKey(ClosetAskSheet.sheetKey), findsNothing);
+    expect(find.text('Saved as the same piece'), findsOneWidget);
+    expect(find.text('1 left to confirm'), findsOneWidget);
     manager.dispose();
   });
 }
