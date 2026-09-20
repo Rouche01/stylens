@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/models/closet_pending_match.dart';
+import 'package:gostylens/pages/closet/closet_ask_image.dart';
 import 'package:gostylens/widgets/custom_outlined_button.dart';
 import 'package:gostylens/widgets/primary_button.dart';
 import 'package:provider/provider.dart';
@@ -194,24 +194,16 @@ class _SheetCrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final url = side.thumbUrl;
-    final fill = ColoredBox(color: cs.primary.withValues(alpha: 0.12));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 168,
+          child: ClosetAskNetworkImage(
+            side: side,
             width: double.infinity,
-            child: url == null
-                ? fill
-                : Image.network(
-                    EnvConfig.resolvePlatformUrl(url),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => fill,
-                  ),
+            height: 168,
           ),
         ),
         const SizedBox(height: 8),

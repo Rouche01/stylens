@@ -79,6 +79,7 @@ class ClosetMatchSide {
     this.boundingBox,
     this.originalImageUrl,
     this.isolatedImageUrl,
+    this.blurHash,
   });
 
   final String? closetItemId;
@@ -91,6 +92,7 @@ class ClosetMatchSide {
   final ClosetPercentBox? boundingBox;
   final String? originalImageUrl;
   final String? isolatedImageUrl;
+  final String? blurHash;
 
   String get displayName => ClosetItem.formatDisplayName(label);
 
@@ -159,6 +161,8 @@ class ClosetMatchSide {
       boundingBox: ClosetPercentBox.fromJson(json['bounding_box']),
       originalImageUrl: _readNonEmpty(json['original_image_url']),
       isolatedImageUrl: _readNonEmpty(json['isolated_image_url']),
+      blurHash:
+          _readNonEmpty(json['blur_hash']) ?? _readNonEmpty(json['blurHash']),
     );
   }
 }

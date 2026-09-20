@@ -104,6 +104,27 @@ void main() {
       expect(match.askTitle, 'Same navy jacket?');
     });
 
+    test('parses optional blur hashes on probe and candidate', () {
+      final match = ClosetPendingMatch.fromJson(
+        pendingJson(
+          probe: {
+            'label': 'white tee',
+            'isolated_image_url': 'https://api.example/isolate?probe=1',
+            'blur_hash': 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+          },
+          candidate: {
+            'closet_item_id': 'c1',
+            'label': 'white tee',
+            'isolated_image_url': 'https://api.example/isolate?cand=1',
+            'blurHash': 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH',
+          },
+        ),
+      );
+
+      expect(match.probe.blurHash, 'LEHV6nWB2yk8pyo0adR*.7kCMdnj');
+      expect(match.candidate.blurHash, 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH');
+    });
+
     test('shortens long ask names to color + kind', () {
       final match = ClosetPendingMatch.fromJson(
         pendingJson(

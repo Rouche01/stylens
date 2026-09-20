@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/models/closet_pending_match.dart';
+import 'package:gostylens/pages/closet/closet_ask_image.dart';
 
 /// Compact pending-match chrome under the closet toolbar.
 ///
@@ -212,10 +212,6 @@ class _AskThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final url = side.thumbUrl;
-    final fill = ColoredBox(color: cs.primary.withValues(alpha: 0.12));
-
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
@@ -223,17 +219,7 @@ class _AskThumb extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 32,
-          height: 40,
-          child: url == null
-              ? fill
-              : Image.network(
-                  EnvConfig.resolvePlatformUrl(url),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => fill,
-                ),
-        ),
+        child: ClosetAskNetworkImage(side: side, width: 32, height: 40),
       ),
     );
   }
