@@ -53,6 +53,13 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   String? _error;
   Future<void>? _itemsInFlight;
 
+  // Detail (GET /closet/items/:id) — fresh signed original + box
+  final Map<String, ClosetItem> _details = {};
+  final Set<String> _detailsLoading = {};
+  final Map<String, String> _detailsErrors = {};
+  final Map<String, int> _detailsStatusCodes = {};
+  final Map<String, Future<ClosetItem?>> _detailsInFlight = {};
+
   // Identity wait chrome (GET status + closet_identity_updated)
   ClosetIdentityStatus _status = const ClosetIdentityStatus();
   bool _waitChrome = false;
@@ -77,6 +84,23 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
   String? get error => _error;
+
+  ClosetItem? itemById(String id) {
+    final details = _details[id];
+    if (details != null) return details;
+    for (final item in _items) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  ClosetItem? itemDetails(String id) => _details[id];
+
+  bool isItemDetailsLoading(String id) => _detailsLoading.contains(id);
+
+  String? itemDetailsError(String id) => _detailsErrors[id];
+
+  int? itemDetailsStatusCode(String id) => _detailsStatusCodes[id];
 
   ClosetIdentityStatus get identityStatus => _status;
 
@@ -162,6 +186,48 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     final future = _fetchItems(forceRefresh: forceRefresh);
     _itemsInFlight = future;
     return future;
+  }
+
+  /// Fresh signed original + box. Catalog row is still the immediate hero.
+  /// Isolate URL from this payload must not replace the tile crop.
+  Future<ClosetItem?> fetchItemDetails(String id) {
+    final trimmed = id.trim();
+    if (trimmed.isEmpty) return Future<ClosetItem?>.value(null);
+    return _detailsInFlight.putIfAbsent(trimmed, () {
+      return _fetchItemDetails(trimmed).whenComplete(() {
+        _detailsInFlight.remove(trimmed);
+      });
+    });
+  }
+
+  Future<ClosetItem?> _fetchItemDetails(String id) async {
+    _detailsLoading.add(id);
+    _detailsErrors.remove(id);
+    _detailsStatusCodes.remove(id);
+    notifyListeners();
+
+    try {
+      final response = await _apiService.getItem(id);
+      if (!response.isSuccess) {
+        _detailsErrors[id] = response.errorMessage;
+        _detailsStatusCodes[id] = response.statusCode;
+        return null;
+      }
+      final item = response.data;
+      if (item == null || item.id.isEmpty) {
+        _detailsErrors[id] = 'Failed to load item';
+        return null;
+      }
+      _details[id] = item;
+      return item;
+    } catch (e, st) {
+      debugPrint('ClosetManager.fetchItemDetails failed: $e\n$st');
+      _detailsErrors[id] = 'Failed to load item';
+      return null;
+    } finally {
+      _detailsLoading.remove(id);
+      notifyListeners();
+    }
   }
 
   /// Catch-up GET for pending asks. Bind / resume / closet tab / settled /
@@ -464,6 +530,11 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     _isLoading = false;
     _hasLoaded = false;
     _error = null;
+    _details.clear();
+    _detailsLoading.clear();
+    _detailsErrors.clear();
+    _detailsStatusCodes.clear();
+    _detailsInFlight.clear();
     if (notify) notifyListeners();
   }
 

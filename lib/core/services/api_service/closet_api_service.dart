@@ -25,6 +25,19 @@ class ClosetApiService extends BaseApiService {
     );
   }
 
+  /// Fresh signed original + box for item detail. Never cached.
+  Future<ApiResponse<ClosetItem>> getItem(String id) {
+    return get<ClosetItem>(
+      'items/$id',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
+      fromJson: ClosetItem.fromResponse,
+      defaultErrorMessage: 'Failed to load item',
+    );
+  }
+
   /// Current identity wave. Never cached — catch-up on bind / resume / tab.
   Future<ApiResponse<ClosetIdentityStatus>> getIdentityStatus() async {
     return get<ClosetIdentityStatus>(

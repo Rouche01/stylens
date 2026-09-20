@@ -25,6 +25,41 @@ void main() {
       expect(item.imageKey, 'users/u1/photo.jpg');
       expect(item.aspectRatio, 0.72);
       expect(item.blurHash, 'LEHV6nWB2yk8pyo0adR*.7kCMdnj');
+      expect(item.boundingBox, isNull);
+    });
+
+    test('parses a percent bounding box and ignores wear history', () {
+      final item = ClosetItem.fromJson({
+        'id': 'c1',
+        'label': 'Leather jacket',
+        'category': 'outerwear',
+        'original_image_url': 'https://r2.example/fresh.jpg',
+        'image_key': 'users/u1/look.jpg',
+        'bounding_box': {'x': 20, 'y': 15, 'width': 40, 'height': 35},
+        'wear_history': [
+          {
+            'outfit_id': 'o1',
+            'bounding_box': {'x': 1, 'y': 1, 'width': 2, 'height': 2},
+          },
+        ],
+      });
+
+      expect(item.boundingBox?.x, 20);
+      expect(item.boundingBox?.y, 15);
+      expect(item.boundingBox?.width, 40);
+      expect(item.boundingBox?.height, 35);
+      expect(item.originalImageUrl, 'https://r2.example/fresh.jpg');
+    });
+
+    test('fromResponse reads a details payload', () {
+      final item = ClosetItem.fromResponse({
+        'id': 'c9',
+        'label': 'Navy coat',
+        'category': 'outerwear',
+        'bounding_box': {'x': 10, 'y': 8, 'width': 30, 'height': 50},
+      });
+      expect(item.id, 'c9');
+      expect(item.boundingBox?.width, 30);
     });
 
     test('falls back to 4/5 and Other when size or category is missing', () {
@@ -38,6 +73,7 @@ void main() {
       expect(item.aspectRatio, ClosetItem.fallbackAspectRatio);
       expect(item.tileImageUrl, isNull);
       expect(item.blurHash, isNull);
+      expect(item.boundingBox, isNull);
     });
 
     test('maps remaining extraction slugs', () {

@@ -19,6 +19,10 @@ class FakeClosetApiService extends ClosetApiService {
   int statusCallCount = 0;
   int pendingCallCount = 0;
   int resolveCallCount = 0;
+  int getItemCallCount = 0;
+  ClosetItem? itemDetails;
+  int getItemStatusCode = 200;
+  Completer<ApiResponse<ClosetItem>>? getItemPending;
   bool? lastForceRefresh;
   String? lastResolveId;
   ClosetMatchDecision? lastResolveDecision;
@@ -38,6 +42,30 @@ class FakeClosetApiService extends ClosetApiService {
       );
     }
     return ApiResponse.success(items);
+  }
+
+  @override
+  Future<ApiResponse<ClosetItem>> getItem(String id) async {
+    getItemCallCount += 1;
+    if (getItemPending != null) return getItemPending!.future;
+    if (getItemStatusCode != 200) {
+      return ApiResponse.error(
+        defaultMessage: 'Failed to load item',
+        statusCode: getItemStatusCode,
+      );
+    }
+    final item =
+        itemDetails ??
+        (items.where((entry) => entry.id == id).isEmpty
+            ? null
+            : items.firstWhere((entry) => entry.id == id));
+    if (item == null) {
+      return ApiResponse.error(
+        defaultMessage: 'Failed to load item',
+        statusCode: 404,
+      );
+    }
+    return ApiResponse.success(item);
   }
 
   @override
@@ -176,6 +204,69 @@ void main() {
 
     expect(manager.error, isNull);
     expect(manager.items, [_tee]);
+  });
+
+  test('fetchItemDetails stores a fresh original and box', () async {
+    const detailed = ClosetItem(
+      id: '1',
+      label: 'White tee',
+      category: 'top',
+      subcategory: 't-shirt',
+      color: 'white',
+      originalImageUrl: 'https://r2.example/fresh.jpg',
+      boundingBox: ClosetPercentBox(x: 20, y: 10, width: 40, height: 50),
+    );
+    api
+      ..items = [_tee]
+      ..itemDetails = detailed;
+
+    await manager.fetchItems();
+    expect(manager.itemById('1')?.boundingBox, isNull);
+
+    final loaded = await manager.fetchItemDetails('1');
+    expect(loaded?.originalImageUrl, 'https://r2.example/fresh.jpg');
+    expect(manager.itemById('1')?.boundingBox?.width, 40);
+    expect(manager.items.single, _tee);
+    expect(api.getItemCallCount, 1);
+  });
+
+  test('fetchItemDetails surfaces 404 without changing the catalog', () async {
+    api
+      ..items = [_tee]
+      ..getItemStatusCode = 404;
+
+    await manager.fetchItems();
+    final loaded = await manager.fetchItemDetails('1');
+
+    expect(loaded, isNull);
+    expect(manager.itemDetailsStatusCode('1'), 404);
+    expect(manager.itemDetailsError('1'), isNotNull);
+    expect(manager.items, [_tee]);
+  });
+
+  test('fetchItemDetails coalesces in-flight calls for the same id', () async {
+    const detailed = ClosetItem(
+      id: '1',
+      label: 'White tee',
+      category: 'top',
+      subcategory: 't-shirt',
+      color: 'white',
+    );
+    api
+      ..items = [_tee]
+      ..itemDetails = detailed
+      ..getItemPending = Completer<ApiResponse<ClosetItem>>();
+
+    final first = manager.fetchItemDetails('1');
+    final second = manager.fetchItemDetails('1');
+    expect(api.getItemCallCount, 1);
+    expect(manager.isItemDetailsLoading('1'), isTrue);
+
+    api.getItemPending!.complete(ApiResponse.success(detailed));
+    expect(await first, detailed);
+    expect(await second, detailed);
+    expect(api.getItemCallCount, 1);
+    expect(manager.isItemDetailsLoading('1'), isFalse);
   });
 
   test('bindUser shows wait chrome when GET status is processing', () async {

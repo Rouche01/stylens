@@ -42,6 +42,17 @@ class _FakeClosetApiService extends ClosetApiService {
   }
 
   @override
+  Future<ApiResponse<ClosetItem>> getItem(String id) async {
+    for (final item in items) {
+      if (item.id == id) return ApiResponse.success(item);
+    }
+    return ApiResponse.error(
+      defaultMessage: 'Failed to load item',
+      statusCode: 404,
+    );
+  }
+
+  @override
   Future<ApiResponse<ClosetIdentityStatus>> getIdentityStatus() async {
     return ApiResponse.success(status);
   }

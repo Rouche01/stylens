@@ -39,33 +39,6 @@ enum ClosetMatchIdentityStatus {
   }
 }
 
-/// Percent box on probe / candidate crops. Kept for later overlay; not rendered
-/// on the ask banner.
-class ClosetPercentBox {
-  const ClosetPercentBox({
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-  });
-
-  final double x;
-  final double y;
-  final double width;
-  final double height;
-
-  static ClosetPercentBox? fromJson(dynamic value) {
-    if (value is! Map) return null;
-    final json = Map<String, dynamic>.from(value);
-    final x = _readDouble(json['x']);
-    final y = _readDouble(json['y']);
-    final width = _readDouble(json['width']);
-    final height = _readDouble(json['height']);
-    if (x == null || y == null || width == null || height == null) return null;
-    return ClosetPercentBox(x: x, y: y, width: width, height: height);
-  }
-}
-
 /// Probe (new outfit crop) or candidate (piece already in the closet).
 class ClosetMatchSide {
   const ClosetMatchSide({

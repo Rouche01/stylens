@@ -1,3 +1,35 @@
+/// Percent box on the worn outfit (`x, y, width, height` on 0–100).
+class ClosetPercentBox {
+  const ClosetPercentBox({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+
+  static ClosetPercentBox? fromJson(dynamic value) {
+    if (value is! Map) return null;
+    final json = Map<String, dynamic>.from(value);
+    final x = _readDouble(json['x']);
+    final y = _readDouble(json['y']);
+    final width = _readDouble(json['width']);
+    final height = _readDouble(json['height']);
+    if (x == null || y == null || width == null || height == null) return null;
+    return ClosetPercentBox(x: x, y: y, width: width, height: height);
+  }
+
+  static double? _readDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value');
+  }
+}
+
 class ClosetItem {
   static const fallbackAspectRatio = 4 / 5;
 
@@ -29,6 +61,7 @@ class ClosetItem {
   final String? isolatedImageUrl;
   final String? originalImageUrl;
   final String? imageKey;
+  final ClosetPercentBox? boundingBox;
   final String? blurHash;
   final double aspectRatio;
 
@@ -41,6 +74,7 @@ class ClosetItem {
     this.isolatedImageUrl,
     this.originalImageUrl,
     this.imageKey,
+    this.boundingBox,
     this.blurHash,
     this.aspectRatio = fallbackAspectRatio,
   });
@@ -108,9 +142,24 @@ class ClosetItem {
       isolatedImageUrl: _readNonEmpty(json['isolated_image_url']),
       originalImageUrl: _readNonEmpty(json['original_image_url']),
       imageKey: _readNonEmpty(json['image_key']),
+      boundingBox: ClosetPercentBox.fromJson(json['bounding_box']),
       blurHash:
           _readNonEmpty(json['blur_hash']) ?? _readNonEmpty(json['blurHash']),
       aspectRatio: ratio ?? fallbackAspectRatio,
+    );
+  }
+
+  /// `GET /closet/items/:id` returns the item object, not `{ items: [...] }`.
+  static ClosetItem fromResponse(dynamic data) {
+    if (data is Map) {
+      return ClosetItem.fromJson(Map<String, dynamic>.from(data));
+    }
+    return const ClosetItem(
+      id: '',
+      label: '',
+      category: '',
+      subcategory: '',
+      color: '',
     );
   }
 
