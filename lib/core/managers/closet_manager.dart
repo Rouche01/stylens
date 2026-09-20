@@ -7,6 +7,7 @@ import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
 import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
+import 'package:gostylens/models/closet_pending_match.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 typedef ClosetBroadcastListen =
@@ -33,6 +34,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
 
   static const identityUpdatedEvent = 'closet_identity_updated';
   static const catalogUpdatedEvent = 'closet_catalog_updated';
+  static const settleDwell = Duration(milliseconds: 1600);
 
   final ClosetApiService _apiService;
   final RealtimeService? _realtimeService;
@@ -55,6 +57,12 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   StreamSubscription<Map<String, dynamic>>? _catalogSub;
   StreamSubscription<RealtimeSubscribeStatus>? _channelStatusSub;
   Future<void>? _itemsInFlight;
+  List<ClosetPendingMatch> _pending = const [];
+  ClosetAskSettle? _settle;
+  Timer? _settleTimer;
+  int _pendingEpoch = 0;
+  bool _resolvingMatch = false;
+  String? _matchResolveError;
 
   List<ClosetItem> get items => _items;
   bool get isLoading => _isLoading;
@@ -67,6 +75,20 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Wait chrome was up, the wave settled, and the catalog is still empty.
   bool get isFailedEmpty => _failedEmpty;
+
+  /// Newest-first queue from GET pending. Banner is [currentAsk].
+  List<ClosetPendingMatch> get pendingMatches => _pending;
+
+  /// Null while [askSettle] is showing so the banner does not skip ahead.
+  ClosetPendingMatch? get currentAsk =>
+      _settle != null || _pending.isEmpty ? null : _pending.first;
+
+  ClosetAskSettle? get askSettle => _settle;
+
+  bool get isResolvingMatch => _resolvingMatch;
+
+  /// Set on 409 / failed resolve. Sheet stays open.
+  String? get matchResolveError => _matchResolveError;
 
   String _channelFor(String dbId) => 'closet-identity:$dbId';
 
@@ -83,14 +105,15 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     await syncIdentity(hideIfIdle: true);
   }
 
-  /// Catch-up GET for status + items. [hideIfIdle] is true on bind/resume/
-  /// subscribe-rejoin so a missed `settled` can clear chrome. False while
-  /// already showing chrome in-session (quiet window).
+  /// Catch-up GET for status, items, and pending asks. [hideIfIdle] is true
+  /// on bind/resume/subscribe-rejoin so a missed `settled` can clear chrome.
+  /// False while already showing chrome in-session (quiet window).
   Future<void> syncIdentity({bool hideIfIdle = false}) async {
     if (_dbId == null) return;
     await Future.wait([
       _fetchStatus(hideIfIdle: hideIfIdle),
       fetchItems(forceRefresh: true),
+      fetchPendingMatches(),
     ]);
   }
 
@@ -129,6 +152,83 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     final future = _fetchItems(forceRefresh: forceRefresh);
     _itemsInFlight = future;
     return future;
+  }
+
+  /// Catch-up GET for pending asks. Bind / resume / closet tab / settled /
+  /// catalog ping. Do not poll.
+  Future<void> fetchPendingMatches() async {
+    if (_dbId == null) return;
+    final epoch = ++_pendingEpoch;
+    try {
+      final response = await _apiService.getPendingMatches();
+      if (epoch != _pendingEpoch || _dbId == null) return;
+      if (!response.isSuccess) return;
+      _applyPending(response.data ?? const []);
+    } catch (e, st) {
+      debugPrint('ClosetManager.getPendingMatches failed: $e\n$st');
+    }
+  }
+
+  /// POST same / new for [currentAsk]. True if the sheet can close.
+  /// 409 keeps the queue and [matchResolveError]. Last remaining skips settle.
+  Future<bool> resolveCurrentAsk(ClosetMatchDecision decision) async {
+    if (_dbId == null || _settle != null || _resolvingMatch) return false;
+    final ask = currentAsk;
+    if (ask == null) return false;
+
+    _resolvingMatch = true;
+    _matchResolveError = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.resolveMatch(
+        matchId: ask.id,
+        decision: decision,
+      );
+      if (_dbId == null) return false;
+
+      if (!response.isSuccess) {
+        if (response.statusCode == 404) {
+          await fetchPendingMatches();
+          _dropPendingId(ask.id);
+          notifyListeners();
+          return true;
+        }
+        _matchResolveError = response.errorMessage;
+        return false;
+      }
+
+      final result = response.data;
+      if (result?.decision == ClosetMatchDecision.ask) {
+        await fetchPendingMatches();
+        return true;
+      }
+
+      if (decision == ClosetMatchDecision.asNew) {
+        await fetchItems(forceRefresh: true);
+      }
+      await fetchPendingMatches();
+      _dropPendingId(ask.id);
+
+      if (_pending.isEmpty) {
+        _clearSettle();
+        return true;
+      }
+
+      _beginSettle(
+        decision == ClosetMatchDecision.asNew
+            ? ClosetAskSettleKind.added
+            : ClosetAskSettleKind.savedSame,
+      );
+      return true;
+    } catch (e, st) {
+      debugPrint('ClosetManager.resolveCurrentAsk failed: $e\n$st');
+      _matchResolveError = 'Failed to resolve closet match';
+      return false;
+    } finally {
+      _resolvingMatch = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _fetchItems({required bool forceRefresh}) async {
@@ -236,8 +336,10 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   void _onCatalogEvent(Map<String, dynamic> payload) {
     if (_dbId == null) return;
     final ids = payload['closet_item_ids'];
-    if (ids is List && ids.isEmpty) return;
-    fetchItems(forceRefresh: true);
+    if (ids is! List || ids.isNotEmpty) {
+      fetchItems(forceRefresh: true);
+    }
+    unawaited(fetchPendingMatches());
   }
 
   void _setWaitChrome(bool value) {
@@ -253,11 +355,41 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     if (!catchUpItems) return;
 
     if (_isLoading) await _itemsInFlight;
-    await fetchItems(forceRefresh: true);
+    await Future.wait([fetchItems(forceRefresh: true), fetchPendingMatches()]);
     if (wasWaiting && _items.isEmpty) {
       _failedEmpty = true;
       notifyListeners();
     }
+  }
+
+  void _applyPending(List<ClosetPendingMatch> matches) {
+    _pending = List<ClosetPendingMatch>.unmodifiable(matches);
+    if (_pending.isEmpty) _clearSettle();
+    if (!_resolvingMatch) notifyListeners();
+  }
+
+  void _dropPendingId(String id) {
+    if (_pending.every((match) => match.id != id)) return;
+    _pending = List<ClosetPendingMatch>.unmodifiable(
+      _pending.where((match) => match.id != id),
+    );
+    if (_pending.isEmpty) _clearSettle();
+  }
+
+  void _beginSettle(ClosetAskSettleKind kind) {
+    _settleTimer?.cancel();
+    _settle = ClosetAskSettle(kind: kind, remaining: _pending.length);
+    _settleTimer = Timer(settleDwell, () {
+      _settleTimer = null;
+      _settle = null;
+      notifyListeners();
+    });
+  }
+
+  void _clearSettle() {
+    _settleTimer?.cancel();
+    _settleTimer = null;
+    _settle = null;
   }
 
   void _ensureLifecycleObserver() {
@@ -302,6 +434,11 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     _waitChrome = false;
     _failedEmpty = false;
     _debugPinned = false;
+    _pendingEpoch += 1;
+    _pending = const [];
+    _clearSettle();
+    _resolvingMatch = false;
+    _matchResolveError = null;
     _items = const [];
     _isLoading = false;
     _hasLoaded = false;

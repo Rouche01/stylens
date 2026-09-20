@@ -138,6 +138,32 @@ void main() {
     });
   });
 
+  group('ClosetAskSettle', () {
+    test('uses remaining copy without a queue index', () {
+      expect(
+        const ClosetAskSettle(
+          kind: ClosetAskSettleKind.savedSame,
+          remaining: 2,
+        ).title,
+        'Saved as the same piece',
+      );
+      expect(
+        const ClosetAskSettle(
+          kind: ClosetAskSettleKind.added,
+          remaining: 1,
+        ).remainingLine,
+        '1 left to confirm',
+      );
+      expect(
+        const ClosetAskSettle(
+          kind: ClosetAskSettleKind.added,
+          remaining: 2,
+        ).remainingLine,
+        '2 left to confirm',
+      );
+    });
+  });
+
   group('ClosetMatchResolveResult.fromJson', () {
     test('parses same and new resolve payloads', () {
       final same = ClosetMatchResolveResult.fromJson({

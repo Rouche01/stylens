@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -69,6 +71,7 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
       context.read<ClosetManager>().fetchItems().whenComplete(() {
         if (mounted) setState(() => _awaitingInitial = false);
       });
+      unawaited(context.read<ClosetManager>().fetchPendingMatches());
     });
   }
 
@@ -146,7 +149,11 @@ class _ClosetBrowseViewState extends State<ClosetBrowseView> {
   }
 
   Future<void> _refresh() {
-    return context.read<ClosetManager>().fetchItems(forceRefresh: true);
+    final closet = context.read<ClosetManager>();
+    return Future.wait([
+      closet.fetchItems(forceRefresh: true),
+      closet.fetchPendingMatches(),
+    ]);
   }
 
   void _openCapture() {

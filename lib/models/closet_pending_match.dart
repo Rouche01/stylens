@@ -177,6 +177,24 @@ class ClosetPendingMatch {
   }
 }
 
+/// Settle banner after Same / New while more asks remain. Last resolve skips this.
+enum ClosetAskSettleKind { savedSame, added }
+
+class ClosetAskSettle {
+  const ClosetAskSettle({required this.kind, required this.remaining});
+
+  final ClosetAskSettleKind kind;
+  final int remaining;
+
+  String get title => switch (kind) {
+    ClosetAskSettleKind.savedSame => 'Saved as the same piece',
+    ClosetAskSettleKind.added => 'Added to closet',
+  };
+
+  String get remainingLine =>
+      remaining == 1 ? '1 left to confirm' : '$remaining left to confirm';
+}
+
 /// POST `/closet/matches/:id/resolve` payload.
 class ClosetMatchResolveResult {
   const ClosetMatchResolveResult({

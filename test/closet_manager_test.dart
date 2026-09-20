@@ -1,20 +1,29 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
+import 'package:gostylens/models/closet_pending_match.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FakeClosetApiService extends ClosetApiService {
   List<ClosetItem> items = const [];
   ClosetIdentityStatus status = const ClosetIdentityStatus();
+  List<ClosetPendingMatch> pending = const [];
   bool fail = false;
   int callCount = 0;
   int statusCallCount = 0;
+  int pendingCallCount = 0;
+  int resolveCallCount = 0;
   bool? lastForceRefresh;
+  String? lastResolveId;
+  ClosetMatchDecision? lastResolveDecision;
+  int resolveStatusCode = 200;
+  ClosetMatchResolveResult? resolveResult;
 
   @override
   Future<ApiResponse<List<ClosetItem>>> getItems({
@@ -36,6 +45,42 @@ class FakeClosetApiService extends ClosetApiService {
     statusCallCount += 1;
     return ApiResponse.success(status);
   }
+
+  @override
+  Future<ApiResponse<List<ClosetPendingMatch>>> getPendingMatches() async {
+    pendingCallCount += 1;
+    return ApiResponse.success(pending);
+  }
+
+  @override
+  Future<ApiResponse<ClosetMatchResolveResult>> resolveMatch({
+    required String matchId,
+    required ClosetMatchDecision decision,
+  }) async {
+    resolveCallCount += 1;
+    lastResolveId = matchId;
+    lastResolveDecision = decision;
+    if (resolveStatusCode != 200) {
+      return ApiResponse.error(
+        defaultMessage: 'Failed to resolve closet match',
+        statusCode: resolveStatusCode,
+      );
+    }
+    final result =
+        resolveResult ??
+        ClosetMatchResolveResult(
+          decision: decision,
+          matchId: matchId,
+          identityStatus: ClosetMatchIdentityStatus.created,
+        );
+    if (result.decision != ClosetMatchDecision.ask) {
+      pending = [
+        for (final match in pending)
+          if (match.id != matchId) match,
+      ];
+    }
+    return ApiResponse.success(result);
+  }
 }
 
 const _tee = ClosetItem(
@@ -45,6 +90,15 @@ const _tee = ClosetItem(
   subcategory: 't-shirt',
   color: 'white',
 );
+
+ClosetPendingMatch _ask(String id, {String label = 'white tee'}) {
+  return ClosetPendingMatch(
+    id: id,
+    outfitId: 'o1',
+    probe: ClosetMatchSide(label: label),
+    candidate: ClosetMatchSide(closetItemId: 'c-$id', label: label),
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -250,9 +304,10 @@ void main() {
     expect(api.statusCallCount, greaterThan(1));
   });
 
-  test('empty catalog ping does not refresh items', () async {
+  test('empty catalog ping still catch-up fetches pending asks', () async {
     await manager.bindUser('user-1');
-    final calls = api.callCount;
+    final itemCalls = api.callCount;
+    final pendingCalls = api.pendingCallCount;
 
     catalog.add({
       'reason': 'identity',
@@ -261,7 +316,8 @@ void main() {
     });
     await Future<void>.delayed(Duration.zero);
 
-    expect(api.callCount, calls);
+    expect(api.callCount, itemCalls);
+    expect(api.pendingCallCount, greaterThan(pendingCalls));
   });
 
   test('reset leaves the channel and clears chrome', () async {
@@ -307,5 +363,188 @@ void main() {
 
     manager.debugCycleWaitChrome();
     expect(manager.isProcessing, isFalse);
+  });
+
+  test('bindUser loads pending newest-first as currentAsk', () async {
+    api.pending = [_ask('newer'), _ask('older', label: 'navy jacket')];
+
+    await manager.bindUser('user-1');
+
+    expect(api.pendingCallCount, 1);
+    expect(manager.currentAsk?.id, 'newer');
+    expect(manager.pendingMatches.map((m) => m.id), ['newer', 'older']);
+    expect(manager.askSettle, isNull);
+  });
+
+  test('resume and subscribed catch-up fetch pending', () async {
+    await manager.bindUser('user-1');
+    api.pending = [_ask('m1')];
+
+    await manager.onAppResumed();
+    expect(manager.currentAsk?.id, 'm1');
+
+    api.pending = [_ask('m2')];
+    channelStatus.add(RealtimeSubscribeStatus.subscribed);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(manager.currentAsk?.id, 'm2');
+    expect(api.pendingCallCount, greaterThan(2));
+  });
+
+  test('settled catch-up fetches pending', () async {
+    api.status = const ClosetIdentityStatus(processing: true);
+    await manager.bindUser('user-1');
+    api.pending = [_ask('after-settle')];
+
+    identity.add({
+      'processing': false,
+      'queued': 0,
+      'running': 0,
+      'failed': 0,
+      'phase': 'settled',
+    });
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(manager.currentAsk?.id, 'after-settle');
+  });
+
+  test('resolve same settles then shows the next ask', () {
+    fakeAsync((async) {
+      api.pending = [_ask('tee'), _ask('jacket', label: 'leather jacket')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+
+      var closed = false;
+      manager.resolveCurrentAsk(ClosetMatchDecision.same).then((ok) {
+        closed = ok;
+      });
+      async.flushMicrotasks();
+
+      expect(closed, isTrue);
+      expect(api.lastResolveId, 'tee');
+      expect(api.lastResolveDecision, ClosetMatchDecision.same);
+      expect(manager.currentAsk, isNull);
+      expect(manager.askSettle?.kind, ClosetAskSettleKind.savedSame);
+      expect(manager.askSettle?.remaining, 1);
+      expect(manager.askSettle?.remainingLine, '1 left to confirm');
+
+      async.elapse(ClosetManager.settleDwell);
+      expect(manager.askSettle, isNull);
+      expect(manager.currentAsk?.id, 'jacket');
+    });
+  });
+
+  test('resolve new refreshes items and settle copy is Added', () {
+    fakeAsync((async) {
+      api.pending = [_ask('jacket'), _ask('shoes', label: 'court sneakers')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+      final itemsBefore = api.callCount;
+
+      manager.resolveCurrentAsk(ClosetMatchDecision.asNew);
+      async.flushMicrotasks();
+
+      expect(api.callCount, greaterThan(itemsBefore));
+      expect(manager.askSettle?.kind, ClosetAskSettleKind.added);
+      expect(manager.askSettle?.title, 'Added to closet');
+      async.elapse(ClosetManager.settleDwell);
+      expect(manager.askSettle, isNull);
+      expect(manager.currentAsk?.id, 'shoes');
+    });
+  });
+
+  test('last resolve hides without a settle flash', () {
+    fakeAsync((async) {
+      api.pending = [_ask('only')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+
+      manager.resolveCurrentAsk(ClosetMatchDecision.same);
+      async.flushMicrotasks();
+
+      expect(manager.askSettle, isNull);
+      expect(manager.currentAsk, isNull);
+      expect(manager.pendingMatches, isEmpty);
+    });
+  });
+
+  test('409 keeps the current ask for the sheet', () {
+    fakeAsync((async) {
+      api.pending = [_ask('tee')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+
+      api.resolveStatusCode = 409;
+      var closed = true;
+      manager.resolveCurrentAsk(ClosetMatchDecision.same).then((ok) {
+        closed = ok;
+      });
+      async.flushMicrotasks();
+
+      expect(closed, isFalse);
+      expect(manager.currentAsk?.id, 'tee');
+      expect(manager.askSettle, isNull);
+      expect(manager.matchResolveError, isNotNull);
+    });
+  });
+
+  test('404 drops the match and catch-up GETs pending', () {
+    fakeAsync((async) {
+      api.pending = [_ask('gone'), _ask('next')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+
+      api.resolveStatusCode = 404;
+      var closed = false;
+      manager.resolveCurrentAsk(ClosetMatchDecision.same).then((ok) {
+        closed = ok;
+      });
+      async.flushMicrotasks();
+
+      expect(closed, isTrue);
+      expect(manager.currentAsk?.id, 'next');
+      expect(manager.askSettle, isNull);
+    });
+  });
+
+  test('resolve ask refetches pending and does not show Added', () {
+    fakeAsync((async) {
+      api.pending = [_ask('tee')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+
+      api.resolveResult = const ClosetMatchResolveResult(
+        decision: ClosetMatchDecision.ask,
+        matchId: 'tee-2',
+        identityStatus: ClosetMatchIdentityStatus.ask,
+      );
+      api.pending = [_ask('tee-2')];
+      manager.resolveCurrentAsk(ClosetMatchDecision.asNew);
+      async.flushMicrotasks();
+
+      expect(manager.askSettle, isNull);
+      expect(manager.currentAsk?.id, 'tee-2');
+    });
+  });
+
+  test('reset clears pending and a running settle timer', () {
+    fakeAsync((async) {
+      api.pending = [_ask('tee'), _ask('jacket')];
+      manager.bindUser('user-1');
+      async.flushMicrotasks();
+      manager.resolveCurrentAsk(ClosetMatchDecision.same);
+      async.flushMicrotasks();
+      expect(manager.askSettle, isNotNull);
+
+      manager.reset();
+
+      expect(manager.currentAsk, isNull);
+      expect(manager.askSettle, isNull);
+      expect(manager.pendingMatches, isEmpty);
+      async.elapse(ClosetManager.settleDwell);
+      expect(manager.askSettle, isNull);
+    });
   });
 }

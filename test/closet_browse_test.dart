@@ -7,6 +7,7 @@ import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
+import 'package:gostylens/models/closet_pending_match.dart';
 import 'package:gostylens/pages/closet/closet_browse.dart';
 import 'package:provider/provider.dart';
 
@@ -33,6 +34,11 @@ class _FakeClosetApiService extends ClosetApiService {
   @override
   Future<ApiResponse<ClosetIdentityStatus>> getIdentityStatus() async {
     return ApiResponse.success(status);
+  }
+
+  @override
+  Future<ApiResponse<List<ClosetPendingMatch>>> getPendingMatches() async {
+    return ApiResponse.success(const []);
   }
 }
 

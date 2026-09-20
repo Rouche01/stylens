@@ -36,6 +36,9 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
   Future<void> _onDestinationSelected(int index) async {
     final shell = widget.navigationShell;
     if (index == shell.currentIndex) {
+      if (index == 0) {
+        unawaited(locator<ClosetManager>().fetchPendingMatches());
+      }
       shell.goBranch(index, initialLocation: true);
       return;
     }
@@ -44,6 +47,10 @@ class _HomeShellState extends State<HomeShell> with StyleAnalysisActions {
         shell.currentIndex == _captureIndex && index != _captureIndex;
     if (leavingCapture) {
       await locator<PoseVideoService>().setPlayback(shouldPlay: false);
+    }
+
+    if (index == 0) {
+      unawaited(locator<ClosetManager>().fetchPendingMatches());
     }
 
     if (!mounted) return;
