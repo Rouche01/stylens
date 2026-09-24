@@ -41,6 +41,10 @@ class AnalyticsService {
       final config = PostHogConfig(EnvConfig.posthogApiKey);
       config.host = EnvConfig.posthogHost;
       config.debug = kDebugMode;
+      // Product flags come from GET /config/features via FeatureFlagService.
+      // Identify may still hit /flags internally; the app must not read that.
+      config.preloadFeatureFlags = false;
+      config.sendFeatureFlagEvents = false;
 
       // Enable Session Replay as requested
       config.sessionReplay = true;
@@ -206,20 +210,6 @@ class AnalyticsService {
       stackTrace: stackTrace,
       properties: properties,
     );
-  }
-
-  /// Fetches a feature flag value from PostHog.
-  ///
-  /// Prefer [FeatureFlagService.isEnabled] in app code — it supports local
-  /// debug/profile overrides.
-  Future<bool> fetchRemoteFeatureFlag(String key) async {
-    if (!isEnabled) return false;
-    try {
-      return await Posthog().isFeatureEnabled(key);
-    } catch (e) {
-      debugPrint('Failed to check feature flag "$key": $e');
-      return false;
-    }
   }
 
   /// Reset the user (on logout)
