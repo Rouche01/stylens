@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/api_responses/email_prefs.dart';
@@ -390,6 +391,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
     _operationState = const UserOperationState();
     _lastError = null;
     _closetManager.reset();
+    locator<FeatureFlagService>().clearClosetBrowse();
     await _subscriptionManager.clearState();
     notifyListeners();
   }

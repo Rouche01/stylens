@@ -15,6 +15,7 @@ import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
 import 'package:gostylens/pages/auth.dart';
@@ -296,7 +297,17 @@ String? redirectForDeepLinkUri(
   return target;
 }
 
-String? _redirect(AuthFlowController auth, GoRouterState state) {
+/// Sends closet item routes to the Closet tab when browse is off.
+@visibleForTesting
+String? redirectForClosetBrowse({
+  required String location,
+  required bool browseEnabled,
+}) {
+  if (browseEnabled || !isClosetItemLocation(location)) return null;
+  return AppRoutes.closet;
+}
+
+Future<String?> _redirect(AuthFlowController auth, GoRouterState state) async {
   if (auth.stage == AuthStage.userReady) {
     final pending = locator<DeepLinkService>().takePendingDestination();
     if (pending != null) {
@@ -329,7 +340,15 @@ String? _redirect(AuthFlowController auth, GoRouterState state) {
     location: afterStage,
     introCompleted: introCompleted,
   );
-  return introRedirect ?? stageRedirect;
+  final location = introRedirect ?? stageRedirect;
+  if (location != null) return location;
+  if (!isClosetItemLocation(state.matchedLocation)) return null;
+  final browseEnabled = await locator<FeatureFlagService>()
+      .closetBrowseEnabled();
+  return redirectForClosetBrowse(
+    location: state.matchedLocation,
+    browseEnabled: browseEnabled,
+  );
 }
 
 /// A safe in-app location for the current [stage], used when a custom-scheme

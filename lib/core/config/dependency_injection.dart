@@ -200,7 +200,11 @@ Future<void> setupLocator() async {
   );
   locator.registerLazySingleton<LocationManager>(() => LocationManager());
   locator.registerLazySingleton<InviteCodeManager>(() => InviteCodeManager());
-  locator.registerLazySingleton<ClosetManager>(() => ClosetManager());
+  locator.registerLazySingleton<ClosetManager>(
+    () => ClosetManager(
+      browseEnabled: () => locator<FeatureFlagService>().closetBrowseEnabled(),
+    ),
+  );
   locator.registerLazySingleton<StylistOpenersManager>(
     () => StylistOpenersManager(),
   );

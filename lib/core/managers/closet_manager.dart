@@ -26,11 +26,13 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     ClosetBroadcastListen? onBroadcast,
     void Function(String channel)? leaveChannel,
     Stream<RealtimeSubscribeStatus> Function(String channel)? onChannelStatus,
+    Future<bool> Function()? browseEnabled,
   }) : _apiService = apiService ?? locator<ClosetApiService>(),
        _realtimeService = realtimeService,
        _onBroadcast = onBroadcast,
        _leaveChannel = leaveChannel,
-       _onChannelStatus = onChannelStatus;
+       _onChannelStatus = onChannelStatus,
+       _browseEnabled = browseEnabled;
 
   static const identityUpdatedEvent = 'closet_identity_updated';
   static const catalogUpdatedEvent = 'closet_catalog_updated';
@@ -42,6 +44,10 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   final void Function(String channel)? _leaveChannel;
   final Stream<RealtimeSubscribeStatus> Function(String channel)?
   _onChannelStatus;
+
+  /// When set, closet sync stays idle until this returns true.
+  /// Omitted in tests so [bindUser] still exercises the API.
+  final Future<bool> Function()? _browseEnabled;
 
   // Bind / session
   String? _userDbId;
@@ -126,7 +132,14 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
 
   String _channelFor(String userDbId) => 'closet-identity:$userDbId';
 
+  Future<bool> _allowsBrowse() async {
+    final check = _browseEnabled;
+    if (check == null) return true;
+    return check();
+  }
+
   Future<void> bindUser(String userDbId) async {
+    if (!await _allowsBrowse()) return;
     if (_userDbId == userDbId) {
       await syncIdentity(hideIfIdle: false);
       return;
@@ -193,9 +206,18 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   Future<ClosetItem?> fetchItemDetails(String id) {
     final trimmed = id.trim();
     if (trimmed.isEmpty) return Future<ClosetItem?>.value(null);
-    return _detailsInFlight.putIfAbsent(trimmed, () {
-      return _fetchItemDetails(trimmed).whenComplete(() {
-        _detailsInFlight.remove(trimmed);
+    final check = _browseEnabled;
+    if (check == null) return _fetchItemDetailsShared(trimmed);
+    return check().then((allowed) {
+      if (!allowed) return null;
+      return _fetchItemDetailsShared(trimmed);
+    });
+  }
+
+  Future<ClosetItem?> _fetchItemDetailsShared(String id) {
+    return _detailsInFlight.putIfAbsent(id, () {
+      return _fetchItemDetails(id).whenComplete(() {
+        _detailsInFlight.remove(id);
       });
     });
   }
@@ -233,6 +255,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
   /// Catch-up GET for pending asks. Bind / resume / closet tab / settled /
   /// catalog ping. Do not poll.
   Future<void> fetchPendingMatches() async {
+    if (!await _allowsBrowse()) return;
     if (_userDbId == null) return;
     final epoch = ++_pendingEpoch;
     try {
