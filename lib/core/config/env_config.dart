@@ -43,6 +43,12 @@ class EnvConfig {
   static String get posthogApiKey => _get('POSTHOG_API_KEY');
   static String get posthogHost => _get('POSTHOG_HOST');
 
+  /// Shared AppsFlyer dev key. iOS and Android apps in this account use one key.
+  static String get appsFlyerDevKey => _get('APPSFLYER_DEV_KEY');
+
+  /// Numeric Apple ID, without an `id` prefix. Required by the iOS SDK.
+  static String get appsFlyerIosAppId => _get('APPSFLYER_IOS_APP_ID');
+
   /// When false, skips the in-app location explainer and OS permission prompt.
   /// Defaults to true if unset.
   static bool get locationPermissionPromptEnabled =>
@@ -65,6 +71,8 @@ class EnvConfig {
     googleOAuthAndroidClientId;
     posthogApiKey;
     posthogHost;
+    appsFlyerDevKey;
+    appsFlyerIosAppId;
   }
 
   static String _get(String key) {

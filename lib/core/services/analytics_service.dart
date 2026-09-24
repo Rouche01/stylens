@@ -1,3 +1,4 @@
+import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:flutter/foundation.dart';
@@ -12,8 +13,16 @@ class AnalyticsService {
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
-  /// Initialize PostHog with configuration
+  /// Initialize PostHog and AppsFlyer.
+  ///
+  /// PostHog stays off in debug. AppsFlyer still starts so a debug install
+  /// can be verified, with SDK debug logging on.
   Future<void> init() async {
+    await _initPostHog();
+    await _initAppsFlyer();
+  }
+
+  Future<void> _initPostHog() async {
     if (!isEnabled) return;
     try {
       final config = PostHogConfig(EnvConfig.posthogApiKey);
@@ -38,6 +47,30 @@ class AnalyticsService {
       debugPrint('PostHog initialized successfully');
     } catch (e) {
       debugPrint('Failed to initialize PostHog: $e');
+    }
+  }
+
+  Future<void> _initAppsFlyer() async {
+    if (kIsWeb) return;
+    final platform = defaultTargetPlatform;
+    if (platform != TargetPlatform.iOS && platform != TargetPlatform.android) {
+      return;
+    }
+    try {
+      final sdk = AppsFlyerSdk.instance;
+      await sdk.enableDebug(kDebugMode);
+      await sdk.init(
+        devKey: EnvConfig.appsFlyerDevKey,
+        appId: platform == TargetPlatform.iOS
+            ? EnvConfig.appsFlyerIosAppId
+            : null,
+      );
+      await sdk.registerSessionReadyListener(() async {
+        await sdk.start();
+      });
+      debugPrint('AppsFlyer initialized');
+    } catch (e) {
+      debugPrint('Failed to initialize AppsFlyer: $e');
     }
   }
 
