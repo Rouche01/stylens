@@ -12,17 +12,29 @@ class ClosetPage extends StatefulWidget {
 }
 
 class _ClosetPageState extends State<ClosetPage> {
+  late final FeatureFlagService _flags;
   bool _browseEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _flags = locator<FeatureFlagService>();
+    _flags.addListener(_onFlagsChanged);
     _loadBrowseFlag();
   }
 
+  @override
+  void dispose() {
+    _flags.removeListener(_onFlagsChanged);
+    super.dispose();
+  }
+
+  void _onFlagsChanged() => _loadBrowseFlag();
+
   Future<void> _loadBrowseFlag() async {
-    final enabled = await locator<FeatureFlagService>().closetBrowseEnabled();
+    final enabled = await _flags.closetBrowseEnabled();
     if (!mounted) return;
+    if (_browseEnabled == enabled) return;
     setState(() => _browseEnabled = enabled);
   }
 

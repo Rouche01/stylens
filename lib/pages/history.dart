@@ -43,13 +43,17 @@ class _HistoryPageState extends State<HistoryPage> with StyleAnalysisActions {
   @override
   void initState() {
     super.initState();
-    // Start sync so loading is set before the first Consumer build when possible.
-    context
-        .read<StyleAnalysisSessionManager>()
-        .fetchSessions()
-        .whenComplete(() {
-          if (mounted) setState(() => _awaitingInitialSessions = false);
-        });
+    // Defer past the current build — shell/IndexedStack can mount this page
+    // while an ancestor is still building; sync notifyListeners would assert.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<StyleAnalysisSessionManager>()
+          .fetchSessions()
+          .whenComplete(() {
+            if (mounted) setState(() => _awaitingInitialSessions = false);
+          });
+    });
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {

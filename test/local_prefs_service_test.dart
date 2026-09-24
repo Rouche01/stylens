@@ -70,4 +70,14 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+
+  test('coerces untyped string lists from SharedPreferences.get', () async {
+    SharedPreferences.setMockInitialValues({
+      PrefKeys.stylistOpenersRecentIds.name: <Object?>['a', 'b'],
+    });
+    final fromDisk = LocalPrefsService(await SharedPreferences.getInstance());
+    await fromDisk.warm();
+
+    expect(fromDisk.get(PrefKeys.stylistOpenersRecentIds), ['a', 'b']);
+  });
 }

@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Resolves feature flags from local overrides (debug/profile) or the API
 /// snapshot from [ConfigApiService.getFeatures].
-class FeatureFlagService {
+class FeatureFlagService extends ChangeNotifier {
   FeatureFlagService({
     Map<String, bool>? overrides,
     Future<Map<String, Object>?> Function()? fetchFeatures,
@@ -26,6 +26,10 @@ class FeatureFlagService {
   Map<String, Object>? _flags;
   Future<void>? _loadPending;
 
+  /// Keys forced off for this session (e.g. STYLENS_CLOSET_UNAVAILABLE).
+  /// Wins over debug overrides until [clear].
+  final Set<String> _forcedOff = {};
+
   /// True after a failed load with no cache, so [isEnabled] does not hammer
   /// the network until an explicit [refresh] or [clear].
   bool _suppressAutoFetch = false;
@@ -36,6 +40,7 @@ class FeatureFlagService {
   bool get hasSnapshot => _flags != null;
 
   Future<bool> isEnabled(String key) async {
+    if (_forcedOff.contains(key)) return false;
     final local = _resolveLocalOverride(key);
     if (local != null) return local;
     await _ensureLoaded();
@@ -44,6 +49,7 @@ class FeatureFlagService {
 
   /// String variant for [key], or null when missing / boolean / not loaded.
   Future<String?> variant(String key) async {
+    if (_forcedOff.contains(key)) return null;
     await _ensureLoaded();
     final value = _flags?[key];
     return value is String ? value : null;
@@ -52,11 +58,29 @@ class FeatureFlagService {
   /// Cached [FeatureFlags.closetBrowse] for this signed-in session.
   Future<bool> closetBrowseEnabled() => isEnabled(FeatureFlags.closetBrowse);
 
-  /// Drops the flag snapshot. Call on logout so the next user is re-read.
+  /// Drops the snapshot and session force-offs. Call on logout.
   void clear() {
     _flags = null;
     _loadPending = null;
     _suppressAutoFetch = false;
+    _forcedOff.clear();
+    notifyListeners();
+  }
+
+  /// Drop the cached snapshot so the next read reloads from the API.
+  /// Does not clear [forceOff] keys.
+  void clearSnapshot() {
+    _flags = null;
+    _loadPending = null;
+    _suppressAutoFetch = false;
+    notifyListeners();
+  }
+
+  /// Force [key] off for this session, even when a debug override is true.
+  /// Cleared on logout via [clear].
+  void forceOff(String key) {
+    _forcedOff.add(key);
+    notifyListeners();
   }
 
   /// Fetches a fresh snapshot. On failure, keeps any existing cache.
@@ -90,6 +114,7 @@ class FeatureFlagService {
       if (result != null) {
         _flags = Map<String, Object>.unmodifiable(result);
         _suppressAutoFetch = false;
+        notifyListeners();
       } else if (_flags == null) {
         _suppressAutoFetch = true;
       }

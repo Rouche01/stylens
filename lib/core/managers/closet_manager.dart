@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
+import 'package:gostylens/core/config/feature_flags.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
@@ -140,12 +141,15 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     return check();
   }
 
-  /// Stale browse-on cache: server says closet is off — drop flags and unbind.
+  /// Stale browse-on / local override: server says closet is off.
+  /// Force browse off for the session (beats debug overrides) and show waitlist.
   bool _handleClosetUnavailable(ApiResponse<dynamic> response) {
     final code = response.error?.normalizedCode;
     if (code != 'STYLENS_CLOSET_UNAVAILABLE') return false;
     if (locator.isRegistered<FeatureFlagService>()) {
-      locator<FeatureFlagService>().clear();
+      final flags = locator<FeatureFlagService>();
+      flags.clearSnapshot();
+      flags.forceOff(FeatureFlags.closetBrowse);
     }
     reset();
     return true;

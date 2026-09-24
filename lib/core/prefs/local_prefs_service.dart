@@ -39,8 +39,11 @@ class LocalPrefsService {
 
   T? _cast<T>(PrefKey<T> key, Object? value) {
     if (value == null) return null;
-    if (value is T) return _copyIfList(value) as T;
-    throw StateError('Pref ${key.name} expected $T, got ${value.runtimeType}');
+    final normalized = _copyIfList(value);
+    if (normalized is T) return _copyIfList(normalized) as T;
+    throw StateError(
+      'Pref ${key.name} expected $T, got ${value.runtimeType}',
+    );
   }
 
   Future<void> _writeToDisk(String name, Object value) {
@@ -56,8 +59,17 @@ class LocalPrefsService {
     };
   }
 
+  /// SharedPreferences often returns string lists as [List<Object?>] via [get].
   static Object? _copyIfList(Object? value) {
     if (value is List<String>) return List<String>.from(value);
+    if (value is List) {
+      final asStrings = <String>[];
+      for (final item in value) {
+        if (item is! String) return value;
+        asStrings.add(item);
+      }
+      return asStrings;
+    }
     return value;
   }
 }
