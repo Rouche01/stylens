@@ -32,7 +32,7 @@ The boxed worn photo is closet identity. A catalog JPEG is a stand-in, never the
 - Full original outfit (`original_image_url` + `bounding_box`).
 - One box for the selected item. Client overlay from percent `x, y, width, height` (0–100).
 - Light dim outside the box. Do not replace this view with an isolate cutout or a tight crop.
-- Caption on the photo: name + “Worn in this outfit” (wear count can come later).
+- Caption under the photo in the same flush card: name + “Worn in this outfit” (wear count can come later). Not overlaid on the box.
 
 If the box is missing, show the photo without a fake box.
 

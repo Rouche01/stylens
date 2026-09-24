@@ -58,7 +58,7 @@ class _ClosetItemRecsState extends State<ClosetItemRecs> {
       key: const ValueKey('closet-item-recs'),
       padding: const EdgeInsets.fromLTRB(
         ClosetItemHeroLayout.horizontalInset,
-        20,
+        18,
         ClosetItemHeroLayout.horizontalInset,
         0,
       ),

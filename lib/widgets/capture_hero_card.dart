@@ -20,7 +20,7 @@ class CaptureHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final scrim = Color.alphaBlend(
-      Colors.black.withValues(alpha: 0.45),
+      Colors.black.withValues(alpha: 0.62),
       cs.primary,
     );
 
@@ -46,7 +46,7 @@ class CaptureHeroCard extends StatelessWidget {
             children: [
               const Positioned.fill(child: PoseVideoBackdrop()),
               Positioned.fill(
-                child: ColoredBox(color: scrim.withValues(alpha: 0.66)),
+                child: ColoredBox(color: scrim.withValues(alpha: 0.57)),
               ),
               Positioned.fill(
                 child: DecoratedBox(
@@ -56,9 +56,9 @@ class CaptureHeroCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        scrim.withValues(alpha: 0.40),
+                        scrim.withValues(alpha: 0.58),
                       ],
-                      stops: const [0.48, 1.0],
+                      stops: const [0.42, 1.0],
                     ),
                   ),
                 ),
@@ -69,20 +69,21 @@ class CaptureHeroCard extends StatelessWidget {
                   children: [
                     const Spacer(flex: 6),
                     Text(
-                      'Strike a Pose!',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontFamily: 'ClashDisplay',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 32,
-                        height: 1.15,
-                        letterSpacing: -0.4,
-                      ),
+                      'Talk to your stylist',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontFamily: 'ClashDisplay',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 32,
+                            height: 1.15,
+                            letterSpacing: -0.4,
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "Share your outfit. I’ll tell you what works, and what to try next.",
+                      'Show me what you’re wearing. Let’s make it work.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
                         height: 1.5,
@@ -148,7 +149,7 @@ class _CaptureActionBar extends StatelessWidget {
                 children: [
                   Icon(Icons.camera_alt_outlined, color: cs.primary, size: 18),
                   const SizedBox(width: 8),
-                  const Text('Take Photo'),
+                  const Text('Take a photo'),
                 ],
               ),
             ),

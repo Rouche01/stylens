@@ -14,7 +14,6 @@
         --lime: #b8e994;
         --mist: #e8f5e8;
         --ink: #2c352c;
-        --radius: 18px;
       }
 
       * {
@@ -34,13 +33,17 @@
       }
 
       .page {
-        display: grid;
-        grid-template-columns: minmax(240px, 340px) auto;
-        gap: 48px;
+        display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
+        gap: 36px;
         min-height: 100vh;
-        padding: 40px 32px;
+        padding: 40px 32px 56px;
+      }
+
+      .chrome {
+        text-align: center;
+        max-width: 52ch;
       }
 
       .chrome h1 {
@@ -57,13 +60,34 @@
         font-size: 14px;
         line-height: 1.5;
         color: #5a675a;
-        max-width: 38ch;
       }
 
       .chrome .note {
         margin-top: 18px;
         font-size: 12px;
         letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #7a8a7a;
+      }
+
+      .phones {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 40px 48px;
+      }
+
+      .variant {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .variant > span {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #7a8a7a;
       }
@@ -156,8 +180,6 @@
 
       .hero {
         position: relative;
-        margin: 0 16px;
-        border-radius: 22px;
         overflow: hidden;
         background: #1c221c;
         aspect-ratio: 3 / 4;
@@ -174,43 +196,51 @@
       .focus {
         position: absolute;
         left: 24%;
-        top: 10%;
-        width: 48%;
-        height: 46%;
+        top: 38%;
+        width: 52%;
+        height: 48%;
         border: 2px solid color-mix(in srgb, var(--lime) 88%, white);
         border-radius: 14px;
         box-shadow: 0 0 0 200vmax rgba(28, 34, 28, 0.55);
         pointer-events: none;
       }
 
-      .hero-meta {
-        position: absolute;
-        left: 14px;
-        right: 14px;
-        bottom: 14px;
-        color: #fff;
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
-        z-index: 1;
+      .caption {
+        color: var(--green);
       }
 
-      .hero-meta strong {
+      .caption strong {
         display: block;
         font-family: "Clash Display", sans-serif;
-        font-size: 22px;
+        font-size: 16px;
         font-weight: 600;
-        letter-spacing: -0.03em;
+        letter-spacing: -0.02em;
       }
 
-      .hero-meta span {
+      .caption span {
         display: block;
-        margin-top: 4px;
-        font-size: 13px;
+        margin-top: 2px;
+        font-size: 12px;
         font-weight: 500;
-        color: color-mix(in srgb, #fff 82%, var(--lime));
+        color: color-mix(in srgb, var(--green) 58%, #fff);
+      }
+
+      /* A: photo + caption share one rounded silhouette. No mint gap. */
+      .hero-flush {
+        margin: 0 16px;
+        border-radius: 22px;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--lime) 88%, var(--mist));
+        box-shadow: 0 8px 20px color-mix(in srgb, var(--green) 8%, transparent);
+      }
+
+      .hero-flush .caption {
+        padding: 10px 14px 12px;
+        border-top: 1px solid color-mix(in srgb, var(--green) 14%, transparent);
       }
 
       .panel {
-        padding: 20px 16px 0;
+        padding: 18px 16px 0;
       }
 
       .panel h3 {
@@ -324,17 +354,7 @@
 
       @media (max-width: 860px) {
         .page {
-          grid-template-columns: 1fr;
-          justify-items: center;
           padding: 24px 16px 40px;
-        }
-
-        .chrome {
-          text-align: center;
-        }
-
-        .chrome p {
-          margin-inline: auto;
         }
       }
     </style>
@@ -344,14 +364,16 @@
       <aside class="chrome">
         <h1>Closet item preview</h1>
         <p>
-          Tap a tile and land on the full outfit with this piece boxed. The rest
-          of the photo stays visible, just dimmed. Product shots underneath ask
-          if it looks like yours, for twin try-on. They do not replace the worn
-          photo.
+          Tap a tile and land on the full outfit with this piece boxed. Name
+          and “Worn in this outfit” sit in a flush card footer under the photo,
+          so they never fight the bounding box.
         </p>
-        <p class="note">Tap a product to select it</p>
+        <p class="note">Flush card — locked. Tap a product to select it</p>
       </aside>
+      <div class="phones" id="phones"></div>
+    </div>
 
+    <template id="phone-frame">
       <div class="phone">
         <div class="phone-screen">
           <div class="island"></div>
@@ -390,19 +412,7 @@
                 </svg>
               </button>
             </div>
-
-            <div class="hero">
-              <img
-                src="https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=1200&q=80"
-                alt="Outfit with leather jacket"
-              />
-              <div class="focus" aria-hidden="true"></div>
-              <div class="hero-meta">
-                <strong>Leather jacket</strong>
-                <span>Worn in this outfit</span>
-              </div>
-            </div>
-
+            <div data-hero></div>
             <section class="panel">
               <h3>Looks like yours?</h3>
               <p>
@@ -463,22 +473,62 @@
           </nav>
         </div>
       </div>
-    </div>
+    </template>
 
     <script>
-      const products = document.querySelectorAll(".product");
-      const none = document.querySelector(".none");
+      const outfit = `
+        <img
+          src="https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&w=1200&q=80"
+          alt="Outfit with leather jacket"
+        />
+        <div class="focus" aria-hidden="true"></div>
+      `;
 
-      products.forEach((button) => {
-        button.addEventListener("click", () => {
-          products.forEach((item) =>
-            item.setAttribute("aria-pressed", String(item === button)),
-          );
+      const variants = [
+        {
+          label: "Flush card",
+          hero: `
+            <div class="hero-flush">
+              <div class="hero">${outfit}</div>
+              <div class="caption">
+                <strong>Leather jacket</strong>
+                <span>Worn in this outfit</span>
+              </div>
+            </div>
+          `,
+        },
+      ];
+
+      const phones = document.getElementById("phones");
+      const frame = document.getElementById("phone-frame");
+
+      for (const variant of variants) {
+        const figure = document.createElement("figure");
+        figure.className = "variant";
+        const label = document.createElement("span");
+        label.textContent = variant.label;
+        figure.append(label);
+
+        const screen = frame.content.cloneNode(true);
+        const heroSlot = screen.querySelector("[data-hero]");
+        heroSlot.outerHTML = variant.hero;
+        figure.append(screen);
+        phones.append(figure);
+      }
+
+      document.querySelectorAll(".phone").forEach((phone) => {
+        const products = phone.querySelectorAll(".product");
+        const none = phone.querySelector(".none");
+        products.forEach((button) => {
+          button.addEventListener("click", () => {
+            products.forEach((item) =>
+              item.setAttribute("aria-pressed", String(item === button)),
+            );
+          });
         });
-      });
-
-      none.addEventListener("click", () => {
-        products.forEach((item) => item.setAttribute("aria-pressed", "false"));
+        none.addEventListener("click", () => {
+          products.forEach((item) => item.setAttribute("aria-pressed", "false"));
+        });
       });
     </script>
   </body>

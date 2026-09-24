@@ -121,27 +121,49 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
     final decodedSize = widget.debugDecodedSize ?? _decodedSize;
     final item = widget.item;
 
+    final radius = BorderRadius.circular(ClosetItemHeroLayout.radius);
+    final captionFill = Color.lerp(cs.secondary, cs.surfaceDim, 0.12)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: ClosetItemHeroLayout.horizontalInset,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(ClosetItemHeroLayout.radius),
-        child: AspectRatio(
-          aspectRatio: ClosetItemHeroLayout.aspectRatio,
-          child: ColoredBox(
-            color: cs.primary,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _photo(cs),
-                if (item.boundingBox != null && decodedSize != null)
-                  Positioned.fill(
-                    child: _overlay(cs, item.boundingBox!, decodedSize),
-                  ),
-                _caption(cs, item),
-              ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: captionFill,
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: ClosetItemHeroLayout.aspectRatio,
+                child: ColoredBox(
+                  color: cs.primary,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _photo(cs),
+                      if (item.boundingBox != null && decodedSize != null)
+                        Positioned.fill(
+                          child: _overlay(cs, item.boundingBox!, decodedSize),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              _caption(cs, item, captionFill),
+            ],
           ),
         ),
       ),
@@ -220,52 +242,45 @@ class _ClosetItemHeroState extends State<ClosetItemHero> {
     );
   }
 
-  Widget _caption(ColorScheme cs, ClosetItem item) {
-    return Positioned(
-      left: 14,
-      right: 14,
-      bottom: 14,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            item.displayName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: 'ClashDisplay',
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.4,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Color(0x73000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 1),
-                ),
-              ],
+  Widget _caption(ColorScheme cs, ClosetItem item, Color fill) {
+    return DecoratedBox(
+      key: const ValueKey('closet-item-hero-caption'),
+      decoration: BoxDecoration(
+        color: fill,
+        border: Border(
+          top: BorderSide(color: cs.primary.withValues(alpha: 0.14)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              item.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'ClashDisplay',
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.32,
+                color: cs.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Worn in this outfit',
-            style: TextStyle(
-              fontFamily: 'Metropolis',
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Color.lerp(Colors.white, cs.secondary, 0.18),
-              shadows: const [
-                Shadow(
-                  color: Color(0x73000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 1),
-                ),
-              ],
+            const SizedBox(height: 2),
+            Text(
+              'Worn in this outfit',
+              style: TextStyle(
+                fontFamily: 'Metropolis',
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: cs.primary.withValues(alpha: 0.58),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

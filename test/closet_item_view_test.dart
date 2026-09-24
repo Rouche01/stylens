@@ -77,7 +77,9 @@ ClosetManager _manager(_FakeClosetApiService api) {
 Widget _heroApp(ClosetItem item, {Size? decodedSize}) {
   return MaterialApp(
     home: Scaffold(
-      body: ClosetItemHero(item: item, debugDecodedSize: decodedSize),
+      body: ListView(
+        children: [ClosetItemHero(item: item, debugDecodedSize: decodedSize)],
+      ),
     ),
   );
 }
@@ -106,7 +108,24 @@ void main() {
     await tester.pumpWidget(_heroApp(_tee, decodedSize: const Size(400, 600)));
 
     expect(find.text('Worn in this outfit'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('closet-item-hero-caption')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('closet-item-box-overlay')), findsNothing);
+  });
+
+  testWidgets('caption sits under the photo, not on the box', (tester) async {
+    await tester.pumpWidget(
+      _heroApp(_boxed, decodedSize: const Size(400, 600)),
+    );
+
+    final photoBottom = tester.getRect(find.byType(AspectRatio)).bottom;
+    final captionTop = tester
+        .getRect(find.byKey(const ValueKey('closet-item-hero-caption')))
+        .top;
+    expect(captionTop, greaterThanOrEqualTo(photoBottom));
+    expect(find.text('Leather Jacket'), findsOneWidget);
   });
 
   testWidgets(
