@@ -2,11 +2,11 @@ import 'package:gostylens/core/config/feature_flags.dart';
 
 /// Local feature-flag values for debug and profile builds.
 ///
-/// Add a key here to force a value without relying on PostHog — useful when
-/// analytics are disabled in debug or when profiling UI locally.
+/// Add a key here to force a value without relying on the API snapshot —
+/// useful when the config endpoint is unavailable or when profiling UI locally.
 ///
-/// Omit a key to fall through to PostHog (profile/release) or `false` in debug
-/// when PostHog is not initialized.
+/// Omit a key to fall through to the API snapshot (or `false` before load /
+/// when logged out).
 ///
 /// Ignored in release builds unless injected via [FeatureFlagService] tests.
 abstract final class FeatureFlagOverrides {

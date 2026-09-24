@@ -122,6 +122,9 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       properties: identifyProps.isEmpty ? null : identifyProps,
     );
 
+    // Flag snapshot for this session (same JWT the API evaluates).
+    unawaited(locator<FeatureFlagService>().refresh());
+
     _operationState = _operationState.copyWith(
       fetchStatus: UserFetchStatus.loading,
     );
@@ -391,7 +394,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
     _operationState = const UserOperationState();
     _lastError = null;
     _closetManager.reset();
-    locator<FeatureFlagService>().clearClosetBrowse();
+    locator<FeatureFlagService>().clear();
     await _subscriptionManager.clearState();
     notifyListeners();
   }

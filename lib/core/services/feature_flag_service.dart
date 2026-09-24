@@ -1,59 +1,118 @@
 import 'package:flutter/foundation.dart';
+import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/config/feature_flag_overrides.dart';
 import 'package:gostylens/core/config/feature_flags.dart';
-import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/services/api_service/config_api_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Resolves feature flags from local overrides (debug/profile) or PostHog.
+/// Resolves feature flags from local overrides (debug/profile) or the API
+/// snapshot from [ConfigApiService.getFeatures].
 class FeatureFlagService {
-  FeatureFlagService(
-    this._analytics, {
+  FeatureFlagService({
     Map<String, bool>? overrides,
-    Future<bool> Function(String key)? fetchRemote,
+    Future<Map<String, Object>?> Function()? fetchFeatures,
   }) : _overrides = overrides,
-       _fetchRemote = fetchRemote;
-
-  final AnalyticsService _analytics;
+       _fetchFeatures = fetchFeatures;
 
   /// Optional override map — used in tests. When null, uses
   /// [FeatureFlagOverrides.debugAndProfile] in debug/profile builds.
   final Map<String, bool>? _overrides;
 
-  /// Optional remote lookup — used in tests. Defaults to PostHog.
-  final Future<bool> Function(String key)? _fetchRemote;
+  /// Optional snapshot fetch — used in tests. Defaults to GET /config/features.
+  /// Return a map on success (including empty). Return null on failure so a
+  /// previously cached map is kept.
+  final Future<Map<String, Object>?> Function()? _fetchFeatures;
 
-  bool? _closetBrowse;
-  Future<bool>? _closetBrowsePending;
+  Map<String, Object>? _flags;
+  Future<void>? _loadPending;
+
+  /// True after a failed load with no cache, so [isEnabled] does not hammer
+  /// the network until an explicit [refresh] or [clear].
+  bool _suppressAutoFetch = false;
+
+  /// Last successfully loaded snapshot, or null before the first success.
+  Map<String, Object>? get snapshot => _flags;
+
+  bool get hasSnapshot => _flags != null;
 
   Future<bool> isEnabled(String key) async {
     final local = _resolveLocalOverride(key);
     if (local != null) return local;
-    return _fetch(key);
+    await _ensureLoaded();
+    return _flags?[key] == true;
+  }
+
+  /// String variant for [key], or null when missing / boolean / not loaded.
+  Future<String?> variant(String key) async {
+    await _ensureLoaded();
+    final value = _flags?[key];
+    return value is String ? value : null;
   }
 
   /// Cached [FeatureFlags.closetBrowse] for this signed-in session.
-  Future<bool> closetBrowseEnabled() {
-    final cached = _closetBrowse;
-    if (cached != null) return Future<bool>.value(cached);
-    return _closetBrowsePending ??= _loadClosetBrowse();
+  Future<bool> closetBrowseEnabled() => isEnabled(FeatureFlags.closetBrowse);
+
+  /// Drops the flag snapshot. Call on logout so the next user is re-read.
+  void clear() {
+    _flags = null;
+    _loadPending = null;
+    _suppressAutoFetch = false;
   }
 
-  /// Drops the closet browse cache. Call on logout so the next user is re-read.
-  void clearClosetBrowse() {
-    _closetBrowse = null;
-    _closetBrowsePending = null;
+  /// Fetches a fresh snapshot. On failure, keeps any existing cache.
+  Future<void> refresh() async {
+    _suppressAutoFetch = false;
+    final pending = _loadPending;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+    final future = _loadSnapshot();
+    _loadPending = future;
+    await future;
   }
 
-  Future<bool> _loadClosetBrowse() async {
-    final enabled = await isEnabled(FeatureFlags.closetBrowse);
-    _closetBrowse = enabled;
-    _closetBrowsePending = null;
-    return enabled;
+  Future<void> _ensureLoaded() async {
+    if (_flags != null) return;
+    final pending = _loadPending;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+    if (_suppressAutoFetch) return;
+    await refresh();
   }
 
-  Future<bool> _fetch(String key) {
-    final fetchRemote = _fetchRemote;
-    if (fetchRemote != null) return fetchRemote(key);
-    return _analytics.fetchRemoteFeatureFlag(key);
+  Future<void> _loadSnapshot() async {
+    try {
+      final fetch = _fetchFeatures ?? _fetchFromApi;
+      final result = await fetch();
+      if (result != null) {
+        _flags = Map<String, Object>.unmodifiable(result);
+        _suppressAutoFetch = false;
+      } else if (_flags == null) {
+        _suppressAutoFetch = true;
+      }
+      debugPrint('FeatureFlagService: loaded features: $_flags');
+    } catch (e, st) {
+      debugPrint('FeatureFlagService: failed to load features: $e\n$st');
+      if (_flags == null) {
+        _suppressAutoFetch = true;
+      }
+    } finally {
+      _loadPending = null;
+    }
+  }
+
+  Future<Map<String, Object>?> _fetchFromApi() async {
+    if (!locator.isRegistered<SupabaseClient>()) return null;
+    final user = locator<SupabaseClient>().auth.currentUser;
+    if (user == null) return null;
+
+    if (!locator.isRegistered<ConfigApiService>()) return null;
+    final response = await locator<ConfigApiService>().getFeatures();
+    if (!response.isSuccess) return null;
+    return response.data ?? const {};
   }
 
   bool? _resolveLocalOverride(String key) {

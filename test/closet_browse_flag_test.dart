@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gostylens/core/config/feature_flags.dart';
 import 'package:gostylens/core/managers/closet_manager.dart';
-import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
@@ -67,14 +66,12 @@ ClosetManager _closet(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('caches closet browse until cleared', () async {
+  test('caches flag snapshot until cleared', () async {
     var calls = 0;
-    var remote = false;
+    var remote = <String, Object>{FeatureFlags.closetBrowse: false};
     final flags = FeatureFlagService(
-      AnalyticsService(),
       overrides: const {},
-      fetchRemote: (key) async {
-        expect(key, FeatureFlags.closetBrowse);
+      fetchFeatures: () async {
         calls += 1;
         return remote;
       },
@@ -84,27 +81,29 @@ void main() {
     expect(await flags.closetBrowseEnabled(), isFalse);
     expect(calls, 1);
 
-    remote = true;
-    flags.clearClosetBrowse();
+    remote = {FeatureFlags.closetBrowse: true};
+    flags.clear();
 
     expect(await flags.closetBrowseEnabled(), isTrue);
     expect(calls, 2);
   });
 
-  test('does not cache other flags', () async {
+  test('one snapshot serves every key', () async {
     var calls = 0;
     final flags = FeatureFlagService(
-      AnalyticsService(),
       overrides: const {},
-      fetchRemote: (_) async {
+      fetchFeatures: () async {
         calls += 1;
-        return true;
+        return {
+          FeatureFlags.closetBrowse: true,
+          'other': true,
+        };
       },
     );
 
     expect(await flags.isEnabled('other'), isTrue);
-    expect(await flags.isEnabled('other'), isTrue);
-    expect(calls, 2);
+    expect(await flags.isEnabled(FeatureFlags.closetBrowse), isTrue);
+    expect(calls, 1);
   });
 
   test('skips closet sync when browse is off', () async {

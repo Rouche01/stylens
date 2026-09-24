@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/services/api_service/closet_api_service.dart';
+import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
+import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/closet_identity_status.dart';
 import 'package:gostylens/models/closet_item.dart';
 import 'package:gostylens/models/closet_pending_match.dart';
@@ -138,6 +140,17 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     return check();
   }
 
+  /// Stale browse-on cache: server says closet is off — drop flags and unbind.
+  bool _handleClosetUnavailable(ApiResponse<dynamic> response) {
+    final code = response.error?.normalizedCode;
+    if (code != 'STYLENS_CLOSET_UNAVAILABLE') return false;
+    if (locator.isRegistered<FeatureFlagService>()) {
+      locator<FeatureFlagService>().clear();
+    }
+    reset();
+    return true;
+  }
+
   Future<void> bindUser(String userDbId) async {
     if (!await _allowsBrowse()) return;
     if (_userDbId == userDbId) {
@@ -231,6 +244,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final response = await _apiService.getItem(id);
       if (!response.isSuccess) {
+        if (_handleClosetUnavailable(response)) return null;
         _detailsErrors[id] = response.errorMessage;
         _detailsStatusCodes[id] = response.statusCode;
         return null;
@@ -261,7 +275,10 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final response = await _apiService.getPendingMatches();
       if (epoch != _pendingEpoch || _userDbId == null) return;
-      if (!response.isSuccess) return;
+      if (!response.isSuccess) {
+        _handleClosetUnavailable(response);
+        return;
+      }
       _applyPending(response.data ?? const []);
     } catch (e, st) {
       debugPrint('ClosetManager.getPendingMatches failed: $e\n$st');
@@ -287,6 +304,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
       if (_userDbId == null) return false;
 
       if (!response.isSuccess) {
+        if (_handleClosetUnavailable(response)) return false;
         if (response.statusCode == 404) {
           await fetchPendingMatches();
           _dropPendingId(ask.id);
@@ -347,6 +365,7 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
         _error = null;
         if (_items.isNotEmpty) _failedEmpty = false;
       } else {
+        if (_handleClosetUnavailable(response)) return;
         _error = response.errorMessage;
         _hasLoaded = true;
       }
@@ -365,7 +384,10 @@ class ClosetManager extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final response = await _apiService.getIdentityStatus();
       if (_userDbId == null) return;
-      if (!response.isSuccess || response.data == null) return;
+      if (!response.isSuccess || response.data == null) {
+        if (!response.isSuccess) _handleClosetUnavailable(response);
+        return;
+      }
 
       final status = response.data!;
       _status = status;

@@ -79,9 +79,7 @@ Future<void> setupLocator() async {
     },
   );
   locator.registerSingleton<AnalyticsService>(analyticsService);
-  locator.registerSingleton<FeatureFlagService>(
-    FeatureFlagService(analyticsService),
-  );
+  locator.registerSingleton<FeatureFlagService>(FeatureFlagService());
   locator.registerLazySingleton<PoseVideoService>(() => PoseVideoService());
 
   // Initialize Hybrid Cache Store for Dio (Memory + Hive)
