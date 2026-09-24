@@ -126,6 +126,7 @@ class SessionStreamingSlice {
             'response_length': accumulated.length,
           },
         );
+        _analytics?.logAppsFlyerEvent(AppsFlyerEvent.activation);
         onCompleted(sessionId, accumulated);
       } else {
         print(

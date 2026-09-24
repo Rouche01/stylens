@@ -45,6 +45,9 @@ class AuthStateManager extends ChangeNotifier {
       'auth_succeeded',
       properties: {'method': method, 'is_new_user': isNewUser},
     );
+    if (isNewUser) {
+      _analyticsService.logAppsFlyerEvent(AppsFlyerEvent.registration);
+    }
   }
 
   Future<void> initiateLoginWithOtp(

@@ -131,6 +131,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       final configuration = PurchasesConfiguration(EnvConfig.revenueCatApiKey);
 
       configuration.appUserID = dbId;
+      await AnalyticsService().setAppsFlyerCustomerUserId(dbId);
       await Purchases.configure(configuration);
 
       _customerInfo = await Purchases.getCustomerInfo();

@@ -3,6 +3,15 @@ import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:flutter/foundation.dart';
 
+/// Closed list of AppsFlyer events this app sends. Purchases stay on RevenueCat.
+enum AppsFlyerEvent {
+  registration('af_complete_registration'),
+  activation('af_activation');
+
+  const AppsFlyerEvent(this.wireName);
+  final String wireName;
+}
+
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
@@ -83,8 +92,35 @@ class AnalyticsService {
       debugPrint('👤 [PostHog] Identify: $userId');
       if (properties != null) debugPrint('   Properties: $properties');
     }
+    await setAppsFlyerCustomerUserId(userId);
     if (!isEnabled) return;
     await Posthog().identify(userId: userId, userProperties: properties);
+  }
+
+  /// Logs one AppsFlyer event. Installs are automatic. Purchases stay on RevenueCat.
+  Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
+    if (!_appsFlyerSupported) return;
+    try {
+      await AppsFlyerSdk.instance.logEvent(event.wireName);
+    } catch (e) {
+      debugPrint('Failed to log AppsFlyer event ${event.wireName}: $e');
+    }
+  }
+
+  /// Ties AppsFlyer to the same id passed to [PurchasesConfiguration.appUserID].
+  Future<void> setAppsFlyerCustomerUserId(String userId) async {
+    if (!_appsFlyerSupported || userId.isEmpty) return;
+    try {
+      await AppsFlyerSdk.instance.setCustomerUserId(userId);
+    } catch (e) {
+      debugPrint('Failed to set AppsFlyer customer user id: $e');
+    }
+  }
+
+  bool get _appsFlyerSupported {
+    if (kIsWeb) return false;
+    final platform = defaultTargetPlatform;
+    return platform == TargetPlatform.iOS || platform == TargetPlatform.android;
   }
 
   /// Capture a custom event
