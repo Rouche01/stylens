@@ -106,6 +106,52 @@ void main() {
     expect(calls, 1);
   });
 
+  test('failed refresh keeps the previous map', () async {
+    var calls = 0;
+    final flags = FeatureFlagService(
+      overrides: const {},
+      fetchFeatures: () async {
+        calls += 1;
+        if (calls == 1) {
+          return {FeatureFlags.closetBrowse: true};
+        }
+        return null;
+      },
+    );
+
+    expect(await flags.closetBrowseEnabled(), isTrue);
+    await flags.refresh();
+    expect(await flags.closetBrowseEnabled(), isTrue);
+    expect(flags.snapshot?[FeatureFlags.closetBrowse], isTrue);
+    expect(calls, 2);
+  });
+
+  test('empty first response leaves flags off', () async {
+    final flags = FeatureFlagService(
+      overrides: const {},
+      fetchFeatures: () async => const {},
+    );
+
+    expect(await flags.closetBrowseEnabled(), isFalse);
+    expect(await flags.isEnabled('other'), isFalse);
+    expect(flags.hasSnapshot, isTrue);
+    expect(flags.snapshot, isEmpty);
+  });
+
+  test('debug overrides beat the API map', () async {
+    var calls = 0;
+    final flags = FeatureFlagService(
+      overrides: const {FeatureFlags.closetBrowse: true},
+      fetchFeatures: () async {
+        calls += 1;
+        return {FeatureFlags.closetBrowse: false};
+      },
+    );
+
+    expect(await flags.closetBrowseEnabled(), isTrue);
+    expect(calls, 0);
+  });
+
   test('skips closet sync when browse is off', () async {
     final api = _FakeClosetApiService();
     final closet = _closet(api, browseEnabled: false);
