@@ -92,6 +92,14 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     return name;
   }
 
+  /// Sends the AppsFlyer id and device identifiers before any purchase.
+  Future<void> _syncAppsFlyerAttribution() async {
+    final appsFlyerId = await AnalyticsService().appsFlyerId();
+    if (appsFlyerId == null) return;
+    await Purchases.collectDeviceIdentifiers();
+    await Purchases.setAppsflyerID(appsFlyerId);
+  }
+
   Future<void> initialize(
     String dbId, {
     Subscription? initialSubscription,
@@ -133,6 +141,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       configuration.appUserID = dbId;
       await AnalyticsService().setAppsFlyerCustomerUserId(dbId);
       await Purchases.configure(configuration);
+      await _syncAppsFlyerAttribution();
 
       _customerInfo = await Purchases.getCustomerInfo();
       _offerings = await Purchases.getOfferings();

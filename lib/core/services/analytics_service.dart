@@ -107,6 +107,19 @@ class AnalyticsService {
     }
   }
 
+  /// AppsFlyer install id for this device. Null off iOS and Android.
+  Future<String?> appsFlyerId() async {
+    if (!_appsFlyerSupported) return null;
+    try {
+      final id = await AppsFlyerSdk.instance.getAppsFlyerUID();
+      if (id == null || id.isEmpty) return null;
+      return id;
+    } catch (e) {
+      debugPrint('Failed to read AppsFlyer id: $e');
+      return null;
+    }
+  }
+
   /// Ties AppsFlyer to the same id passed to [PurchasesConfiguration.appUserID].
   Future<void> setAppsFlyerCustomerUserId(String userId) async {
     if (!_appsFlyerSupported || userId.isEmpty) return;
