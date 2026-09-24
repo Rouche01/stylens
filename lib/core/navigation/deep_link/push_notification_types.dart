@@ -3,4 +3,5 @@
 /// Legacy — remove once all pushes include a [DeepLinkParser] `link` field.
 abstract final class PushNotificationTypes {
   static const styleAdviceReady = 'style_advice_ready';
+  static const dailyStyleNudge = 'daily_style_nudge';
 }

@@ -78,6 +78,10 @@ class DeepLinkParser {
       return DeepLinkDestination.session(sessionId);
     }
 
+    if (type == PushNotificationTypes.dailyStyleNudge) {
+      return DeepLinkDestination.capture;
+    }
+
     return DeepLinkDestination.capture;
   }
 

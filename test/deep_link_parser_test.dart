@@ -188,5 +188,17 @@ void main() {
         DeepLinkTarget.capture,
       );
     });
+
+    test('routes daily_style_nudge to capture', () {
+      expect(
+        parser
+            .parsePushData({
+              'type': PushNotificationTypes.dailyStyleNudge,
+              'link': 'gostylens://capture',
+            })
+            .target,
+        DeepLinkTarget.capture,
+      );
+    });
   });
 }

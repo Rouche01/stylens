@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/foreground_notification_handler.dart';
 import 'package:gostylens/core/managers/push_messaging.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/core/services/api_service/index.dart';
 
 @pragma('vm:entry-point')
@@ -25,13 +27,19 @@ class PushNotificationManager extends ChangeNotifier {
     ForegroundNotificationHandler? foregroundHandler,
     PushNotificationApiService? apiService,
     PushMessaging? messaging,
+    Future<String?> Function()? resolveTimezone,
+    AnalyticsService? analytics,
   }) : _apiServiceOverride = apiService,
        _foregroundHandlerOverride = foregroundHandler,
-       _messaging = messaging ?? PushMessaging();
+       _messaging = messaging ?? PushMessaging(),
+       _resolveTimezone = resolveTimezone ?? _defaultResolveTimezone,
+       _analyticsOverride = analytics;
 
   final PushNotificationApiService? _apiServiceOverride;
   final ForegroundNotificationHandler? _foregroundHandlerOverride;
   final PushMessaging _messaging;
+  final Future<String?> Function() _resolveTimezone;
+  final AnalyticsService? _analyticsOverride;
 
   PushNotificationApiService get _apiService =>
       _apiServiceOverride ?? locator<PushNotificationApiService>();
@@ -39,9 +47,13 @@ class PushNotificationManager extends ChangeNotifier {
   ForegroundNotificationHandler get _foregroundHandler =>
       _foregroundHandlerOverride ?? locator<ForegroundNotificationHandler>();
 
+  AnalyticsService get _analytics =>
+      _analyticsOverride ?? locator<AnalyticsService>();
+
   bool _permissionRequested = false;
   bool _notificationsAuthorized = false;
   String? _currentToken;
+  String? _registeredTimezone;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<RemoteMessage>? _openedAppSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
@@ -52,6 +64,19 @@ class PushNotificationManager extends ChangeNotifier {
   static bool isGranted(AuthorizationStatus status) =>
       status == AuthorizationStatus.authorized ||
       status == AuthorizationStatus.provisional;
+
+  static Future<String?> _defaultResolveTimezone() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      final id = info.identifier.trim();
+      return id.isEmpty ? null : id;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to resolve local timezone: $e');
+      }
+      return null;
+    }
+  }
 
   /// Attaches the foreground listener once. Safe to call from [main].
   void attachForegroundListener() {
@@ -86,6 +111,16 @@ class PushNotificationManager extends ChangeNotifier {
     if (kDebugMode) {
       print('Notification opened app: ${message.data}');
     }
+    final type = message.data['type'] ?? message.data['notification_type'];
+    unawaited(
+      _analytics.capture(
+        'notification_opened',
+        properties: {
+          if (type != null) 'type': type.toString(),
+          if (message.messageId != null) 'message_id': message.messageId!,
+        },
+      ),
+    );
     locator<DeepLinkService>().handlePushData(message.data);
   }
 
@@ -167,19 +202,23 @@ class PushNotificationManager extends ChangeNotifier {
 
   Future<void> _registerToken(String token) async {
     if (!_notificationsAuthorized) return;
-    if (_currentToken == token) return;
+
+    final timezone = await _resolveTimezone();
+    if (_currentToken == token && _registeredTimezone == timezone) return;
 
     try {
       final platform = Platform.isIOS ? 'ios' : 'android';
       final response = await _apiService.upsertToken(
         token: token,
         platform: platform,
+        timezone: timezone,
       );
 
       if (response.isSuccess) {
         _currentToken = token;
+        _registeredTimezone = timezone;
         if (kDebugMode) {
-          print('Push token successfully registered: $token');
+          print('Push token successfully registered: $token (tz=$timezone)');
         }
       } else {
         if (kDebugMode) {
@@ -204,6 +243,7 @@ class PushNotificationManager extends ChangeNotifier {
           print('Push token successfully deleted from backend');
         }
         _currentToken = null;
+        _registeredTimezone = null;
       } else {
         if (kDebugMode) {
           print(

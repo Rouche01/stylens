@@ -45,6 +45,7 @@ class _FakePushApi extends PushNotificationApiService {
   Future<ApiResponse<void>> upsertToken({
     required String token,
     required String platform,
+    String? timezone,
   }) async {
     return ApiResponse.success(null);
   }

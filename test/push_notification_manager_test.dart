@@ -39,13 +39,16 @@ class FakePushMessaging extends PushMessaging {
 class FakePushApi extends PushNotificationApiService {
   int upserts = 0;
   int deletes = 0;
+  String? lastTimezone;
 
   @override
   Future<ApiResponse<void>> upsertToken({
     required String token,
     required String platform,
+    String? timezone,
   }) async {
     upserts += 1;
+    lastTimezone = timezone;
     return ApiResponse.success(null);
   }
 
@@ -66,7 +69,11 @@ void main() {
   setUp(() {
     messaging = FakePushMessaging();
     api = FakePushApi();
-    manager = PushNotificationManager(apiService: api, messaging: messaging);
+    manager = PushNotificationManager(
+      apiService: api,
+      messaging: messaging,
+      resolveTimezone: () async => 'Europe/Amsterdam',
+    );
   });
 
   test('authorized status turns the switch on and registers a token', () async {
@@ -75,6 +82,7 @@ void main() {
 
     expect(manager.isAuthorized, isTrue);
     expect(api.upserts, 1);
+    expect(api.lastTimezone, 'Europe/Amsterdam');
   });
 
   test('denied status leaves the switch off', () async {

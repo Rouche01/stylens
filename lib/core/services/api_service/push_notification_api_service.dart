@@ -7,10 +7,15 @@ class PushNotificationApiService extends BaseApiService {
   Future<ApiResponse<void>> upsertToken({
     required String token,
     required String platform,
+    String? timezone,
   }) async {
     return put<void>(
       '/push-token',
-      body: {'token': token, 'platform': platform},
+      body: {
+        'token': token,
+        'platform': platform,
+        if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
+      },
       defaultErrorMessage: 'Failed to register push token',
     );
   }
