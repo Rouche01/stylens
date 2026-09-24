@@ -6,6 +6,23 @@ import 'package:gostylens/models/api_responses/stylist_openers.dart';
 class ConfigApiService extends BaseApiService {
   ConfigApiService() : super(resourcePath: 'config');
 
+  /// Fetches the feature-flag snapshot for the signed-in user.
+  ///
+  /// Response shape: `{ "flags": { "key": true | "variant" } }`.
+  /// Only bool and String values are kept; other JSON types are ignored.
+  /// An empty [flags] map means evaluation failed on the server.
+  Future<ApiResponse<Map<String, Object>>> getFeatures() async {
+    return get<Map<String, Object>>(
+      '/features',
+      options: CacheOptions(
+        store: MemCacheStore(),
+        policy: CachePolicy.noCache,
+      ).toOptions(),
+      fromJson: _parseFeatureFlags,
+      defaultErrorMessage: 'Failed to load feature flags',
+    );
+  }
+
   /// Fetches the stylist opener pool.
   ///
   /// Pass [ifNoneMatch] (e.g. `"1"`) to allow a `304` when unchanged.
@@ -37,4 +54,20 @@ class ConfigApiService extends BaseApiService {
       defaultErrorMessage: 'Failed to load stylist openers',
     );
   }
+}
+
+Map<String, Object> _parseFeatureFlags(dynamic data) {
+  if (data is! Map) return const {};
+
+  final flagsRaw = data['flags'];
+  if (flagsRaw is! Map) return const {};
+
+  final flags = <String, Object>{};
+  flagsRaw.forEach((key, value) {
+    if (key is! String) return;
+    if (value is bool || value is String) {
+      flags[key] = value;
+    }
+  });
+  return flags;
 }
