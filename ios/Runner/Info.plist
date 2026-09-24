@@ -72,6 +72,10 @@
 		<string>This app needs access to your photo library to pick images for style analysis.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>This app needs access to your camera to take photos for style analysis.</string>
+		<key>NSUserTrackingUsageDescription</key>
+		<string>This lets us see which ads helped you find GoStylens, so we can keep them relevant.</string>
+		<key>NSAdvertisingAttributionReportEndpoint</key>
+		<string>https://appsflyer-skadnetwork.com/</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app needs access to your microphone (required by some camera plugins).</string>
 		<key>NSLocationWhenInUseUsageDescription</key>

@@ -1,3 +1,4 @@
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:gostylens/core/config/env_config.dart';
@@ -19,6 +20,9 @@ class AnalyticsService {
 
   /// Set this to false to temporarily disable all PostHog events in release.
   static const bool _enabled = true;
+
+  bool _appsFlyerSessionReady = false;
+  bool _appsFlyerStarted = false;
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -75,7 +79,13 @@ class AnalyticsService {
             : null,
       );
       await sdk.registerSessionReadyListener(() async {
-        await sdk.start();
+        _appsFlyerSessionReady = true;
+        if (platform == TargetPlatform.iOS) {
+          final status =
+              await AppTrackingTransparency.trackingAuthorizationStatus;
+          if (status == TrackingStatus.notDetermined) return;
+        }
+        await _startAppsFlyer();
       });
       debugPrint('AppsFlyer initialized');
     } catch (e) {
@@ -101,10 +111,28 @@ class AnalyticsService {
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
     if (!_appsFlyerSupported) return;
     try {
+      if (event == AppsFlyerEvent.activation) {
+        await _requestTrackingIfNeeded();
+        await _startAppsFlyer();
+      }
       await AppsFlyerSdk.instance.logEvent(event.wireName);
     } catch (e) {
       debugPrint('Failed to log AppsFlyer event ${event.wireName}: $e');
     }
+  }
+
+  /// iOS only. The system dialog appears once, after the first styling reply.
+  Future<void> _requestTrackingIfNeeded() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+    if (status != TrackingStatus.notDetermined) return;
+    await AppTrackingTransparency.requestTrackingAuthorization();
+  }
+
+  Future<void> _startAppsFlyer() async {
+    if (_appsFlyerStarted || !_appsFlyerSessionReady) return;
+    _appsFlyerStarted = true;
+    await AppsFlyerSdk.instance.start();
   }
 
   /// AppsFlyer install id for this device. Null off iOS and Android.
