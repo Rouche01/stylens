@@ -1,8 +1,11 @@
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
-import 'package:posthog_flutter/posthog_flutter.dart';
-import 'package:gostylens/core/config/env_config.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
+import 'package:gostylens/core/config/env_config.dart';
+import 'package:gostylens/core/config/feature_flags.dart';
+import 'package:gostylens/core/services/feature_flag_service.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 /// Closed list of AppsFlyer events this app sends. Purchases stay on RevenueCat.
 enum AppsFlyerEvent {
@@ -173,12 +176,32 @@ class AnalyticsService {
     String eventName, {
     Map<String, Object>? properties,
   }) async {
+    final enriched = _propertiesWithFeatureFlags(properties);
     if (kDebugMode) {
       debugPrint('📊 [PostHog] Event: $eventName');
-      if (properties != null) debugPrint('   Properties: $properties');
+      if (enriched != null) debugPrint('   Properties: $enriched');
     }
     if (!isEnabled) return;
-    await Posthog().capture(eventName: eventName, properties: properties);
+    await Posthog().capture(eventName: eventName, properties: enriched);
+  }
+
+  /// Stamps `$feature/<key>` from the API flag snapshot. Caller props win.
+  /// Skips when [FeatureFlagService] has no snapshot yet.
+  Map<String, Object>? _propertiesWithFeatureFlags(
+    Map<String, Object>? properties,
+  ) {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<FeatureFlagService>()) return properties;
+    final flags = getIt<FeatureFlagService>();
+    if (!flags.hasSnapshot) return properties;
+
+    final snapshot = flags.snapshot!;
+    final merged = <String, Object>{
+      for (final key in FeatureFlags.keys)
+        '\$feature/$key': snapshot[key] ?? false,
+    };
+    if (properties != null) merged.addAll(properties);
+    return merged;
   }
 
   /// Track a screen view
