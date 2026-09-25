@@ -26,6 +26,7 @@ class AnalyticsService {
 
   bool _appsFlyerSessionReady = false;
   bool _appsFlyerStarted = false;
+  bool _attRequestInFlight = false;
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -118,22 +119,35 @@ class AnalyticsService {
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
     if (!_appsFlyerSupported) return;
     try {
-      if (event == AppsFlyerEvent.activation) {
-        await _requestTrackingIfNeeded();
-        await _startAppsFlyer();
-      }
       await AppsFlyerSdk.instance.logEvent(event.wireName);
     } catch (e) {
       debugPrint('Failed to log AppsFlyer event ${event.wireName}: $e');
     }
   }
 
-  /// iOS only. The system dialog appears once, after the first styling reply.
-  Future<void> _requestTrackingIfNeeded() async {
-    if (defaultTargetPlatform != TargetPlatform.iOS) return;
-    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
-    if (status != TrackingStatus.notDetermined) return;
-    await AppTrackingTransparency.requestTrackingAuthorization();
+  /// iOS ATT (once, if still notDetermined) then AppsFlyer `start()`.
+  ///
+  /// Called when the profile becomes ready (fetch or create). Idempotent.
+  Future<void> requestTrackingAndStartAppsFlyerIfNeeded() async {
+    if (!_appsFlyerSupported) return;
+    if (_attRequestInFlight) return;
+    _attRequestInFlight = true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          // Let route transitions settle; ATT is flaky mid-navigation.
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
+      }
+      await _startAppsFlyer();
+    } catch (e) {
+      debugPrint('Failed ATT / AppsFlyer start: $e');
+    } finally {
+      _attRequestInFlight = false;
+    }
   }
 
   Future<void> _startAppsFlyer() async {

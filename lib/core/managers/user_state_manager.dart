@@ -145,9 +145,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
           initialSubscription: userData.subscription,
         );
         unawaited(_closetManager.bindUser(userData.id));
-        // Initialize Push Notifications
-        locator<PushNotificationManager>().initialize();
-        locator<StylistOpenersManager>().ensureFresh();
+        _startPostProfileServices();
         onSuccess?.call(userData);
         fetchEmailPrefs();
       } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
@@ -236,10 +234,7 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
         );
 
         unawaited(_closetManager.bindUser(userData.id));
-
-        // Initialize Push Notifications
-        locator<PushNotificationManager>().initialize();
-        locator<StylistOpenersManager>().ensureFresh();
+        _startPostProfileServices();
 
         // Refresh the session to ensure the user claim is updated
         await locator<supabase.SupabaseClient>().auth.refreshSession();
@@ -270,6 +265,16 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
       _operationState = _operationState.copyWith(isCreating: false);
       notifyListeners();
     }
+  }
+
+  /// Push, stylist openers, and ATT/AppsFlyer once the profile is ready
+  /// (fetch for returning users, createProfile for new ones).
+  void _startPostProfileServices() {
+    locator<PushNotificationManager>().initialize();
+    locator<StylistOpenersManager>().ensureFresh();
+    unawaited(
+      locator<AnalyticsService>().requestTrackingAndStartAppsFlyerIfNeeded(),
+    );
   }
 
   /// Loads marketing email prefs. Soft-fails; missing row is opted out.
