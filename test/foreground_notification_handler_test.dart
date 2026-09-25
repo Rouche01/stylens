@@ -58,6 +58,7 @@ void main() {
       parser: parser,
       viewingDestination: viewing ?? viewingDestination,
       openPush: opened.add,
+      clearFloatingDock: () => true,
     );
   }
 
@@ -200,6 +201,7 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
       expect(find.text('Capture'), findsNothing);
       expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
     });
 
     testWidgets('dismiss closes snackbar without opening', (tester) async {

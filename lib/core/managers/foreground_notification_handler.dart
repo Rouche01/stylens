@@ -7,6 +7,7 @@ import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/navigation/app_router.dart';
+import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/widgets/in_app_notification_snackbar.dart';
 
 class ForegroundNotificationHandler {
@@ -15,8 +16,11 @@ class ForegroundNotificationHandler {
     DeepLinkService? deepLinkService,
     bool Function(DeepLinkDestination destination)? viewingDestination,
     void Function(Map<String, dynamic> data)? openPush,
+    bool Function()? clearFloatingDock,
   }) : _parser = parser ?? locator<DeepLinkParser>(),
        _viewingDestination = viewingDestination ?? isViewingDestination,
+       _clearFloatingDock =
+           clearFloatingDock ?? (() => isTabLocation(currentLocation())),
        _openPush =
            openPush ??
            ((data) => (deepLinkService ?? locator<DeepLinkService>())
@@ -24,6 +28,7 @@ class ForegroundNotificationHandler {
 
   final DeepLinkParser _parser;
   final bool Function(DeepLinkDestination destination) _viewingDestination;
+  final bool Function() _clearFloatingDock;
   final void Function(Map<String, dynamic> data) _openPush;
 
   void handle(RemoteMessage message) {
@@ -72,6 +77,9 @@ class ForegroundNotificationHandler {
     final canOpen = _parser.canOpenFromPushData(data);
     final destination = _parser.parsePushData(data);
     final context = rootNavigatorKey.currentContext;
+    // Only clear the floating dock on main tabs; full-screen routes (session,
+    // paywall, …) have no dock — don't reserve phantom space.
+    final clearDock = _clearFloatingDock();
 
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -80,7 +88,10 @@ class ForegroundNotificationHandler {
         backgroundColor: Colors.transparent,
         elevation: 0,
         padding: EdgeInsets.zero,
-        margin: InAppNotificationSnackBar.marginFor(context),
+        margin: InAppNotificationSnackBar.marginFor(
+          context,
+          clearFloatingDock: clearDock,
+        ),
         duration: const Duration(seconds: 8),
         content: InAppNotificationSnackBar(
           body: body,

@@ -39,12 +39,14 @@ void main() {
       expect(find.text('GoStylens'), findsNothing);
       expect(find.byIcon(Icons.close), findsOneWidget);
       expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+
 
       await tester.tap(find.byIcon(Icons.close));
       expect(dismissed, isTrue);
     });
 
-    testWidgets('stacked CTA when action provided', (tester) async {
+    testWidgets('inline CTA when action provided', (tester) async {
       var opened = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -60,20 +62,64 @@ void main() {
       );
 
       expect(find.text('View'), findsOneWidget);
+      expect(find.byType(TextButton), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      // Body and CTA share one row (not a stacked column of two main blocks).
+      final row = tester.widget<Row>(
+        find.descendant(
+          of: find.byType(InAppNotificationSnackBar),
+          matching: find.byType(Row),
+        ),
+      );
+      expect(row.children.length, greaterThanOrEqualTo(3));
       await tester.tap(find.text('View'));
       expect(opened, isTrue);
     });
 
-    test('marginFor clears floating dock height', () {
-      final margin = InAppNotificationSnackBar.marginFor(null);
-      expect(margin.left, InAppNotificationSnackBar.horizontalInset);
-      expect(margin.right, InAppNotificationSnackBar.horizontalInset);
-      expect(
-        margin.bottom,
-        FloatingNavBar.height +
-            InAppNotificationSnackBar.dockGap +
-            InAppNotificationSnackBar.horizontalInset,
+    test(
+      'marginFor clears floating dock without double-counting safe area',
+      () {
+        final fallback = InAppNotificationSnackBar.marginFor(null);
+        expect(fallback.left, InAppNotificationSnackBar.horizontalInset);
+        expect(fallback.right, InAppNotificationSnackBar.horizontalInset);
+        expect(
+          fallback.bottom,
+          FloatingNavBar.height + InAppNotificationSnackBar.dockGap,
+        );
+      },
+    );
+
+    testWidgets('marginFor subtracts viewPadding already applied by Scaffold', (
+      tester,
+    ) async {
+      late EdgeInsets margin;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            viewPadding: EdgeInsets.only(bottom: 34),
+            padding: EdgeInsets.only(bottom: 34),
+          ),
+          child: Builder(
+            builder: (context) {
+              margin = InAppNotificationSnackBar.marginFor(context);
+              return const SizedBox();
+            },
+          ),
+        ),
       );
+
+      // dockTop = (34 - 6) + 64 = 92; margin = 92 + 4 - 34 = 62
+      expect(margin.bottom, 62);
+    });
+
+    test('marginFor skips dock clearance off the tab shell', () {
+      final margin = InAppNotificationSnackBar.marginFor(
+        null,
+        clearFloatingDock: false,
+      );
+      expect(margin.bottom, 12);
+      expect(margin.bottom, lessThan(FloatingNavBar.height));
     });
   });
 }
