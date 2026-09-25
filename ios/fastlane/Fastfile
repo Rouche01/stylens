@@ -208,36 +208,90 @@ platform :ios do
     UI.success("Successfully updated Flutter environment to: #{env}")
   end
 
-  desc "Resize and frame raw screenshots locally with custom titles and background colors"
-  lane :frame_screenshots do |options|
-    extent = options[:extent] || ENV["SCREENSHOT_EXTENT"] || "1320x2868"
+  # Match by basename substring (with or without .png), e.g. only:screenshot_home_v3
+  def screenshot_filter(options)
+    filter = options[:only] || options[:filter] || ENV["SCREENSHOT_ONLY"] || ENV["SCREENSHOT_FILTER"]
+    return nil if filter.to_s.strip.empty?
 
-    screenshots = Dir.glob("./screenshots/en-US/*.png").reject { |path| path.include?("_framed") }
-    UI.user_error!("No raw screenshots found in ios/fastlane/screenshots/en-US. Add PNGs manually before running frame_screenshots.") if screenshots.empty?
-
-    sh("mkdir -p ./framed_screenshots/en-US")
-    sh("rm -rf ./framed_screenshots/en-US/*.png")
-
-    screenshots.each do |screenshot|
-      sh("magick #{screenshot} -gravity north -extent #{extent} #{screenshot}")
-    end
-
-    frameit(
-      path: File.expand_path("./screenshots", __dir__)
-    )
-
-    framed_screenshots = Dir.glob("./screenshots/en-US/*_framed.png")
-    if framed_screenshots.empty?
-      UI.user_error!("frameit did not produce any framed screenshots. Check ios/fastlane/screenshots/Framefile.json and ImageMagick.")
-    end
-
-    sh("mv ./screenshots/en-US/*_framed.png ./framed_screenshots/en-US/")
+    filter.to_s.sub(/\.png\z/i, "")
   end
 
-  desc "Export App Store Connect-ready iPhone screenshots (default 1284x2778 for 6.5 inch display, no alpha)"
+  def select_screenshots(paths, filter, empty_message:)
+    selected = paths
+    if filter
+      selected = paths.select { |path| File.basename(path, ".*").include?(filter) }
+      UI.user_error!("No screenshots matching '#{filter}'.") if selected.empty?
+    end
+    UI.user_error!(empty_message) if selected.empty?
+    selected
+  end
+
+  desc "Resize and frame raw screenshots locally with custom titles and background colors. Pass only:screenshot_home_v3 to process one file."
+  lane :frame_screenshots do |options|
+    extent = options[:extent] || ENV["SCREENSHOT_EXTENT"] || "1320x2868"
+    filter = screenshot_filter(options)
+
+    screenshots = Dir.glob("./screenshots/en-US/*.png").reject { |path| path.include?("_framed") }
+    screenshots = select_screenshots(
+      screenshots,
+      filter,
+      empty_message: "No raw screenshots found in ios/fastlane/screenshots/en-US. Add PNGs manually before running frame_screenshots."
+    )
+
+    sh("mkdir -p ./framed_screenshots/en-US")
+    if filter
+      screenshots.each do |screenshot|
+        stem = File.basename(screenshot, ".*")
+        sh("rm -f ./framed_screenshots/en-US/#{stem}_framed.png")
+      end
+    else
+      sh("rm -rf ./framed_screenshots/en-US/*.png")
+    end
+
+    screenshots.each do |screenshot|
+      sh("magick #{Shellwords.escape(screenshot)} -gravity north -extent #{extent} #{Shellwords.escape(screenshot)}")
+    end
+
+    # frameit has no filter option in this fastlane version — temporarily hide other PNGs.
+    sidelined = []
+    if filter
+      selected = screenshots.map { |path| File.expand_path(path) }
+      Dir.glob("./screenshots/en-US/*.png").reject { |path| path.include?("_framed") }.each do |path|
+        absolute = File.expand_path(path)
+        next if selected.include?(absolute)
+
+        sidelined_path = "#{absolute}.sidelined"
+        File.rename(absolute, sidelined_path)
+        sidelined << [absolute, sidelined_path]
+      end
+    end
+
+    begin
+      frameit(path: File.expand_path("./screenshots", __dir__))
+
+      framed_glob = filter ? "./screenshots/en-US/*#{filter}*_framed.png" : "./screenshots/en-US/*_framed.png"
+      framed_screenshots = Dir.glob(framed_glob)
+      if framed_screenshots.empty?
+        UI.user_error!("frameit did not produce any framed screenshots. Check ios/fastlane/screenshots/Framefile.json and ImageMagick.")
+      end
+
+      framed_screenshots.each do |framed|
+        sh("mv #{Shellwords.escape(framed)} ./framed_screenshots/en-US/")
+      end
+
+      UI.success("Framed #{framed_screenshots.length} screenshot(s)#{filter ? " matching '#{filter}'" : ""}")
+    ensure
+      sidelined.each do |original, sideline|
+        File.rename(sideline, original) if File.exist?(sideline)
+      end
+    end
+  end
+
+  desc "Export App Store Connect-ready iPhone screenshots (default 1284x2778 for 6.5 inch display, no alpha). Pass only:screenshot_home_v3 to export one file."
   lane :export_appstore_screenshots do |options|
     locale = options[:locale] || ENV["APPSTORE_LOCALE"] || "en-US"
     source = (options[:source] || ENV["APPSTORE_SCREENSHOT_SOURCE"] || "framed").to_s
+    filter = screenshot_filter(options)
     # App Store Connect commonly validates against 6.5" display sizes:
     # 1284x2778, 1242x2688 (+ landscape variants). Override with extent: if needed.
     extent = options[:extent] || ENV["SCREENSHOT_EXTENT"] || "1284x2778"
@@ -256,10 +310,14 @@ platform :ios do
 
     screenshots.reject! { |path| path.include?("_framed") && source == "raw" }
     screenshots.reject! { |path| File.basename(path).match?(/_cp(?:_\w+)?\.png\z/) }
-    UI.user_error!("No #{source} screenshots found for #{locale}. Run frame_screenshots first or switch source to raw.") if screenshots.empty?
+    screenshots = select_screenshots(
+      screenshots,
+      filter,
+      empty_message: "No #{source} screenshots found for #{locale}. Run frame_screenshots first or switch source to raw."
+    )
 
     sh("mkdir -p #{output_dir}")
-    sh("rm -rf #{output_dir}/*.png")
+    sh("rm -rf #{output_dir}/*.png") unless filter
 
     screenshots.each do |screenshot|
       output_name = File.basename(screenshot).sub(/_framed(?=\.png$)/, "")
@@ -273,9 +331,10 @@ platform :ios do
     UI.success("Exported #{screenshots.length} App Store screenshots (#{extent}) to #{output_dir}")
   end
 
-  desc "Export App Store Connect-ready 13 inch iPad screenshots (default 2048x2732, no alpha)"
+  desc "Export App Store Connect-ready 13 inch iPad screenshots (default 2048x2732, no alpha). Pass only:name to export one file."
   lane :export_appstore_ipad_screenshots do |options|
     locale = options[:locale] || ENV["APPSTORE_IPAD_LOCALE"] || "en-US-ipad"
+    filter = screenshot_filter(options)
     extent = options[:extent] || ENV["APPSTORE_IPAD_EXTENT"] || "2048x2732"
     width, height = extent.split("x")
     background = options[:background] || ENV["APPSTORE_BACKGROUND"] || "#FFFFFF"
@@ -284,10 +343,14 @@ platform :ios do
 
     screenshots = Dir.glob(File.join(input_dir, "*.png"))
     screenshots.reject! { |path| File.basename(path).match?(/_cp(?:_\w+)?\.png\z/) }
-    UI.user_error!("No iPad screenshots found in #{input_dir}.") if screenshots.empty?
+    screenshots = select_screenshots(
+      screenshots,
+      filter,
+      empty_message: "No iPad screenshots found in #{input_dir}."
+    )
 
     sh("mkdir -p #{output_dir}")
-    sh("rm -rf #{output_dir}/*.png")
+    sh("rm -rf #{output_dir}/*.png") unless filter
 
     screenshots.each do |screenshot|
       output_path = File.join(output_dir, File.basename(screenshot))
