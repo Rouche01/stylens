@@ -33,6 +33,8 @@ class AnalyticsService {
   bool _attArmed = false;
   /// Past splash / on a real screen ([AuthStage.userReady]).
   bool _attUiReady = false;
+  /// Events logged before [AppsFlyerSdk.start] (e.g. registration at signup).
+  final List<AppsFlyerEvent> _pendingAppsFlyerEvents = [];
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -122,12 +124,32 @@ class AnalyticsService {
   }
 
   /// Logs one AppsFlyer event. Installs are automatic. Purchases stay on RevenueCat.
+  ///
+  /// Queues until after [AppsFlyerSdk.start] so signup registration is not
+  /// dropped while ATT delays the first session.
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
     if (!_appsFlyerSupported) return;
+    if (!_appsFlyerStarted) {
+      _pendingAppsFlyerEvents.add(event);
+      return;
+    }
+    await _sendAppsFlyerEvent(event);
+  }
+
+  Future<void> _sendAppsFlyerEvent(AppsFlyerEvent event) async {
     try {
       await AppsFlyerSdk.instance.logEvent(event.wireName);
     } catch (e) {
       debugPrint('Failed to log AppsFlyer event ${event.wireName}: $e');
+    }
+  }
+
+  Future<void> _flushPendingAppsFlyerEvents() async {
+    if (_pendingAppsFlyerEvents.isEmpty) return;
+    final pending = List<AppsFlyerEvent>.of(_pendingAppsFlyerEvents);
+    _pendingAppsFlyerEvents.clear();
+    for (final event in pending) {
+      await _sendAppsFlyerEvent(event);
     }
   }
 
@@ -174,6 +196,7 @@ class AnalyticsService {
     if (_appsFlyerStarted || !_appsFlyerSessionReady) return;
     _appsFlyerStarted = true;
     await AppsFlyerSdk.instance.start();
+    await _flushPendingAppsFlyerEvents();
   }
 
   /// AppsFlyer install id for this device. Null off iOS and Android.
