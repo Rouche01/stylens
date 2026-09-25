@@ -148,7 +148,10 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
         _startPostProfileServices();
         onSuccess?.call(userData);
         fetchEmailPrefs();
-      } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND') {
+      } else if (response.error?.code == 'STYLENS_USER_NOT_FOUND' ||
+          response.error?.code == 'USER_NOT_FOUND' ||
+          response.error?.code == 'NOT_FOUND' ||
+          response.statusCode == 404) {
         _operationState = _operationState.copyWith(
           fetchStatus: UserFetchStatus.onboarding,
         );
@@ -235,6 +238,12 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
 
         unawaited(_closetManager.bindUser(userData.id));
         _startPostProfileServices();
+        // New Stylens profile = complete registration (queued until AF start).
+        unawaited(
+          locator<AnalyticsService>().logAppsFlyerEvent(
+            AppsFlyerEvent.registration,
+          ),
+        );
 
         // Refresh the session to ensure the user claim is updated
         await locator<supabase.SupabaseClient>().auth.refreshSession();

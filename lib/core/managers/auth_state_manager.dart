@@ -45,9 +45,8 @@ class AuthStateManager extends ChangeNotifier {
       'auth_succeeded',
       properties: {'method': method, 'is_new_user': isNewUser},
     );
-    if (isNewUser) {
-      _analyticsService.logAppsFlyerEvent(AppsFlyerEvent.registration);
-    }
+    // af_complete_registration is sent from createProfile — auth alone is too
+    // early (before AppsFlyer start) and isNewUser can miss some providers.
   }
 
   Future<void> initiateLoginWithOtp(
@@ -129,7 +128,8 @@ class AuthStateManager extends ChangeNotifier {
           onSuccess?.call(false);
         } else if (userResponse.statusCode == 404 ||
             userResponse.error?.code == 'NOT_FOUND' ||
-            userResponse.error?.code == "STYLENS_USER_NOT_FOUND") {
+            userResponse.error?.code == 'USER_NOT_FOUND' ||
+            userResponse.error?.code == 'STYLENS_USER_NOT_FOUND') {
           _trackAuthSuccess(
             userId: response.user!.id,
             method: 'otp',
@@ -276,7 +276,10 @@ class AuthStateManager extends ChangeNotifier {
             },
           );
           onSuccess?.call(false);
-        } else if (userResponse.statusCode == 404) {
+        } else if (userResponse.statusCode == 404 ||
+            userResponse.error?.code == 'NOT_FOUND' ||
+            userResponse.error?.code == 'USER_NOT_FOUND' ||
+            userResponse.error?.code == 'STYLENS_USER_NOT_FOUND') {
           _trackAuthSuccess(
             userId: response.user!.id,
             method: 'google',
@@ -404,7 +407,10 @@ class AuthStateManager extends ChangeNotifier {
             },
           );
           onSuccess?.call(false);
-        } else if (userResponse.statusCode == 404) {
+        } else if (userResponse.statusCode == 404 ||
+            userResponse.error?.code == 'NOT_FOUND' ||
+            userResponse.error?.code == 'USER_NOT_FOUND' ||
+            userResponse.error?.code == 'STYLENS_USER_NOT_FOUND') {
           _trackAuthSuccess(
             userId: response.user!.id,
             method: 'apple',
