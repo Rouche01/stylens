@@ -38,10 +38,13 @@ class AnalyticsService {
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
+  /// AppsFlyer network traffic is release/profile only (same as PostHog).
+  /// Debug installs must not pollute the AppsFlyer dashboard.
+  static bool get appsFlyerEnabled => !kDebugMode;
+
   /// Initialize PostHog and AppsFlyer.
   ///
-  /// PostHog stays off in debug. AppsFlyer still starts so a debug install
-  /// can be verified, with SDK debug logging on.
+  /// Both stay off in debug. Use a profile/release build to verify attribution.
   Future<void> init() async {
     await _initPostHog();
     await _initAppsFlyer();
@@ -80,23 +83,19 @@ class AnalyticsService {
   }
 
   Future<void> _initAppsFlyer() async {
-    if (kIsWeb) return;
-    final platform = defaultTargetPlatform;
-    if (platform != TargetPlatform.iOS && platform != TargetPlatform.android) {
-      return;
-    }
+    if (!appsFlyerEnabled || !_appsFlyerSupported) return;
     try {
       final sdk = AppsFlyerSdk.instance;
-      await sdk.enableDebug(kDebugMode);
+      await sdk.enableDebug(false);
       await sdk.init(
         devKey: EnvConfig.appsFlyerDevKey,
-        appId: platform == TargetPlatform.iOS
+        appId: defaultTargetPlatform == TargetPlatform.iOS
             ? EnvConfig.appsFlyerIosAppId
             : null,
       );
       await sdk.registerSessionReadyListener(() async {
         _appsFlyerSessionReady = true;
-        if (platform == TargetPlatform.iOS) {
+        if (defaultTargetPlatform == TargetPlatform.iOS) {
           final status =
               await AppTrackingTransparency.trackingAuthorizationStatus;
           if (status == TrackingStatus.notDetermined) return;
@@ -104,8 +103,8 @@ class AnalyticsService {
         await _startAppsFlyer();
       });
       debugPrint('AppsFlyer initialized');
-    } catch (e) {
-      debugPrint('Failed to initialize AppsFlyer: $e');
+    } catch (e, st) {
+      await _reportAppsFlyerFailure('init', e, st);
     }
   }
 
@@ -128,7 +127,7 @@ class AnalyticsService {
   /// Queues until after [AppsFlyerSdk.start] so signup registration is not
   /// dropped while ATT delays the first session.
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
-    if (!_appsFlyerSupported) return;
+    if (!appsFlyerEnabled || !_appsFlyerSupported) return;
     if (!_appsFlyerStarted) {
       _pendingAppsFlyerEvents.add(event);
       return;
@@ -139,8 +138,8 @@ class AnalyticsService {
   Future<void> _sendAppsFlyerEvent(AppsFlyerEvent event) async {
     try {
       await AppsFlyerSdk.instance.logEvent(event.wireName);
-    } catch (e) {
-      debugPrint('Failed to log AppsFlyer event ${event.wireName}: $e');
+    } catch (e, st) {
+      await _reportAppsFlyerFailure('log_event:${event.wireName}', e, st);
     }
   }
 
@@ -158,14 +157,14 @@ class AnalyticsService {
   /// Does not show the system dialog until [markAppInteractiveForTracking]
   /// (after splash → [AuthStage.userReady]). Idempotent.
   void requestTrackingAndStartAppsFlyerIfNeeded() {
-    if (!_appsFlyerSupported) return;
+    if (!appsFlyerEnabled || !_appsFlyerSupported) return;
     _attArmed = true;
     unawaited(_flushTrackingAndStartIfReady());
   }
 
   /// Call when the UI is past splash and the user can see a real screen.
   void markAppInteractiveForTracking() {
-    if (!_appsFlyerSupported) return;
+    if (!appsFlyerEnabled || !_appsFlyerSupported) return;
     _attUiReady = true;
     unawaited(_flushTrackingAndStartIfReady());
   }
@@ -185,8 +184,8 @@ class AnalyticsService {
         }
       }
       await _startAppsFlyer();
-    } catch (e) {
-      debugPrint('Failed ATT / AppsFlyer start: $e');
+    } catch (e, st) {
+      await _reportAppsFlyerFailure('att_or_start', e, st);
     } finally {
       _attRequestInFlight = false;
     }
@@ -194,31 +193,36 @@ class AnalyticsService {
 
   Future<void> _startAppsFlyer() async {
     if (_appsFlyerStarted || !_appsFlyerSessionReady) return;
-    _appsFlyerStarted = true;
-    await AppsFlyerSdk.instance.start();
-    await _flushPendingAppsFlyerEvents();
+    try {
+      _appsFlyerStarted = true;
+      await AppsFlyerSdk.instance.start();
+      await _flushPendingAppsFlyerEvents();
+    } catch (e, st) {
+      _appsFlyerStarted = false;
+      await _reportAppsFlyerFailure('start', e, st);
+    }
   }
 
   /// AppsFlyer install id for this device. Null off iOS and Android.
   Future<String?> appsFlyerId() async {
-    if (!_appsFlyerSupported) return null;
+    if (!appsFlyerEnabled || !_appsFlyerSupported) return null;
     try {
       final id = await AppsFlyerSdk.instance.getAppsFlyerUID();
       if (id == null || id.isEmpty) return null;
       return id;
-    } catch (e) {
-      debugPrint('Failed to read AppsFlyer id: $e');
+    } catch (e, st) {
+      await _reportAppsFlyerFailure('get_uid', e, st);
       return null;
     }
   }
 
   /// Ties AppsFlyer to the same id passed to [PurchasesConfiguration.appUserID].
   Future<void> setAppsFlyerCustomerUserId(String userId) async {
-    if (!_appsFlyerSupported || userId.isEmpty) return;
+    if (!appsFlyerEnabled || !_appsFlyerSupported || userId.isEmpty) return;
     try {
       await AppsFlyerSdk.instance.setCustomerUserId(userId);
-    } catch (e) {
-      debugPrint('Failed to set AppsFlyer customer user id: $e');
+    } catch (e, st) {
+      await _reportAppsFlyerFailure('set_customer_user_id', e, st);
     }
   }
 
@@ -226,6 +230,24 @@ class AnalyticsService {
     if (kIsWeb) return false;
     final platform = defaultTargetPlatform;
     return platform == TargetPlatform.iOS || platform == TargetPlatform.android;
+  }
+
+  /// Real SDK failures only — not ATT-denied / ASA lookup noise in debug dumps.
+  Future<void> _reportAppsFlyerFailure(
+    String stage,
+    Object error, [
+    StackTrace? stackTrace,
+  ]) async {
+    debugPrint('Failed AppsFlyer $stage: $error');
+    if (!isEnabled) return;
+    await captureException(
+      error,
+      stackTrace: stackTrace,
+      properties: {
+        'source': 'appsflyer',
+        'stage': stage,
+      },
+    );
   }
 
   /// Capture a custom event
