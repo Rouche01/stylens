@@ -272,9 +272,8 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
   void _startPostProfileServices() {
     locator<PushNotificationManager>().initialize();
     locator<StylistOpenersManager>().ensureFresh();
-    unawaited(
-      locator<AnalyticsService>().requestTrackingAndStartAppsFlyerIfNeeded(),
-    );
+    // Arms ATT/AppsFlyer; dialog waits until AuthStage.userReady (past splash).
+    locator<AnalyticsService>().requestTrackingAndStartAppsFlyerIfNeeded();
   }
 
   /// Loads marketing email prefs. Soft-fails; missing row is opted out.

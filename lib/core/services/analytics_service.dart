@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:flutter/foundation.dart';
@@ -27,6 +29,10 @@ class AnalyticsService {
   bool _appsFlyerSessionReady = false;
   bool _appsFlyerStarted = false;
   bool _attRequestInFlight = false;
+  /// Profile is ready — we want ATT/start, but may still be on splash.
+  bool _attArmed = false;
+  /// Past splash / on a real screen ([AuthStage.userReady]).
+  bool _attUiReady = false;
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -125,11 +131,25 @@ class AnalyticsService {
     }
   }
 
-  /// iOS ATT (once, if still notDetermined) then AppsFlyer `start()`.
+  /// Arm ATT / AppsFlyer start once the profile is ready (fetch or create).
   ///
-  /// Called when the profile becomes ready (fetch or create). Idempotent.
-  Future<void> requestTrackingAndStartAppsFlyerIfNeeded() async {
+  /// Does not show the system dialog until [markAppInteractiveForTracking]
+  /// (after splash → [AuthStage.userReady]). Idempotent.
+  void requestTrackingAndStartAppsFlyerIfNeeded() {
     if (!_appsFlyerSupported) return;
+    _attArmed = true;
+    unawaited(_flushTrackingAndStartIfReady());
+  }
+
+  /// Call when the UI is past splash and the user can see a real screen.
+  void markAppInteractiveForTracking() {
+    if (!_appsFlyerSupported) return;
+    _attUiReady = true;
+    unawaited(_flushTrackingAndStartIfReady());
+  }
+
+  Future<void> _flushTrackingAndStartIfReady() async {
+    if (!_attArmed || !_attUiReady) return;
     if (_attRequestInFlight) return;
     _attRequestInFlight = true;
     try {
@@ -137,8 +157,8 @@ class AnalyticsService {
         final status =
             await AppTrackingTransparency.trackingAuthorizationStatus;
         if (status == TrackingStatus.notDetermined) {
-          // Let route transitions settle; ATT is flaky mid-navigation.
-          await Future<void>.delayed(const Duration(milliseconds: 400));
+          // Wait for the home route to paint; ATT fails silently on splash.
+          await Future<void>.delayed(const Duration(milliseconds: 600));
           await AppTrackingTransparency.requestTrackingAuthorization();
         }
       }

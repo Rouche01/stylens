@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/managers/style_analysis_session/index.dart';
 import 'package:gostylens/core/managers/user_state_manager.dart';
+import 'package:gostylens/core/services/analytics_service.dart';
 import 'package:gostylens/models/api_responses/api_response.dart';
 import 'package:gostylens/models/user_state.dart';
 import 'package:gostylens/navigation/auth_flow_user_state.dart';
@@ -148,8 +149,14 @@ class AuthFlowController extends ChangeNotifier {
     final next = _computeStage();
     if (next == _stage) return;
 
+    final previous = _stage;
     _stage = next;
     notifyListeners();
+
+    // ATT must not run on splash; flush once the user can see a real screen.
+    if (previous != AuthStage.userReady && next == AuthStage.userReady) {
+      locator<AnalyticsService>().markAppInteractiveForTracking();
+    }
   }
 
   void _maybeFetchProfile() {
