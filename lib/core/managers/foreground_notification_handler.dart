@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
+import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/navigation/app_router.dart';
@@ -12,11 +13,18 @@ class ForegroundNotificationHandler {
   ForegroundNotificationHandler({
     DeepLinkParser? parser,
     DeepLinkService? deepLinkService,
+    bool Function(DeepLinkDestination destination)? viewingDestination,
+    void Function(Map<String, dynamic> data)? openPush,
   }) : _parser = parser ?? locator<DeepLinkParser>(),
-       _deepLinkService = deepLinkService ?? locator<DeepLinkService>();
+       _viewingDestination = viewingDestination ?? isViewingDestination,
+       _openPush =
+           openPush ??
+           ((data) => (deepLinkService ?? locator<DeepLinkService>())
+               .handlePushData(data));
 
   final DeepLinkParser _parser;
-  final DeepLinkService _deepLinkService;
+  final bool Function(DeepLinkDestination destination) _viewingDestination;
+  final void Function(Map<String, dynamic> data) _openPush;
 
   void handle(RemoteMessage message) {
     if (kDebugMode) {
@@ -39,7 +47,7 @@ class ForegroundNotificationHandler {
     }
 
     final destination = _parser.parsePushData(message.data);
-    if (isViewingDestination(destination)) {
+    if (_viewingDestination(destination)) {
       return false;
     }
 
@@ -80,17 +88,13 @@ class ForegroundNotificationHandler {
           onAction: canOpen
               ? () {
                   messenger.hideCurrentSnackBar();
-                  _openDeepLink(data);
+                  _openPush(data);
                 }
               : null,
           onDismiss: messenger.hideCurrentSnackBar,
         ),
       ),
     );
-  }
-
-  void _openDeepLink(Map<String, dynamic> data) {
-    _deepLinkService.handlePushData(data);
   }
 
   /// Body-first in-app copy; fall back to title when body is missing.
