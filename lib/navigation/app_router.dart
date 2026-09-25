@@ -370,6 +370,9 @@ String currentLocation() => appRouter.routerDelegate.state.matchedLocation;
 /// Whether the chat (style analysis) screen is currently on top.
 bool isOnSessionRoute() => isSessionLocation(currentLocation());
 
+/// Whether the Capture tab is currently on top.
+bool isViewingCapture() => isCaptureLocation(currentLocation());
+
 /// Whether the chat for [sessionId] is the screen currently on top.
 ///
 /// Matches the route path (`/session/:id`) and/or the session manager selection

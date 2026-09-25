@@ -63,6 +63,11 @@ bool isSessionLocation(String location) =>
     location == AppRoutes.sessionNew ||
     location.startsWith('${AppRoutes.sessionNew}/');
 
+/// Whether [location] is the Capture tab (or a nested path under it).
+bool isCaptureLocation(String location) =>
+    location == AppRoutes.capture ||
+    location.startsWith('${AppRoutes.capture}/');
+
 /// Extracts the session id from `/session/:id`, or null for `/session` (new).
 String? sessionIdFromLocation(String location) {
   if (location == AppRoutes.sessionNew) return null;

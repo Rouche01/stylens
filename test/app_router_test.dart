@@ -457,6 +457,14 @@ void main() {
       expect(isSessionLocation(AppRoutes.capture), isFalse);
     });
 
+    test('isCaptureLocation', () {
+      expect(isCaptureLocation(AppRoutes.capture), isTrue);
+      expect(isCaptureLocation('${AppRoutes.capture}/nested'), isTrue);
+      expect(isCaptureLocation(AppRoutes.closet), isFalse);
+      expect(isCaptureLocation(AppRoutes.history), isFalse);
+      expect(isCaptureLocation(AppRoutes.session('x')), isFalse);
+    });
+
     test('semanticShellFor', () {
       expect(semanticShellFor(DeepLinkTarget.session), AppRoutes.history);
       expect(semanticShellFor(DeepLinkTarget.paywall), AppRoutes.capture);
