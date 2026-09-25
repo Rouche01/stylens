@@ -399,3 +399,51 @@ bool isViewingSession(String sessionId) {
     managerSessionId: locator<StyleAnalysisSessionManager>().selectedSessionId,
   );
 }
+
+/// Whether the user is already on the screen [destination] would open.
+///
+/// Used to suppress redundant foreground snackbars (and keep deep-link
+/// navigation idempotent). Session matches require the same session id.
+@visibleForTesting
+bool matchesViewingDestination({
+  required DeepLinkDestination destination,
+  required String location,
+  String? managerSessionId,
+}) {
+  switch (destination.target) {
+    case DeepLinkTarget.capture:
+      return isCaptureLocation(location);
+    case DeepLinkTarget.closet:
+      return location == AppRoutes.closet;
+    case DeepLinkTarget.history:
+      return location == AppRoutes.history;
+    case DeepLinkTarget.paywall:
+      return location == AppRoutes.paywall;
+    case DeepLinkTarget.billing:
+      return location == AppRoutes.billing;
+    case DeepLinkTarget.session:
+      final sessionId = destination.sessionId;
+      if (sessionId == null || sessionId.isEmpty) {
+        // Parser / router fall back to Capture when session id is missing.
+        return isCaptureLocation(location);
+      }
+      return matchesViewingSession(
+        location: location,
+        sessionId: sessionId,
+        managerSessionId: managerSessionId,
+      );
+  }
+}
+
+/// Live-router wrapper around [matchesViewingDestination].
+bool isViewingDestination(DeepLinkDestination destination) {
+  final String? managerSessionId =
+      destination.target == DeepLinkTarget.session
+      ? locator<StyleAnalysisSessionManager>().selectedSessionId
+      : null;
+  return matchesViewingDestination(
+    destination: destination,
+    location: currentLocation(),
+    managerSessionId: managerSessionId,
+  );
+}

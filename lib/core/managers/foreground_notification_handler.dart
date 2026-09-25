@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gostylens/core/config/dependency_injection.dart';
 import 'package:gostylens/core/navigation/app_navigation_keys.dart';
-import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/navigation/app_router.dart';
@@ -40,13 +39,8 @@ class ForegroundNotificationHandler {
     }
 
     final destination = _parser.parsePushData(message.data);
-    if (destination.target == DeepLinkTarget.session) {
-      final sessionId = destination.sessionId;
-      if (sessionId != null &&
-          sessionId.isNotEmpty &&
-          isViewingSession(sessionId)) {
-        return false;
-      }
+    if (isViewingDestination(destination)) {
+      return false;
     }
 
     return true;

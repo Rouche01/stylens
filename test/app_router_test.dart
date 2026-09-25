@@ -525,5 +525,78 @@ void main() {
         isTrue,
       );
     });
+
+    test('matchesViewingDestination', () {
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.capture,
+          location: AppRoutes.capture,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.capture,
+          location: AppRoutes.closet,
+        ),
+        isFalse,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.closet,
+          location: AppRoutes.closet,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.closet,
+          location: AppRoutes.closetItem('c1'),
+        ),
+        isFalse,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.history,
+          location: AppRoutes.history,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.paywall,
+          location: AppRoutes.paywall,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.billing,
+          location: AppRoutes.billing,
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.session('s1'),
+          location: AppRoutes.session('s1'),
+        ),
+        isTrue,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: DeepLinkDestination.session('s1'),
+          location: AppRoutes.session('s2'),
+        ),
+        isFalse,
+      );
+      expect(
+        matchesViewingDestination(
+          destination: const DeepLinkDestination(DeepLinkTarget.session),
+          location: AppRoutes.capture,
+        ),
+        isTrue,
+      );
+    });
   });
 }
