@@ -51,6 +51,7 @@ class AnalyticsService {
   Timer? _captureRetryTimer;
   _AttResumeObserver? _attResumeObserver;
   bool _startWhenSessionReady = false;
+  String _pendingStartReason = 'start';
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -121,7 +122,9 @@ class AnalyticsService {
         } else if ((!_attArmed || !_attUiReady) && !_startWhenSessionReady) {
           return;
         }
-        await _startAppsFlyer();
+        await _startAppsFlyer(
+          reason: _startWhenSessionReady ? _pendingStartReason : 'session_ready',
+        );
       });
       debugPrint('AppsFlyer initialized');
     } catch (e, st) {
@@ -149,13 +152,38 @@ class AnalyticsService {
   /// a quit during the tracking prompt still sends them on the next launch.
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
     if (!appsFlyerEnabled || !_appsFlyerSupported) return;
+    // Temporary TestFlight check. Remove with the other appsflyer_diag captures.
+    await _diagAppsFlyer('triggered', {
+      'wire_name': event.wireName,
+      'sdk_started': _appsFlyerStarted,
+    });
     final queue = _pendingQueue();
     if (!_appsFlyerStarted) {
-      await queue?.enqueue(event.wireName);
+      if (queue == null) {
+        await _diagAppsFlyer('queued', {
+          'wire_name': event.wireName,
+          'queue_ready': false,
+        });
+        return;
+      }
+      await queue.enqueue(event.wireName);
+      await _diagAppsFlyer('queued', {
+        'wire_name': event.wireName,
+        'queue_ready': true,
+        'pending': queue.wireNames.join(','),
+      });
       return;
     }
     final sent = await _sendAppsFlyerEvent(event);
-    if (!sent) await queue?.enqueue(event.wireName);
+    if (!sent) {
+      await queue?.enqueue(event.wireName);
+      await _diagAppsFlyer('queued', {
+        'wire_name': event.wireName,
+        'queue_ready': queue != null,
+        'pending': queue?.wireNames.join(',') ?? '',
+        'after_send_failure': true,
+      });
+    }
   }
 
   /// Returns false when the SDK rejected the event so the caller can keep it.
@@ -169,8 +197,13 @@ class AnalyticsService {
     }
   }
 
-  Future<void> _flushPendingAppsFlyerEvents() async {
+  Future<void> _flushPendingAppsFlyerEvents({String reason = 'start'}) async {
     final queue = _pendingQueue();
+    await _diagAppsFlyer('flush', {
+      'reason': reason,
+      'queue_ready': queue != null,
+      'pending': queue?.wireNames.join(',') ?? '',
+    });
     if (queue == null) return;
     while (queue.wireNames.isNotEmpty) {
       final event = AppsFlyerEvent.byWireName(queue.wireNames.first);
@@ -216,14 +249,26 @@ class AnalyticsService {
   Future<void> _flushTrackingAndStartIfReady({
     AttTrigger trigger = AttTrigger.initial,
   }) async {
-    if (!_attArmed || !_attUiReady) return;
-    if (_attRequestInFlight || !_attPrompt.shouldAttempt(trigger)) return;
+    final blocked = !_attArmed || !_attUiReady
+        ? 'not_ready'
+        : _attRequestInFlight
+        ? 'in_flight'
+        : !_attPrompt.shouldAttempt(trigger)
+        ? 'attempt_blocked'
+        : null;
+    await _diagAppsFlyer('attempt', {
+      'trigger': trigger.name,
+      'armed': _attArmed,
+      'ui_ready': _attUiReady,
+      'skip': blocked ?? 'none',
+    });
+    if (blocked != null) return;
     _attRequestInFlight = true;
     try {
       final isIos = defaultTargetPlatform == TargetPlatform.iOS;
       if (!isIos) {
         _attPrompt.markStarted();
-        await _startAppsFlyer();
+        await _startAppsFlyer(reason: trigger.name);
         return;
       }
 
@@ -236,6 +281,11 @@ class AnalyticsService {
         status = await AppTrackingTransparency.trackingAuthorizationStatus;
       }
       _attPrompt.record(trigger);
+      await _diagAppsFlyer('att_status', {
+        'trigger': trigger.name,
+        'status': status.name,
+        'will_start': shouldStartAppsFlyer(isIos: true, status: status),
+      });
       if (!shouldStartAppsFlyer(isIos: true, status: status)) {
         _scheduleCaptureRetry();
         if (_attPrompt.shouldObserveResume) {
@@ -247,7 +297,7 @@ class AnalyticsService {
       }
       _attPrompt.markStarted();
       _cancelAttRetries();
-      await _startAppsFlyer();
+      await _startAppsFlyer(reason: trigger.name);
     } catch (e, st) {
       await _reportAppsFlyerFailure('att_or_start', e, st);
     } finally {
@@ -312,16 +362,17 @@ class AnalyticsService {
     _detachAttResumeObserver();
   }
 
-  Future<bool> _startAppsFlyer() async {
+  Future<bool> _startAppsFlyer({String reason = 'start'}) async {
     if (_appsFlyerStarted) return true;
     if (!_appsFlyerSessionReady) {
       _startWhenSessionReady = true;
+      _pendingStartReason = reason;
       return false;
     }
     try {
       _appsFlyerStarted = true;
       await AppsFlyerSdk.instance.start();
-      await _flushPendingAppsFlyerEvents();
+      await _flushPendingAppsFlyerEvents(reason: reason);
       await AppsFlyerAttributionSyncHook.sync?.call();
       return true;
     } catch (e, st) {
@@ -376,6 +427,11 @@ class AnalyticsService {
         'stage': stage,
       },
     );
+  }
+
+  /// Temporary TestFlight diagnostics for the registration queue. Remove after.
+  Future<void> _diagAppsFlyer(String step, Map<String, Object> properties) {
+    return capture('appsflyer_diag', properties: {'step': step, ...properties});
   }
 
   /// Capture a custom event
