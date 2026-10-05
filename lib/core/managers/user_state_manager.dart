@@ -238,11 +238,9 @@ class UserStateManager extends ChangeNotifier implements AuthFlowUserState {
 
         unawaited(_closetManager.bindUser(userData.id));
         _startPostProfileServices();
-        // New Stylens profile = complete registration (queued until AF start).
-        unawaited(
-          locator<AnalyticsService>().logAppsFlyerEvent(
-            AppsFlyerEvent.registration,
-          ),
+        // Persist before the session refresh so a quit still has the event.
+        await locator<AnalyticsService>().logAppsFlyerEvent(
+          AppsFlyerEvent.registration,
         );
 
         // Refresh the session to ensure the user claim is updated

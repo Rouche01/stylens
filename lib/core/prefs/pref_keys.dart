@@ -29,6 +29,9 @@ abstract class PrefKeys {
   static const stylistOpenersRecentIds = PrefKey<List<String>>(
     'stylist_openers_recent_ids',
   );
+  static const pendingAppsFlyerEvents = PrefKey<List<String>>(
+    'pending_appsflyer_events',
+  );
 
   static const all = <PrefKey<dynamic>>[
     introWalkthroughCompleted,
@@ -43,5 +46,6 @@ abstract class PrefKeys {
     stylistOpenersPool,
     stylistOpenersCheckedAt,
     stylistOpenersRecentIds,
+    pendingAppsFlyerEvents,
   ];
 }

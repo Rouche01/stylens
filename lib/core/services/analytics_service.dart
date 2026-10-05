@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/config/feature_flags.dart';
+import 'package:gostylens/core/prefs/local_prefs_service.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
+import 'package:gostylens/core/services/pending_appsflyer_events.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
 /// Closed list of AppsFlyer events this app sends. Purchases stay on RevenueCat.
@@ -16,6 +18,13 @@ enum AppsFlyerEvent {
 
   const AppsFlyerEvent(this.wireName);
   final String wireName;
+
+  static AppsFlyerEvent? byWireName(String name) {
+    for (final event in values) {
+      if (event.wireName == name) return event;
+    }
+    return null;
+  }
 }
 
 class AnalyticsService {
@@ -33,8 +42,8 @@ class AnalyticsService {
   bool _attArmed = false;
   /// Past splash / on a real screen ([AuthStage.userReady]).
   bool _attUiReady = false;
-  /// Events logged before [AppsFlyerSdk.start] (e.g. registration at signup).
-  final List<AppsFlyerEvent> _pendingAppsFlyerEvents = [];
+  /// Disk-backed events logged before AppsFlyer start (registration at signup).
+  PendingAppsFlyerEventQueue? _pendingAppsFlyerEvents;
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -124,32 +133,55 @@ class AnalyticsService {
 
   /// Logs one AppsFlyer event. Installs are automatic. Purchases stay on RevenueCat.
   ///
-  /// Queues until after [AppsFlyerSdk.start] so signup registration is not
-  /// dropped while ATT delays the first session.
+  /// Events logged before AppsFlyer start are written to local prefs first, so
+  /// a quit during the tracking prompt still sends them on the next launch.
   Future<void> logAppsFlyerEvent(AppsFlyerEvent event) async {
     if (!appsFlyerEnabled || !_appsFlyerSupported) return;
+    final queue = _pendingQueue();
     if (!_appsFlyerStarted) {
-      _pendingAppsFlyerEvents.add(event);
+      await queue?.enqueue(event.wireName);
       return;
     }
-    await _sendAppsFlyerEvent(event);
+    final sent = await _sendAppsFlyerEvent(event);
+    if (!sent) await queue?.enqueue(event.wireName);
   }
 
-  Future<void> _sendAppsFlyerEvent(AppsFlyerEvent event) async {
+  /// Returns false when the SDK rejected the event so the caller can keep it.
+  Future<bool> _sendAppsFlyerEvent(AppsFlyerEvent event) async {
     try {
       await AppsFlyerSdk.instance.logEvent(event.wireName);
+      return true;
     } catch (e, st) {
       await _reportAppsFlyerFailure('log_event:${event.wireName}', e, st);
+      return false;
     }
   }
 
   Future<void> _flushPendingAppsFlyerEvents() async {
-    if (_pendingAppsFlyerEvents.isEmpty) return;
-    final pending = List<AppsFlyerEvent>.of(_pendingAppsFlyerEvents);
-    _pendingAppsFlyerEvents.clear();
-    for (final event in pending) {
-      await _sendAppsFlyerEvent(event);
+    final queue = _pendingQueue();
+    if (queue == null) return;
+    while (queue.wireNames.isNotEmpty) {
+      final event = AppsFlyerEvent.byWireName(queue.wireNames.first);
+      if (event == null) {
+        await queue.acknowledgeFirst();
+        continue;
+      }
+      final sent = await _sendAppsFlyerEvent(event);
+      if (!sent) return;
+      await queue.acknowledgeFirst();
     }
+  }
+
+  /// Null until [LocalPrefsService] is registered (after [init] during bootstrap).
+  PendingAppsFlyerEventQueue? _pendingQueue() {
+    final existing = _pendingAppsFlyerEvents;
+    if (existing != null) return existing;
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<LocalPrefsService>()) return null;
+    final queue = PendingAppsFlyerEventQueue(getIt<LocalPrefsService>());
+    queue.load();
+    _pendingAppsFlyerEvents = queue;
+    return queue;
   }
 
   /// Arm ATT / AppsFlyer start once the profile is ready (fetch or create).
