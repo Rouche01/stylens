@@ -24,4 +24,29 @@ void main() {
       expect(formatEpochSeconds(1736121600), 'Jan 6, 2025');
     });
   });
+
+  group('resolveRenewalDate', () {
+    test('prefers the RevenueCat expiration', () {
+      final date = resolveRenewalDate(
+        revenueCatExpirationIso: '2026-11-05T08:09:00Z',
+        currentPeriodEndSeconds: 1736121600,
+      );
+
+      expect(date?.toUtc(), DateTime.utc(2026, 11, 5, 8, 9));
+    });
+
+    test('falls back to backend epoch seconds', () {
+      final date = resolveRenewalDate(currentPeriodEndSeconds: 1736121600);
+
+      expect(date?.toUtc(), DateTime.utc(2025, 1, 6));
+    });
+
+    test('returns null when both sources are missing', () {
+      expect(resolveRenewalDate(), isNull);
+      expect(
+        resolveRenewalDate(revenueCatExpirationIso: 'not-a-date'),
+        isNull,
+      );
+    });
+  });
 }

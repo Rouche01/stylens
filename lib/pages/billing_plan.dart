@@ -239,9 +239,7 @@ class _BillingPlanPageState extends State<BillingPlanPage> {
                             _buildInfoRow(
                               context,
                               label: 'Renewal Date',
-                              value: formatEpochSeconds(
-                                subscription.currentPeriodEnd,
-                              ),
+                              value: formatCalendarDate(subManager.renewalDate),
                             ),
                             _buildInfoRow(
                               context,

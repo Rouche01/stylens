@@ -37,3 +37,25 @@ String formatEpochSeconds(int? epochSeconds, {String nullLabel = '—'}) {
     DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000),
   );
 }
+
+/// Formats a calendar day, e.g. `Nov 5, 2026`.
+String formatCalendarDate(DateTime? date, {String nullLabel = '—'}) {
+  if (date == null) return nullLabel;
+  return DateFormat(_epochDatePattern).format(date.toLocal());
+}
+
+/// Next renewal instant.
+///
+/// RevenueCat's ISO `expirationDate` is the store period end (when an active
+/// plan renews). [currentPeriodEndSeconds] is the backend fallback.
+DateTime? resolveRenewalDate({
+  String? revenueCatExpirationIso,
+  int? currentPeriodEndSeconds,
+}) {
+  final parsed = revenueCatExpirationIso == null
+      ? null
+      : DateTime.tryParse(revenueCatExpirationIso);
+  if (parsed != null) return parsed.toLocal();
+  if (currentPeriodEndSeconds == null) return null;
+  return DateTime.fromMillisecondsSinceEpoch(currentPeriodEndSeconds * 1000);
+}

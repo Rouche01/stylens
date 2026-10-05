@@ -12,6 +12,7 @@ import 'package:gostylens/core/services/api_service/index.dart';
 import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/services/realtime_service.dart';
+import 'package:gostylens/utils/time_utils.dart';
 import 'package:flutter/material.dart';
 
 class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
@@ -72,6 +73,18 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     return entitlement?.productIdentifier ==
         RevenueCatConstants.coreYearlyProductIdentifier;
   }
+
+  EntitlementInfo? get _coreEntitlement => _customerInfo
+      ?.entitlements
+      // ignore: invalid_use_of_protected_member
+      .all[RevenueCatConstants.gostylensCoreEntitlement];
+
+  /// When the current store period ends. For an active plan this is the
+  /// renewal date. Prefers RevenueCat, then the backend `current_period_end`.
+  DateTime? get renewalDate => resolveRenewalDate(
+    revenueCatExpirationIso: _coreEntitlement?.expirationDate,
+    currentPeriodEndSeconds: _subscription?.currentPeriodEnd,
+  );
 
   /// Returns a formatted display name for the current plan,
   /// e.g. "Free", "Core (Monthly)", or "Pro (Annual)".
@@ -242,6 +255,11 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
         body['tier'] = 'core';
         body['status'] = 'active';
         body['providerSubscriptionId'] = entitlement.productIdentifier;
+        final periodEnd = DateTime.tryParse(entitlement.expirationDate ?? '');
+        if (periodEnd != null) {
+          body['currentPeriodEnd'] =
+              periodEnd.toUtc().millisecondsSinceEpoch ~/ 1000;
+        }
       } else {
         body['tier'] = 'free';
         body['providerSubscriptionId'] = null;
