@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gostylens/core/managers/subscription_manager.dart';
+import 'package:gostylens/models/api_responses/subscription.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:provider/provider.dart';
+
+/// Upgrade stays hidden until the subscription fetch has settled, so a profile
+/// seed cannot paint the chip and then remove it.
+bool shouldShowCaptureUpgrade({
+  required bool subscriptionResolved,
+  required bool userHasCorePlan,
+  required Subscription? subscription,
+}) {
+  if (!subscriptionResolved || subscription == null) return false;
+  return !userHasCorePlan && !subscription.hasUnlimitedSessions;
+}
 
 /// Capture tab top bar — subscription [Consumer] is scoped here so the hero
 /// card below does not rebuild when subscription state changes.
@@ -46,11 +58,11 @@ class _CaptureUpgradeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SubscriptionManager>(
       builder: (context, subManager, _) {
-        final subscription = subManager.subscription;
-        final showUpgrade =
-            !subManager.userHasCorePlan &&
-            subscription != null &&
-            !subscription.hasUnlimitedSessions;
+        final showUpgrade = shouldShowCaptureUpgrade(
+          subscriptionResolved: subManager.isSubscriptionResolved,
+          userHasCorePlan: subManager.userHasCorePlan,
+          subscription: subManager.subscription,
+        );
 
         if (!showUpgrade) return const SizedBox.shrink();
 

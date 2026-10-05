@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:gostylens/core/config/env_config.dart';
 import 'package:gostylens/core/config/feature_flags.dart';
 import 'package:gostylens/core/prefs/local_prefs_service.dart';
+import 'package:gostylens/core/services/appsflyer_attribution_sync.dart';
+import 'package:gostylens/core/services/att_prompt_policy.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/core/services/pending_appsflyer_events.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
@@ -44,6 +47,10 @@ class AnalyticsService {
   bool _attUiReady = false;
   /// Disk-backed events logged before AppsFlyer start (registration at signup).
   PendingAppsFlyerEventQueue? _pendingAppsFlyerEvents;
+  final AttPromptMachine _attPrompt = AttPromptMachine();
+  Timer? _captureRetryTimer;
+  _AttResumeObserver? _attResumeObserver;
+  bool _startWhenSessionReady = false;
 
   static bool get isEnabled => _enabled && !kDebugMode;
 
@@ -107,7 +114,12 @@ class AnalyticsService {
         if (defaultTargetPlatform == TargetPlatform.iOS) {
           final status =
               await AppTrackingTransparency.trackingAuthorizationStatus;
-          if (status == TrackingStatus.notDetermined) return;
+          if (status == TrackingStatus.notDetermined &&
+              !_startWhenSessionReady) {
+            return;
+          }
+        } else if ((!_attArmed || !_attUiReady) && !_startWhenSessionReady) {
+          return;
         }
         await _startAppsFlyer();
       });
@@ -201,20 +213,40 @@ class AnalyticsService {
     unawaited(_flushTrackingAndStartIfReady());
   }
 
-  Future<void> _flushTrackingAndStartIfReady() async {
+  Future<void> _flushTrackingAndStartIfReady({
+    AttTrigger trigger = AttTrigger.initial,
+  }) async {
     if (!_attArmed || !_attUiReady) return;
-    if (_attRequestInFlight) return;
+    if (_attRequestInFlight || !_attPrompt.shouldAttempt(trigger)) return;
     _attRequestInFlight = true;
     try {
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final status =
-            await AppTrackingTransparency.trackingAuthorizationStatus;
-        if (status == TrackingStatus.notDetermined) {
-          // Wait for the home route to paint; ATT fails silently on splash.
-          await Future<void>.delayed(const Duration(milliseconds: 600));
-          await AppTrackingTransparency.requestTrackingAuthorization();
-        }
+      final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+      if (!isIos) {
+        _attPrompt.markStarted();
+        await _startAppsFlyer();
+        return;
       }
+
+      var status = await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined) {
+        if (trigger == AttTrigger.initial) {
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+        }
+        await AppTrackingTransparency.requestTrackingAuthorization();
+        status = await AppTrackingTransparency.trackingAuthorizationStatus;
+      }
+      _attPrompt.record(trigger);
+      if (!shouldStartAppsFlyer(isIos: true, status: status)) {
+        _scheduleCaptureRetry();
+        if (_attPrompt.shouldObserveResume) {
+          _ensureAttResumeObserver();
+        } else {
+          _detachAttResumeObserver();
+        }
+        return;
+      }
+      _attPrompt.markStarted();
+      _cancelAttRetries();
       await _startAppsFlyer();
     } catch (e, st) {
       await _reportAppsFlyerFailure('att_or_start', e, st);
@@ -223,15 +255,79 @@ class AnalyticsService {
     }
   }
 
-  Future<void> _startAppsFlyer() async {
-    if (_appsFlyerStarted || !_appsFlyerSessionReady) return;
+  void _scheduleCaptureRetry() {
+    if (!_attPrompt.shouldScheduleCaptureRetry || _captureRetryTimer != null) {
+      return;
+    }
+    if (AttCaptureVisibility.check()) {
+      _captureRetryTimer = Timer(const Duration(seconds: 2), () {
+        _captureRetryTimer = null;
+        unawaited(
+          _flushTrackingAndStartIfReady(trigger: AttTrigger.captureSettled),
+        );
+      });
+      return;
+    }
+
+    var polls = 0;
+    _captureRetryTimer = Timer.periodic(const Duration(milliseconds: 300), (
+      timer,
+    ) {
+      polls++;
+      if (_attPrompt.started || polls > 40) {
+        timer.cancel();
+        _captureRetryTimer = null;
+        return;
+      }
+      if (!AttCaptureVisibility.check()) return;
+      timer.cancel();
+      _captureRetryTimer = Timer(const Duration(seconds: 2), () {
+        _captureRetryTimer = null;
+        unawaited(
+          _flushTrackingAndStartIfReady(trigger: AttTrigger.captureSettled),
+        );
+      });
+    });
+  }
+
+  void _ensureAttResumeObserver() {
+    if (!_attPrompt.shouldObserveResume || _attResumeObserver != null) return;
+    final observer = _AttResumeObserver(() {
+      unawaited(_flushTrackingAndStartIfReady(trigger: AttTrigger.resume));
+    });
+    _attResumeObserver = observer;
+    WidgetsBinding.instance.addObserver(observer);
+  }
+
+  void _detachAttResumeObserver() {
+    final observer = _attResumeObserver;
+    if (observer == null) return;
+    WidgetsBinding.instance.removeObserver(observer);
+    _attResumeObserver = null;
+  }
+
+  void _cancelAttRetries() {
+    _captureRetryTimer?.cancel();
+    _captureRetryTimer = null;
+    _detachAttResumeObserver();
+  }
+
+  Future<bool> _startAppsFlyer() async {
+    if (_appsFlyerStarted) return true;
+    if (!_appsFlyerSessionReady) {
+      _startWhenSessionReady = true;
+      return false;
+    }
     try {
       _appsFlyerStarted = true;
       await AppsFlyerSdk.instance.start();
       await _flushPendingAppsFlyerEvents();
+      await AppsFlyerAttributionSyncHook.sync?.call();
+      return true;
     } catch (e, st) {
       _appsFlyerStarted = false;
       await _reportAppsFlyerFailure('start', e, st);
+      return false;
     }
   }
 
@@ -353,5 +449,16 @@ class AnalyticsService {
     }
     if (!isEnabled) return;
     await Posthog().reset();
+  }
+}
+
+class _AttResumeObserver extends WidgetsBindingObserver {
+  _AttResumeObserver(this._onResumed);
+
+  final void Function() _onResumed;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _onResumed();
   }
 }

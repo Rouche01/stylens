@@ -91,6 +91,7 @@ Future<AuthFlowController> _bootstrap() async {
     authController,
     splashComposition: splashComposition,
   );
+  bindAttCaptureVisibility();
 
   locator<PushNotificationManager>().attachForegroundListener();
   locator<PushNotificationManager>().attachOpenedAppListener();

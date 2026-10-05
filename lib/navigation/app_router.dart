@@ -15,6 +15,7 @@ import 'package:gostylens/core/navigation/deep_link/deep_link_destination.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_parser.dart';
 import 'package:gostylens/core/navigation/deep_link/deep_link_service.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/services/att_prompt_policy.dart';
 import 'package:gostylens/core/services/feature_flag_service.dart';
 import 'package:gostylens/navigation/app_routes.dart';
 import 'package:gostylens/navigation/auth_flow_controller.dart';
@@ -372,6 +373,11 @@ bool isOnSessionRoute() => isSessionLocation(currentLocation());
 
 /// Whether the Capture tab is currently on top.
 bool isViewingCapture() => isCaptureLocation(currentLocation());
+
+/// Lets the tracking retry see Capture without importing the router.
+void bindAttCaptureVisibility() {
+  AttCaptureVisibility.check = isViewingCapture;
+}
 
 /// Whether the chat for [sessionId] is the screen currently on top.
 ///

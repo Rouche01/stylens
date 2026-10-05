@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gostylens/constants/revenue_cat.dart';
 import 'package:gostylens/core/services/analytics_service.dart';
+import 'package:gostylens/core/services/appsflyer_attribution_sync.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -23,10 +24,12 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     : _subscriptionApiService = locator<SubscriptionApiService>(),
       _realtimeService = locator<RealtimeService>() {
     WidgetsBinding.instance.addObserver(this);
+    AppsFlyerAttributionSyncHook.sync = syncAppsFlyerAttribution;
   }
 
   bool _isInitialized = false;
   bool _isLoading = false;
+  bool _subscriptionResolved = false;
   CustomerInfo? _customerInfo;
   Offerings? _offerings;
   Subscription? _subscription;
@@ -35,6 +38,10 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
 
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
+
+  /// True after the first subscription fetch attempt finishes.
+  /// Profile data can land first and disagree with the subscription endpoint.
+  bool get isSubscriptionResolved => _subscriptionResolved;
   CustomerInfo? get customerInfo => _customerInfo;
   Offerings? get offerings => _offerings;
   Subscription? get subscription => _subscription;
@@ -106,6 +113,13 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Sends the AppsFlyer id and device identifiers before any purchase.
+  ///
+  /// Also runs after the tracking prompt so an Allow can still set `$idfa`.
+  Future<void> syncAppsFlyerAttribution() async {
+    if (!_isInitialized) return;
+    await _syncAppsFlyerAttribution();
+  }
+
   Future<void> _syncAppsFlyerAttribution() async {
     final appsFlyerId = await AnalyticsService().appsFlyerId();
     if (appsFlyerId == null) return;
@@ -117,12 +131,10 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
     String dbId, {
     Subscription? initialSubscription,
   }) async {
-    // If already initialized for the same user, just refresh state/backend data
+    // If already initialized for the same user, refresh from the backend.
+    // Do not publish the profile seed first — it can disagree with the
+    // subscription endpoint and flash the upgrade chip.
     if (_isInitialized && _currentUserId == dbId) {
-      if (initialSubscription != null) {
-        _subscription = initialSubscription;
-        notifyListeners();
-      }
       _pushRevenueCatState().then((_) => syncSubscription());
       return;
     }
@@ -206,6 +218,10 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       if (kDebugMode) {
         print('RevenueCat Initialization Error: ${e.message}');
       }
+      if (!_subscriptionResolved) {
+        _subscriptionResolved = true;
+        notifyListeners();
+      }
     }
   }
 
@@ -213,13 +229,14 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> syncSubscription() async {
     if (_currentUserId == null) return;
 
+    var updated = false;
     try {
       final response = await _subscriptionApiService.getSubscriptionByUserId(
         _currentUserId!,
       );
       if (response.isSuccess && response.data != null) {
         _subscription = response.data;
-        notifyListeners();
+        updated = true;
       }
     } catch (e, st) {
       await AnalyticsService().captureException(
@@ -232,6 +249,12 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       );
       if (kDebugMode) {
         print('Error syncing UI subscription state: $e');
+      }
+    } finally {
+      final firstResolve = !_subscriptionResolved;
+      _subscriptionResolved = true;
+      if (updated || firstResolve) {
+        notifyListeners();
       }
     }
   }
@@ -466,6 +489,7 @@ class SubscriptionManager extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
     _isInitialized = false;
+    _subscriptionResolved = false;
     _customerInfo = null;
     _offerings = null;
     _subscription = null;
